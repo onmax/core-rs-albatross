@@ -43,13 +43,15 @@ nimiq-blockchain-proxy = { workspace = true, default-features = false }
 nimiq-bls = { workspace = true }
 nimiq-consensus = { workspace = true, default-features = false }
 nimiq-hash = { workspace = true }
+nimiq-key-derivation = { workspace = true }
 nimiq-keys = { workspace = true }
+nimiq-mnemonic = { workspace = true, features = ["key-derivation"] }
 nimiq-network-interface = { workspace = true }
 nimiq-primitives = { workspace = true, features = ["coin", "networks", "ts-types"] }
 nimiq-serde = { workspace = true }
 nimiq-transaction = { workspace = true, features = ["ts-types"] }
 nimiq-transaction-builder = { workspace = true }
-nimiq-utils = { workspace = true, features = ["merkle"] }
+nimiq-utils = { workspace = true, features = ["merkle", "otp"] }
 
 [dependencies.nimiq]
 workspace = true
