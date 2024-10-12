@@ -225,7 +225,7 @@ pub async fn migrate(
     block_windows: &BlockWindows,
     candidate_block: u32,
     genesis_hashes: Vec<Blake2bHash>,
-    env: MdbxDatabase,
+    pre_genesis_env: MdbxDatabase,
     validator_address: &Option<Address>,
     network_id: NetworkId,
 ) -> Result<MigrateWindowResult, Error> {
@@ -384,7 +384,7 @@ pub async fn migrate(
         block_windows,
         candidate_block,
         network_id,
-        env.clone(),
+        pre_genesis_env,
         PoSRegisteredAgents {
             active_validators: active_validators.clone(),
             inactive_validators: inactive_validators.clone(),
