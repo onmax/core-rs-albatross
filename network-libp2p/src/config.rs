@@ -31,6 +31,14 @@ pub struct Config {
     pub required_services: Services,
     pub tls: Option<TlsConfig>,
     pub desired_peer_count: usize,
+
+    /// Max number of peer connections.
+    pub peer_count_max: usize,
+    /// Max number of peer connections per IP address.
+    pub peer_count_per_ip_max: usize,
+    /// Max number of peer connections per subnet IP address.
+    pub peer_count_per_subnet_max: usize,
+
     pub only_secure_ws_connections: bool,
     pub allow_loopback_addresses: bool,
     pub dht_quorum: NonZeroU8,
@@ -46,6 +54,9 @@ impl Config {
         required_services: Services,
         tls_settings: Option<TlsConfig>,
         desired_peer_count: usize,
+        peer_count_max: usize,
+        peer_count_per_ip_max: usize,
+        peer_count_per_subnet_max: usize,
         only_secure_ws_connections: bool,
         allow_loopback_addresses: bool,
         dht_quorum: NonZeroU8,
@@ -94,6 +105,9 @@ impl Config {
             required_services,
             tls: tls_settings,
             desired_peer_count,
+            peer_count_max,
+            peer_count_per_ip_max,
+            peer_count_per_subnet_max,
             only_secure_ws_connections,
             allow_loopback_addresses,
             dht_quorum,
