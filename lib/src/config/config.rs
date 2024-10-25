@@ -937,6 +937,13 @@ impl ClientConfigBuilder {
             }
         }
 
+        #[cfg(feature = "nimiq-mempool")]
+        {
+            if let Some(mempool_settings) = &config_file.mempool {
+                self.mempool = Some(MempoolConfig::from(mempool_settings.clone()));
+            }
+        }
+
         Ok(self)
     }
 
