@@ -12,7 +12,7 @@ use nimiq_primitives::{
 };
 use nimiq_utils::time::OffsetTime;
 use nimiq_vrf::VrfEntropy;
-use tokio::sync::broadcast::{channel as broadcast, Sender as BroadcastSender};
+use tokio::sync::broadcast;
 
 use crate::chain_store::ChainStore;
 
@@ -38,9 +38,9 @@ pub struct LightBlockchain {
     /// The chain store is a database containing all of the chain infos in the current batch.
     pub chain_store: ChainStore,
     /// The notifier processes events relative to the blockchain.
-    pub notifier: BroadcastSender<BlockchainEvent>,
+    pub notifier: broadcast::Sender<BlockchainEvent>,
     /// The fork notifier processes fork events.
-    pub fork_notifier: BroadcastSender<ForkEvent>,
+    pub fork_notifier: broadcast::Sender<ForkEvent>,
 }
 
 /// Implements methods to start a Blockchain.
@@ -62,9 +62,6 @@ impl LightBlockchain {
 
         chain_store.put_chain_info(chain_info);
 
-        let (tx, _rx) = broadcast(BROADCAST_MAX_CAPACITY);
-        let (tx_fork, _rx_fork) = broadcast(BROADCAST_MAX_CAPACITY);
-
         LightBlockchain {
             network_id,
             time,
@@ -74,8 +71,8 @@ impl LightBlockchain {
             current_validators: genesis_block.validators(),
             genesis_block,
             chain_store,
-            notifier: tx,
-            fork_notifier: tx_fork,
+            notifier: broadcast::Sender::new(BROADCAST_MAX_CAPACITY),
+            fork_notifier: broadcast::Sender::new(BROADCAST_MAX_CAPACITY),
         }
     }
 

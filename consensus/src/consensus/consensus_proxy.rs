@@ -23,10 +23,7 @@ use nimiq_transaction::{
     historic_transaction::HistoricTransaction, ControlTransaction, ControlTransactionTopic,
     Transaction, TransactionTopic,
 };
-use tokio::sync::{
-    broadcast::Sender as BroadcastSender, mpsc::Sender as MpscSender,
-    oneshot::channel as oneshot_channel,
-};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::BroadcastStream;
 
 use super::{ConsensusRequest, ResolveBlockError, ResolveBlockRequest};
@@ -45,8 +42,8 @@ pub struct ConsensusProxy<N: Network> {
     pub network: Arc<N>,
     pub(crate) established_flag: Arc<AtomicBool>,
     pub(crate) synced_validity_window_flag: Arc<AtomicBool>,
-    pub(crate) events: BroadcastSender<ConsensusEvent>,
-    pub(crate) request: MpscSender<ConsensusRequest<N>>,
+    pub(crate) events: broadcast::Sender<ConsensusEvent>,
+    pub(crate) request: mpsc::Sender<ConsensusRequest<N>>,
 }
 
 impl<N: Network> Clone for ConsensusProxy<N> {
@@ -606,7 +603,7 @@ impl<N: Network> ConsensusProxy<N> {
     ) -> Result<Block, ResolveBlockError<N>> {
         // Create the oneshot sender whose receiver this fn will await and whose
         // sender will be given to the consensus proper to resolve the call.
-        let (response_sender, receiver) = oneshot_channel();
+        let (response_sender, receiver) = oneshot::channel();
 
         // Create the request structure.
         let request = ResolveBlockRequest {

@@ -22,11 +22,9 @@ use nimiq_time::{interval, Interval};
 use nimiq_utils::{spawn, WakerExt};
 use nimiq_zkp_component::zkp_component::ZKPComponentProxy;
 use tokio::sync::{
-    broadcast::{channel as broadcast, Sender as BroadcastSender},
-    mpsc::{
-        channel as mpsc_channel, error::SendError, Receiver as MpscReceiver, Sender as MpscSender,
-    },
-    oneshot::{error::RecvError, Sender as OneshotSender},
+    broadcast,
+    mpsc::{self, error::SendError},
+    oneshot::{self, error::RecvError},
 };
 use tokio_stream::wrappers::BroadcastStream;
 
@@ -116,7 +114,7 @@ pub struct ResolveBlockRequest<N: Network> {
     pub(crate) first_peer_id: N::PeerId,
 
     /// Sender to a oneshot channel where the response to the request is being awaited.
-    pub(crate) response_sender: OneshotSender<Result<Block, ResolveBlockError<N>>>,
+    pub(crate) response_sender: oneshot::Sender<Result<Block, ResolveBlockError<N>>>,
 }
 
 /// Enumeration of all ConsensusRequests available.
@@ -130,7 +128,7 @@ pub struct Consensus<N: Network> {
 
     pub sync: SyncerProxy<N>,
 
-    events: BroadcastSender<ConsensusEvent>,
+    events: broadcast::Sender<ConsensusEvent>,
     established_flag: Arc<AtomicBool>,
     #[cfg(feature = "full")]
     last_batch_number: u32,
@@ -153,8 +151,8 @@ pub struct Consensus<N: Network> {
     /// somewhere deeper down the call stack would be adequate, as other requests may require different
     /// structures. Putting it here seemed to be the most flexible.
     requests: (
-        MpscSender<ConsensusRequest<N>>,
-        MpscReceiver<ConsensusRequest<N>>,
+        mpsc::Sender<ConsensusRequest<N>>,
+        mpsc::Receiver<ConsensusRequest<N>>,
     ),
 
     zkp_proxy: ZKPComponentProxy<N>,
@@ -195,8 +193,6 @@ impl<N: Network> Consensus<N> {
         min_peers: usize,
         zkp_proxy: ZKPComponentProxy<N>,
     ) -> Self {
-        let (tx, _rx) = broadcast(256);
-
         Self::init_network_request_receivers(&network, &blockchain);
 
         #[cfg(feature = "full")]
@@ -216,7 +212,7 @@ impl<N: Network> Consensus<N> {
             blockchain,
             network,
             sync: syncer,
-            events: tx,
+            events: broadcast::Sender::new(256),
             established_flag,
             #[cfg(feature = "full")]
             last_batch_number: 0,
@@ -226,7 +222,7 @@ impl<N: Network> Consensus<N> {
             head_requests_interval: interval(Self::HEAD_REQUESTS_TIMEOUT),
             min_peers,
             // Choose a small buffer as having a lot of items buffered here indicates a bigger problem.
-            requests: mpsc_channel(10),
+            requests: mpsc::channel(10),
             zkp_proxy,
             waker: None,
         }

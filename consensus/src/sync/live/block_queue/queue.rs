@@ -18,7 +18,7 @@ use nimiq_network_interface::network::Network;
 use nimiq_primitives::{policy::Policy, slots_allocation::Validators};
 use nimiq_utils::WakerExt;
 use parking_lot::RwLock;
-use tokio::sync::oneshot::Sender as OneshotSender;
+use tokio::sync::oneshot;
 
 use crate::{
     consensus::{ResolveBlockError, ResolveBlockRequest},
@@ -70,7 +70,7 @@ pub struct BlockQueue<N: Network> {
 
     /// A list of all pending missing block requests which have someplace waiting for it to resolve.
     ///
-    /// `block_height` -> `block_hash` -> `OneshotSender` to resolve them.
+    /// `block_height` -> `block_hash` -> `oneshot::Sender` to resolve them.
     ///
     /// Generally this would be empty as most missing block requests do not have another party waiting
     /// for them to resolve. Currently the only other part waiting for a resolution of such a request is the
@@ -78,7 +78,7 @@ pub struct BlockQueue<N: Network> {
     /// are unknown.
     ///
     pending_requests:
-        BTreeMap<u32, HashMap<Blake2bHash, OneshotSender<Result<Block, ResolveBlockError<N>>>>>,
+        BTreeMap<u32, HashMap<Blake2bHash, oneshot::Sender<Result<Block, ResolveBlockError<N>>>>>,
 
     /// Waker used for the poll function
     pub(crate) waker: Option<Waker>,
@@ -707,7 +707,7 @@ impl<N: Network> BlockQueue<N> {
                 if let Err(error) = response_sender.send(Err(ResolveBlockError::Duplicate)) {
                     log::warn!(
                         ?error,
-                        "Failed to send on Oneshot, receiver already dropped"
+                        "Failed to send on oneshot, receiver already dropped"
                     );
                 }
                 // Do not return as even though the request might not be awaited it should still be executed to

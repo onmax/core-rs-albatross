@@ -2,7 +2,7 @@ use futures::stream::BoxStream;
 use nimiq_block::Block;
 use nimiq_network_interface::network::{MsgAcceptance, Network, PubsubId};
 pub use proxy::BlockQueueProxy as BlockQueue;
-use tokio::sync::oneshot::Sender as OneshotSender;
+use tokio::sync::oneshot;
 
 use crate::{
     consensus::ResolveBlockError,
@@ -20,7 +20,7 @@ pub type GossipSubBlockStream<N> = BoxStream<'static, (Block, <N as Network>::Pu
 
 pub type BlockAndSource<N> = (Block, BlockSource<N>);
 
-pub type ResolveBlockSender<N> = OneshotSender<Result<Block, ResolveBlockError<N>>>;
+pub type ResolveBlockSender<N> = oneshot::Sender<Result<Block, ResolveBlockError<N>>>;
 
 pub enum QueuedBlock<N: Network> {
     Head(BlockAndSource<N>),

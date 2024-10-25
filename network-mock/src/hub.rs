@@ -89,7 +89,7 @@ impl MockHubInner {
             .entry(topic_name)
             .or_insert_with(|| MockTopic {
                 peers: HashSet::new(),
-                sender: broadcast::channel(16).0,
+                sender: broadcast::Sender::new(16),
             });
 
         // Add the peer address to the subscribed peer list.

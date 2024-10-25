@@ -21,12 +21,12 @@ use nimiq_primitives::{
 };
 use nimiq_trie::WriteTransactionProxy as TrieMdbxWriteTransaction;
 use parking_lot::{RwLockUpgradableReadGuard, RwLockWriteGuard};
-use tokio::sync::broadcast::Sender as BroadcastSender;
+use tokio::sync::broadcast;
 
 use super::PostValidationHook;
 use crate::{interface::HistoryInterface, Blockchain};
 
-fn send_vec(log_notifier: &BroadcastSender<BlockLog>, logs: Vec<BlockLog>) {
+fn send_vec(log_notifier: &broadcast::Sender<BlockLog>, logs: Vec<BlockLog>) {
     for log in logs {
         // The log notifier is for informational purposes only, thus may have no listeners.
         // Therefore, no error logs should be produced in this case.

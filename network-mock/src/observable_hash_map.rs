@@ -33,8 +33,10 @@ impl<K: Clone + Eq + Hash, V: Clone> Default for ObservableHashMap<K, V> {
 
 impl<K: Clone + Eq + Hash, V: Clone> From<HashMap<K, V>> for ObservableHashMap<K, V> {
     fn from(inner: HashMap<K, V>) -> ObservableHashMap<K, V> {
-        let (tx, _) = broadcast::channel(64);
-        ObservableHashMap { inner, tx }
+        ObservableHashMap {
+            inner,
+            tx: broadcast::Sender::new(64),
+        }
     }
 }
 

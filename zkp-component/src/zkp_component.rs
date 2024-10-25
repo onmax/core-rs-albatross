@@ -17,10 +17,7 @@ use nimiq_network_interface::{
 };
 use nimiq_utils::spawn;
 use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard};
-use tokio::sync::{
-    broadcast::{channel as broadcast, Sender as BroadcastSender},
-    oneshot::error::RecvError,
-};
+use tokio::sync::{broadcast, oneshot::error::RecvError};
 use tokio_stream::wrappers::BroadcastStream;
 
 #[cfg(feature = "zkp-prover")]
@@ -29,13 +26,13 @@ use crate::{proof_store::ProofStore, proof_utils::*, types::*, zkp_requests::ZKP
 
 pub type ZKProofsStream<N> = BoxStream<'static, (ZKProof, <N as Network>::PubsubId)>;
 
-pub(crate) const BROADCAST_MAX_CAPACITY: usize = 256;
+const BROADCAST_MAX_CAPACITY: usize = 256;
 
 pub struct ZKPComponentProxy<N: Network> {
     network: Arc<N>,
     zkp_state: Arc<RwLock<ZKPState>>,
     zkp_requests: Arc<Mutex<ZKPRequests<N>>>,
-    pub(crate) zkp_events_notifier: BroadcastSender<ZKPEvent<N>>,
+    pub(crate) zkp_events_notifier: broadcast::Sender<ZKPEvent<N>>,
 }
 
 impl<N: Network> Clone for ZKPComponentProxy<N> {
@@ -116,7 +113,7 @@ pub struct ZKPComponent<N: Network> {
     zk_proofs_stream: ZKProofsStream<N>,
     proof_storage: Option<Box<dyn ProofStore>>,
     zkp_requests: Arc<Mutex<ZKPRequests<N>>>,
-    zkp_events_notifier: BroadcastSender<ZKPEvent<N>>,
+    zkp_events_notifier: broadcast::Sender<ZKPEvent<N>>,
 }
 
 impl<N: Network> ZKPComponent<N> {
@@ -132,9 +129,6 @@ impl<N: Network> ZKPComponent<N> {
             ZKPState::with_genesis(&genesis_block).expect("Invalid genesis block"),
         ));
 
-        // Creates the zk proofs events notifier.
-        let (zkp_events_notifier, _rx) = broadcast(BROADCAST_MAX_CAPACITY);
-
         // Gets the stream zkps gossiped by peers.
         let zk_proofs_stream = network.subscribe::<ZKProofTopic>().await.unwrap().boxed();
 
@@ -147,7 +141,7 @@ impl<N: Network> ZKPComponent<N> {
             zk_proofs_stream,
             proof_storage,
             zkp_requests: Arc::new(Mutex::new(ZKPRequests::new(network))),
-            zkp_events_notifier,
+            zkp_events_notifier: broadcast::Sender::new(BROADCAST_MAX_CAPACITY),
         };
 
         // Loads the proof from the db if any.

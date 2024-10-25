@@ -105,7 +105,7 @@ impl Network {
         let local_peer_id = *Swarm::local_peer_id(&swarm);
         let connected_peers = Arc::new(RwLock::new(HashMap::new()));
 
-        let (events_tx, _) = broadcast::channel(64);
+        let events_tx = broadcast::Sender::new(64);
         let (action_tx, action_rx) = mpsc::channel(64);
         let (validate_tx, validate_rx) = mpsc::unbounded_channel();
 

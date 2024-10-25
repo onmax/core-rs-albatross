@@ -13,7 +13,7 @@ use nimiq_primitives::{
     coin::Coin, networks::NetworkId, policy::Policy, slots_allocation::Validators, trie::TrieItem,
 };
 use nimiq_utils::time::OffsetTime;
-use tokio::sync::broadcast::{channel as broadcast, Sender as BroadcastSender};
+use tokio::sync::broadcast;
 
 #[cfg(feature = "metrics")]
 use crate::chain_metrics::BlockchainMetrics;
@@ -37,11 +37,11 @@ pub struct Blockchain {
     /// The OffsetTime struct. It allows us to query the current time.
     pub time: Arc<OffsetTime>, // shared with network
     /// The notifier processes events relative to the blockchain.
-    pub notifier: BroadcastSender<BlockchainEvent>,
+    pub notifier: broadcast::Sender<BlockchainEvent>,
     /// The fork notifier processes fork events.
-    pub fork_notifier: BroadcastSender<ForkEvent>,
+    pub fork_notifier: broadcast::Sender<ForkEvent>,
     /// The log notifier processes all events regarding accounts changes.
-    pub log_notifier: BroadcastSender<BlockLog>,
+    pub log_notifier: broadcast::Sender<BlockLog>,
     /// The chain store is a database containing all of the chain infos, blocks and receipts.
     pub chain_store: ChainStore,
     /// The history store is a database containing all of the history trees and transactions.
@@ -277,18 +277,14 @@ impl Blockchain {
             }
         };
 
-        let (tx, _rx) = broadcast(BROADCAST_MAX_CAPACITY);
-        let (tx_fork, _rx_fork) = broadcast(BROADCAST_MAX_CAPACITY);
-        let (tx_log, _rx_log) = broadcast(BROADCAST_MAX_CAPACITY);
-
         Ok(Blockchain {
             db: env,
             config,
             network_id,
             time,
-            notifier: tx,
-            fork_notifier: tx_fork,
-            log_notifier: tx_log,
+            notifier: broadcast::Sender::new(BROADCAST_MAX_CAPACITY),
+            fork_notifier: broadcast::Sender::new(BROADCAST_MAX_CAPACITY),
+            log_notifier: broadcast::Sender::new(BROADCAST_MAX_CAPACITY),
             chain_store,
             history_store,
             state: BlockchainState {
@@ -344,18 +340,14 @@ impl Blockchain {
         chain_store.set_head(&mut txn, &head_hash);
         txn.commit();
 
-        let (tx, _rx) = broadcast(BROADCAST_MAX_CAPACITY);
-        let (tx_fork, _rx_fork) = broadcast(BROADCAST_MAX_CAPACITY);
-        let (tx_log, _rx_log) = broadcast(BROADCAST_MAX_CAPACITY);
-
         Ok(Blockchain {
             db: env,
             config,
             network_id,
             time,
-            notifier: tx,
-            fork_notifier: tx_fork,
-            log_notifier: tx_log,
+            notifier: broadcast::Sender::new(BROADCAST_MAX_CAPACITY),
+            fork_notifier: broadcast::Sender::new(BROADCAST_MAX_CAPACITY),
+            log_notifier: broadcast::Sender::new(BROADCAST_MAX_CAPACITY),
             chain_store,
             history_store,
             state: BlockchainState {

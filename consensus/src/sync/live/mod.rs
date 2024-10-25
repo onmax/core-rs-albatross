@@ -11,7 +11,7 @@ use nimiq_blockchain_proxy::BlockchainProxy;
 use nimiq_bls::cache::PublicKeyCache;
 use nimiq_network_interface::network::Network;
 use parking_lot::Mutex;
-use tokio::sync::mpsc::{channel as mpsc, Sender as MpscSender};
+use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 #[cfg(feature = "full")]
@@ -53,7 +53,7 @@ pub struct LiveSyncer<N: Network, Q: LiveSyncQueue<N>> {
     /// Channel used to communicate additional blocks to the queue.
     /// We use this to wake up the queue and pass in new, unknown blocks
     /// received in the consensus as part of the head requests.
-    block_tx: MpscSender<BlockAndSource<N>>,
+    block_tx: mpsc::Sender<BlockAndSource<N>>,
 }
 
 impl<N: Network, Q: LiveSyncQueue<N>> LiveSyncer<N, Q> {
@@ -63,7 +63,7 @@ impl<N: Network, Q: LiveSyncQueue<N>> LiveSyncer<N, Q> {
         mut queue: Q,
         bls_cache: Arc<Mutex<PublicKeyCache>>,
     ) -> Self {
-        let (tx, rx) = mpsc(MAX_BLOCK_STREAM_BUFFER);
+        let (tx, rx) = mpsc::channel(MAX_BLOCK_STREAM_BUFFER);
         queue.add_block_stream(ReceiverStream::new(rx));
         Self {
             blockchain,
