@@ -50,9 +50,10 @@ use crate::{
     behaviour,
     discovery::{self, peer_contacts::PeerContactBook},
     network_types::{
-        DhtBootStrapState, DhtRecord, DhtResults, NetworkAction, TaskState, ValidateMessage,
+        DhtBootStrapState, DhtRecord, DhtResults, GossipsubTopicInfo, NetworkAction, TaskState,
+        ValidateMessage,
     },
-    rate_limiting::RateLimits,
+    rate_limiting::{RateLimitId, RateLimits},
     Config, NetworkError, TlsConfig,
 };
 
@@ -754,12 +755,28 @@ fn handle_gossipsup_event(event: gossipsub::Event, event_info: EventInfo) {
                 .note_received_pubsub_message(&message.topic);
 
             let topic = message.topic.clone();
-            let Some((output, validate)) = event_info.state.gossip_topics.get_mut(&topic) else {
+
+            let Some(topic_info) = event_info.state.gossip_topics.get_mut(&topic) else {
                 warn!(topic = %message.topic, "unknown topic hash");
                 return;
             };
 
-            if !*validate {
+            if event_info.rate_limiting.exceeds_rate_limit(
+                propagation_source,
+                RateLimitId::Gossipsub(topic.clone()),
+                &topic_info.rate_limit_config,
+            ) {
+                debug!(
+                    %topic,
+                    peer_id = %propagation_source,
+                    max_requests = %topic_info.rate_limit_config.max_requests,
+                    time_window = ?topic_info.rate_limit_config.time_window,
+                    "Dropping gossipsub message - rate limit exceeded",
+                );
+                return;
+            }
+
+            if !topic_info.validate {
                 if let Err(error) = event_info
                     .swarm
                     .behaviour_mut()
@@ -774,7 +791,11 @@ fn handle_gossipsup_event(event: gossipsub::Event, event_info: EventInfo) {
                 }
             }
 
-            if let Err(error) = output.try_send((message, message_id, propagation_source)) {
+            if let Err(error) =
+                topic_info
+                    .output
+                    .try_send((message, message_id, propagation_source))
+            {
                 error!(%topic, %error, "Failed to dispatch gossipsub message")
             }
         }
@@ -865,17 +886,18 @@ fn handle_request_response_request(
         .filter(|(sender, ..)| !sender.is_closed());
 
     // If we have a receiver, pass the request. Otherwise send a default empty response
-    if let Some((sender, request_rate_limit_data)) = sender_data {
-        if event_info
-            .rate_limiting
-            .exceeds_rate_limit(peer_id, type_id, request_rate_limit_data)
-        {
+    if let Some((sender, rate_limit_config)) = sender_data {
+        if event_info.rate_limiting.exceeds_rate_limit(
+            peer_id,
+            RateLimitId::Request(type_id),
+            rate_limit_config,
+        ) {
             debug!(
                 %type_id,
                 %request_id,
                 %peer_id,
-                max_requests = %request_rate_limit_data.max_requests,
-                time_window = ?request_rate_limit_data.time_window,
+                max_requests = %rate_limit_config.max_requests,
+                time_window = ?rate_limit_config.time_window,
                 "Denied request - exceeded max requests rate",
             );
 
@@ -1029,6 +1051,7 @@ fn perform_action(action: NetworkAction, swarm: &mut NimiqSwarm, state: &mut Tas
             buffer_size,
             validate,
             output,
+            rate_limit_config,
         } => {
             let topic = gossipsub::IdentTopic::new(topic_name.clone());
 
@@ -1037,7 +1060,14 @@ fn perform_action(action: NetworkAction, swarm: &mut NimiqSwarm, state: &mut Tas
                 Ok(true) => {
                     let (tx, rx) = mpsc::channel(buffer_size);
 
-                    state.gossip_topics.insert(topic.hash(), (tx, validate));
+                    state.gossip_topics.insert(
+                        topic.hash(),
+                        GossipsubTopicInfo {
+                            output: tx,
+                            validate,
+                            rate_limit_config,
+                        },
+                    );
 
                     let result = swarm
                         .behaviour_mut()
@@ -1084,13 +1114,13 @@ fn perform_action(action: NetworkAction, swarm: &mut NimiqSwarm, state: &mut Tas
             match swarm.behaviour_mut().gossipsub.unsubscribe(&topic) {
                 // Unsubscription. Remove the topic from the subscription table.
                 Ok(true) => {
-                    drop(state.gossip_topics.remove(&topic.hash()).unwrap().0);
+                    drop(state.gossip_topics.remove(&topic.hash()).unwrap().output);
                     output.send(Ok(())).ok();
                 }
 
                 // Apparently we're already unsubscribed.
                 Ok(false) => {
-                    drop(state.gossip_topics.remove(&topic.hash()).unwrap().0);
+                    drop(state.gossip_topics.remove(&topic.hash()).unwrap().output);
                     let error = NetworkError::AlreadyUnsubscribed {
                         topic_name: topic_name.clone(),
                     };
@@ -1131,11 +1161,11 @@ fn perform_action(action: NetworkAction, swarm: &mut NimiqSwarm, state: &mut Tas
         NetworkAction::ReceiveRequests {
             type_id,
             output,
-            request_rate_limit_data,
+            rate_limit_config,
         } => {
             state
                 .receive_requests
-                .insert(type_id, (output, request_rate_limit_data));
+                .insert(type_id, (output, rate_limit_config));
         }
         NetworkAction::SendRequest {
             peer_id,

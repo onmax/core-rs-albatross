@@ -25,7 +25,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::{
     autonat::NatState,
     dispatch::codecs::{IncomingRequest, OutgoingResponse},
-    rate_limiting::RequestRateLimitData,
+    rate_limiting::RateLimitConfig,
     NetworkError,
 };
 
@@ -58,6 +58,7 @@ pub(crate) enum NetworkAction {
                 NetworkError,
             >,
         >,
+        rate_limit_config: RateLimitConfig,
     },
     Unsubscribe {
         topic_name: String,
@@ -74,7 +75,7 @@ pub(crate) enum NetworkAction {
     ReceiveRequests {
         type_id: RequestType,
         output: mpsc::Sender<(Bytes, InboundRequestId, PeerId)>,
-        request_rate_limit_data: RequestRateLimitData,
+        rate_limit_config: RateLimitConfig,
     },
     SendRequest {
         peer_id: PeerId,
@@ -219,6 +220,12 @@ pub(crate) struct DhtResults {
     pub(crate) outdated_values: Vec<DhtRecord>,
 }
 
+pub(crate) struct GossipsubTopicInfo {
+    pub(crate) output: mpsc::Sender<(gossipsub::Message, gossipsub::MessageId, PeerId)>,
+    pub(crate) validate: bool,
+    pub(crate) rate_limit_config: RateLimitConfig,
+}
+
 #[derive(Default)]
 pub(crate) struct TaskState {
     /// Senders for DHT (kad) put operations
@@ -228,13 +235,7 @@ pub(crate) struct TaskState {
     /// Get results for DHT (kad) get operation
     pub(crate) dht_get_results: HashMap<QueryId, DhtResults>,
     /// Senders per Gossibsub topic
-    pub(crate) gossip_topics: HashMap<
-        gossipsub::TopicHash,
-        (
-            mpsc::Sender<(gossipsub::Message, gossipsub::MessageId, PeerId)>,
-            bool,
-        ),
-    >,
+    pub(crate) gossip_topics: HashMap<gossipsub::TopicHash, GossipsubTopicInfo>,
     /// DHT (kad) has been bootstrapped
     pub(crate) dht_bootstrap_state: DhtBootStrapState,
     /// DHT (kad) is in server mode
@@ -254,7 +255,7 @@ pub(crate) struct TaskState {
         RequestType,
         (
             mpsc::Sender<(Bytes, InboundRequestId, PeerId)>,
-            RequestRateLimitData,
+            RateLimitConfig,
         ),
     >,
     /// DHT quorum value

@@ -469,6 +469,7 @@ impl Topic for TestTopic {
     const BUFFER_SIZE: usize = 8;
     const NAME: &'static str = "test-libp2p";
     const VALIDATE: bool = true;
+    const MAX_MESSAGES: u32 = 1000;
 }
 
 fn consume_stream<T: std::fmt::Debug>(mut stream: impl Stream<Item = T> + Unpin + Send + 'static) {

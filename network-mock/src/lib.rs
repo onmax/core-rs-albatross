@@ -180,6 +180,7 @@ pub mod tests {
         const BUFFER_SIZE: usize = 8;
         const NAME: &'static str = "test-wasm";
         const VALIDATE: bool = false;
+        const MAX_MESSAGES: u32 = 1000;
     }
 
     fn consume_stream<T: std::fmt::Debug>(

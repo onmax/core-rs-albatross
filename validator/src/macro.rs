@@ -57,6 +57,7 @@ where
     const BUFFER_SIZE: usize = 8;
     const NAME: &'static str = "tendermint-proposal";
     const VALIDATE: bool = true;
+    const MAX_MESSAGES: u32 = 10;
 }
 
 /// Pretty much just a wrapper for tendermint, doing some type conversions.

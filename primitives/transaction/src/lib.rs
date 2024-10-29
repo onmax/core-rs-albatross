@@ -56,6 +56,7 @@ impl Topic for TransactionTopic {
     const BUFFER_SIZE: usize = 1024;
     const NAME: &'static str = "regular-transaction";
     const VALIDATE: bool = true;
+    const MAX_MESSAGES: u32 = 10_000;
 }
 
 /// Control Transaction topic for the Mempool to request control transactions from the network
@@ -68,7 +69,9 @@ impl Topic for ControlTransactionTopic {
     const BUFFER_SIZE: usize = 1024;
     const NAME: &'static str = "control-transaction";
     const VALIDATE: bool = true;
+    const MAX_MESSAGES: u32 = 10_000;
 }
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransactionsProof {
     pub transactions: Vec<Transaction>,

@@ -39,7 +39,7 @@ use crate::network_metrics::NetworkMetrics;
 use crate::{
     discovery::peer_contacts::PeerContactBook,
     network_types::{GossipsubId, NetworkAction, ValidateMessage},
-    rate_limiting::RequestRateLimitData,
+    rate_limiting::RateLimitConfig,
     swarm::{new_swarm, swarm_task},
     Config, NetworkError,
 };
@@ -320,7 +320,7 @@ impl Network {
                 .send(NetworkAction::ReceiveRequests {
                     type_id: RequestType::from_request::<Req>(),
                     output: tx,
-                    request_rate_limit_data: RequestRateLimitData::new::<Req>(),
+                    rate_limit_config: RateLimitConfig::from_request::<Req>(),
                 })
                 .await
                 .expect("Sending action to network task failed.");
@@ -390,6 +390,7 @@ impl Network {
                 buffer_size: <T as Topic>::BUFFER_SIZE,
                 validate: <T as Topic>::VALIDATE,
                 output: tx,
+                rate_limit_config: RateLimitConfig::from_topic::<T>(),
             })
             .await?;
 

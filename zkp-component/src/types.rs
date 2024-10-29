@@ -144,6 +144,7 @@ impl Topic for ZKProofTopic {
     const BUFFER_SIZE: usize = 16;
     const NAME: &'static str = "zk-proof";
     const VALIDATE: bool = true;
+    const MAX_MESSAGES: u32 = 10;
 }
 
 #[derive(Error, Debug)]

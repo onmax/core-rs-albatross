@@ -1,6 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
+    time::Duration,
 };
 
 use async_trait::async_trait;
@@ -29,12 +30,16 @@ pub enum NetworkEvent<P> {
 pub type SubscribeEvents<PeerId> =
     BoxStream<'static, Result<NetworkEvent<PeerId>, BroadcastStreamRecvError>>;
 
+const DEFAULT_GOSSIPSUB_RATE_LIMIT_TIME_WINDOW: Duration = Duration::from_secs(10);
+
 pub trait Topic {
     type Item: Serialize + Deserialize + Send + Sync + Debug + 'static;
 
     const BUFFER_SIZE: usize;
     const NAME: &'static str;
     const VALIDATE: bool;
+    const MAX_MESSAGES: u32;
+    const TIME_WINDOW: Duration = DEFAULT_GOSSIPSUB_RATE_LIMIT_TIME_WINDOW;
 }
 
 /// Network implementations have to at least support messages of this size.

@@ -138,6 +138,7 @@ impl Topic for BlockHeaderTopic {
     const BUFFER_SIZE: usize = 16;
     const NAME: &'static str = "block-header";
     const VALIDATE: bool = true;
+    const MAX_MESSAGES: u32 = 50;
 }
 
 #[derive(Clone, Debug, Default)]
@@ -149,6 +150,7 @@ impl Topic for BlockBodyTopic {
     const BUFFER_SIZE: usize = 16;
     const NAME: &'static str = "block-body";
     const VALIDATE: bool = true;
+    const MAX_MESSAGES: u32 = 50;
 }
 
 /*
@@ -648,4 +650,5 @@ impl Topic for AddressSubscriptionTopic {
     const BUFFER_SIZE: usize = 1024;
     const NAME: &'static str = "address-subscription";
     const VALIDATE: bool = false;
+    const MAX_MESSAGES: u32 = 10_000;
 }
