@@ -6,7 +6,7 @@ use instant::Instant;
 #[cfg(all(target_family = "wasm", not(feature = "tokio-websocket")))]
 use libp2p::websocket_websys;
 use libp2p::{
-    autonat::OutboundFailure,
+    autonat::{self, InboundFailure, OutboundFailure},
     core::{
         self,
         muxing::StreamMuxerBox,
@@ -14,12 +14,16 @@ use libp2p::{
     },
     gossipsub,
     identity::Keypair,
-    kad::{self, store::RecordStore, GetRecordOk, InboundRequest, QueryResult, Quorum, Record},
-    noise,
-    request_response::{self},
+    kad::{
+        self, store::RecordStore, BootstrapError, BootstrapOk, GetRecordError, GetRecordOk,
+        InboundRequest, Mode, ProgressStep, PutRecordError, PutRecordOk, QueryId, QueryResult,
+        QueryStats, Quorum, Record,
+    },
+    noise, ping,
+    request_response::{self, InboundRequestId, OutboundRequestId, ResponseChannel},
     swarm::{
         dial_opts::{DialOpts, PeerCondition},
-        SwarmEvent,
+        ConnectionId, SwarmEvent,
     },
     yamux, PeerId, Swarm, SwarmBuilder, Transport,
 };
@@ -44,7 +48,7 @@ use crate::network_metrics::NetworkMetrics;
 use crate::{
     autonat::NatStatus,
     behaviour,
-    discovery::{behaviour::Event, peer_contacts::PeerContactBook},
+    discovery::{self, peer_contacts::PeerContactBook},
     network_types::{
         DhtBootStrapState, DhtRecord, DhtResults, NetworkAction, TaskState, ValidateMessage,
     },
@@ -53,6 +57,16 @@ use crate::{
 };
 
 type NimiqSwarm = Swarm<behaviour::Behaviour>;
+
+struct EventInfo<'a> {
+    events_tx: &'a broadcast::Sender<NetworkEvent<PeerId>>,
+    swarm: &'a mut NimiqSwarm,
+    state: &'a mut TaskState,
+    connected_peers: &'a RwLock<HashMap<PeerId, PeerInfo>>,
+    rate_limiting: &'a mut RateLimits,
+    #[cfg(feature = "metrics")]
+    metrics: &'a Arc<NetworkMetrics>,
+}
 
 pub(crate) fn new_swarm(
     config: Config,
@@ -138,7 +152,17 @@ pub(crate) async fn swarm_task(
                 },
                 event = swarm.next() => {
                     if let Some(event) = event {
-                        handle_event(event, &events_tx, &mut swarm, &mut task_state, &connected_peers, &mut rate_limiting, #[cfg( feature = "metrics")] &metrics);
+                        handle_event(
+                            event,
+                            EventInfo::<'_> {
+                                events_tx: &events_tx,
+                                swarm: &mut swarm,
+                                state: &mut task_state,
+                                connected_peers: &connected_peers,
+                                rate_limiting: &mut rate_limiting,
+                                #[cfg( feature = "metrics")] metrics: &metrics,
+                            },
+                        );
                     }
                 },
                 action = action_rx.recv() => {
@@ -258,15 +282,7 @@ fn new_transport(
     }
 }
 
-fn handle_event(
-    event: SwarmEvent<behaviour::BehaviourEvent>,
-    events_tx: &broadcast::Sender<NetworkEvent<PeerId>>,
-    swarm: &mut NimiqSwarm,
-    state: &mut TaskState,
-    connected_peers: &RwLock<HashMap<PeerId, PeerInfo>>,
-    rate_limiting: &mut RateLimits,
-    #[cfg(feature = "metrics")] metrics: &Arc<NetworkMetrics>,
-) {
+fn handle_event(event: SwarmEvent<behaviour::BehaviourEvent>, event_info: EventInfo) {
     match event {
         SwarmEvent::ConnectionEstablished {
             connection_id,
@@ -288,13 +304,11 @@ fn handle_event(
 
             if let Some(dial_errors) = concurrent_dial_errors {
                 for (addr, error) in dial_errors {
-                    trace!(
-                        %peer_id,
-                        address = %addr,
-                        %error,
-                        "Removing addresses that caused dial failures",
-                    );
-                    swarm.behaviour_mut().remove_peer_address(peer_id, addr);
+                    trace!(%peer_id, address = %addr, %error, "Removing addresses that caused dial failures");
+                    event_info
+                        .swarm
+                        .behaviour_mut()
+                        .remove_peer_address(peer_id, addr);
                 }
             }
 
@@ -302,20 +316,25 @@ fn handle_event(
             if endpoint.is_dialer() {
                 let listen_addr = endpoint.get_remote_address();
 
-                if swarm.behaviour().is_address_dialable(listen_addr) {
+                if event_info
+                    .swarm
+                    .behaviour()
+                    .is_address_dialable(listen_addr)
+                {
                     debug!(%peer_id, address = %listen_addr, "Saving peer");
 
-                    swarm
+                    event_info
+                        .swarm
                         .behaviour_mut()
                         .add_peer_address(peer_id, listen_addr.clone());
 
                     // Bootstrap Kademlia if we're performing our first connection
-                    if state.dht_bootstrap_state == DhtBootStrapState::NotStarted {
+                    if event_info.state.dht_bootstrap_state == DhtBootStrapState::NotStarted {
                         debug!("Bootstrapping DHT");
-                        if swarm.behaviour_mut().dht.bootstrap().is_err() {
+                        if event_info.swarm.behaviour_mut().dht.bootstrap().is_err() {
                             error!("Bootstrapping DHT error: No known peers");
                         }
-                        state.dht_bootstrap_state = DhtBootStrapState::Started;
+                        event_info.state.dht_bootstrap_state = DhtBootStrapState::Started;
                     }
                 }
             }
@@ -328,13 +347,7 @@ fn handle_event(
             num_established,
             cause,
         } => {
-            info!(
-                %connection_id,
-                %peer_id,
-                ?endpoint,
-                connections = num_established,
-                "Connection closed with peer",
-            );
+            info!(%connection_id, %peer_id, ?endpoint, connections = num_established, "Connection closed with peer");
 
             if let Some(cause) = cause {
                 info!(%cause, "Connection closed because");
@@ -342,14 +355,14 @@ fn handle_event(
 
             // Remove Peer
             if num_established == 0 {
-                connected_peers.write().remove(&peer_id);
-                swarm.behaviour_mut().remove_peer(peer_id);
+                event_info.connected_peers.write().remove(&peer_id);
+                event_info.swarm.behaviour_mut().remove_peer(peer_id);
 
                 // Removes or marks to remove the respective rate limits.
                 // Also cleans up the expired rate limits pending to delete.
-                rate_limiting.remove_rate_limits(peer_id);
+                event_info.rate_limiting.remove_rate_limits(peer_id);
 
-                let _ = events_tx.send(NetworkEvent::PeerLeft(peer_id));
+                let _ = event_info.events_tx.send(NetworkEvent::PeerLeft(peer_id));
             }
         }
         SwarmEvent::IncomingConnection {
@@ -357,12 +370,7 @@ fn handle_event(
             local_addr,
             send_back_addr,
         } => {
-            debug!(
-                %connection_id,
-                address = %send_back_addr,
-                listen_address = %local_addr,
-                "Incoming connection",
-            );
+            debug!(%connection_id, address = %send_back_addr, listen_address = %local_addr, "Incoming connection");
         }
 
         SwarmEvent::IncomingConnectionError {
@@ -371,13 +379,7 @@ fn handle_event(
             send_back_addr,
             error,
         } => {
-            debug!(
-                %connection_id,
-                address = %send_back_addr,
-                listen_address = %local_addr,
-                %error,
-                "Incoming connection error",
-            );
+            debug!(%connection_id, address = %send_back_addr, listen_address = %local_addr, %error, "Incoming connection error");
         }
 
         SwarmEvent::Dialing {
@@ -393,12 +395,13 @@ fn handle_event(
             address,
         } => {
             debug!(%address, "New listen address");
-            swarm
+            event_info
+                .swarm
                 .behaviour_mut()
                 .discovery
                 .add_own_addresses([address.clone()].to_vec());
-            if swarm.behaviour().is_address_dialable(&address) {
-                state.nat_status.add_address(address);
+            if event_info.swarm.behaviour().is_address_dialable(&address) {
+                event_info.state.nat_status.add_address(address);
             }
         }
 
@@ -408,515 +411,577 @@ fn handle_event(
             reason: _,
         } => {
             addresses.iter().for_each(|address| {
-                state.nat_status.remove_address(address);
+                event_info.state.nat_status.remove_address(address);
             });
         }
 
         SwarmEvent::ExternalAddrConfirmed { address } => {
             log::trace!(%address, "Address is confirmed and externally reachable");
-            state.nat_status.add_confirmed_address(address);
+            event_info.state.nat_status.add_confirmed_address(address);
         }
 
         SwarmEvent::ExternalAddrExpired { address } => {
             log::trace!(%address, "External address is expired and no longer externally reachable");
-            state.nat_status.remove_confirmed_address(&address);
+            event_info
+                .state
+                .nat_status
+                .remove_confirmed_address(&address);
         }
 
-        SwarmEvent::Behaviour(event) => {
-            match event {
-                behaviour::BehaviourEvent::AutonatClient(event) => {
-                    log::trace!(?event, "AutoNAT outbound probe");
-                    match event.result {
-                        Ok(_) => state
-                            .nat_status
-                            .set_address_nat(event.tested_addr, NatStatus::Public),
-                        Err(_) => state
-                            .nat_status
-                            .set_address_nat(event.tested_addr, NatStatus::Private),
-                    }
-                }
-                behaviour::BehaviourEvent::AutonatServer(event) => {
-                    log::trace!(?event, "AutoNAT inbound probe");
-                }
-                behaviour::BehaviourEvent::ConnectionLimits(_) => {}
-                behaviour::BehaviourEvent::Dht(event) => {
-                    match event {
-                        kad::Event::OutboundQueryProgressed {
-                            id,
-                            result,
-                            stats: _,
-                            step,
-                        } => {
-                            match result {
-                                QueryResult::GetRecord(Ok(GetRecordOk::FoundRecord(record))) => {
-                                    if let Some(dht_record) = verify_record(&record.record) {
-                                        if step.count.get() == 1_usize {
-                                            // This is our first record
-                                            let results = DhtResults {
-                                                count: 0, // Will be increased in the next step
-                                                best_value: dht_record.clone(),
-                                                outdated_values: vec![],
-                                            };
-                                            state.dht_get_results.insert(id, results);
-                                        }
-                                        // We should always have a stored result
-                                        if let Some(results) = state.dht_get_results.get_mut(&id) {
-                                            results.count += 1;
-                                            // Replace best value if needed and update the outdated values
-                                            if dht_record > results.best_value {
-                                                results
-                                                    .outdated_values
-                                                    .push(results.best_value.clone());
-                                                results.best_value = dht_record;
-                                            } else if dht_record < results.best_value {
-                                                results.outdated_values.push(dht_record)
-                                            }
-                                            // Check if we already have a quorum
-                                            if results.count == state.dht_quorum {
-                                                swarm
-                                                    .behaviour_mut()
-                                                    .dht
-                                                    .query_mut(&id)
-                                                    .unwrap()
-                                                    .finish();
-                                            }
-                                        } else {
-                                            log::error!(query_id = ?id, "DHT inconsistent state");
-                                        }
-                                    } else {
-                                        warn!(
-                                            "DHT record verification failed: Invalid public key received"
-                                        );
-                                    }
-                                }
-                                QueryResult::GetRecord(Ok(
-                                    GetRecordOk::FinishedWithNoAdditionalRecord {
-                                        cache_candidates,
-                                    },
-                                )) => {
-                                    // Remove the query, send the best result to the application layer
-                                    // and push the best result to the cache candidates
-                                    if let Some(results) = state.dht_get_results.remove(&id) {
-                                        let signed_best_record =
-                                            results.best_value.clone().get_signed_record();
-                                        // Send the best result to the application layer
-                                        if let Some(output) = state.dht_gets.remove(&id) {
-                                            if output
-                                                .send(Ok(signed_best_record.clone().value))
-                                                .is_err()
-                                            {
-                                                error!(query_id = ?id, error = "receiver hung up", "could not send get record query result to channel");
-                                            }
-                                        } else {
-                                            warn!(query_id = ?id, ?step, "GetRecord query result for unknown query ID");
-                                        }
-                                        if !results.outdated_values.is_empty() {
-                                            // Now push the best value to the outdated peers
-                                            let outdated_peers = results
-                                                .outdated_values
-                                                .iter()
-                                                .map(|dht_record| dht_record.get_peer_id());
-                                            swarm.behaviour_mut().dht.put_record_to(
-                                                signed_best_record.clone(),
-                                                outdated_peers,
-                                                Quorum::One,
-                                            );
-                                        }
-                                        // Push the best result to the cache candidates
-                                        if !cache_candidates.is_empty() {
-                                            let peers = cache_candidates
-                                                .iter()
-                                                .map(|(_, &peer_id)| peer_id);
-                                            swarm.behaviour_mut().dht.put_record_to(
-                                                signed_best_record,
-                                                peers,
-                                                Quorum::One,
-                                            );
-                                        }
-                                    } else {
-                                        panic!("DHT inconsistent state, query_id: {:?}", id);
-                                    }
-                                }
-                                QueryResult::GetRecord(Err(error)) => {
-                                    if let Some(output) = state.dht_gets.remove(&id) {
-                                        if output.send(Err(error.clone().into())).is_err() {
-                                            error!(query_id = ?id, query_error=?error, error = "receiver hung up", "could not send get record query result error to channel");
-                                        }
-                                    } else {
-                                        warn!(query_id = ?id, ?step, query_error=?error, "GetRecord query result error for unknown query ID");
-                                    }
-                                    state.dht_get_results.remove(&id);
-                                }
-                                QueryResult::PutRecord(result) => {
-                                    // dht_put resolved
-                                    if let Some(output) = state.dht_puts.remove(&id) {
-                                        if output
-                                            .send(result.map(|_| ()).map_err(Into::into))
-                                            .is_err()
-                                        {
-                                            error!(query_id = ?id, error = "receiver hung up", "could not send put record query result to channel");
-                                        }
-                                    } else {
-                                        warn!(query_id = ?id, "PutRecord query result for unknown query ID");
-                                    }
-                                }
-                                QueryResult::Bootstrap(result) => match result {
-                                    Ok(result) => {
-                                        if result.num_remaining == 0 {
-                                            debug!(?result, "DHT bootstrap successful");
-                                            state.dht_bootstrap_state =
-                                                DhtBootStrapState::Completed;
-                                            if state.dht_server_mode {
-                                                let _ = events_tx.send(NetworkEvent::DhtReady);
-                                            }
-                                        }
-                                    }
-                                    Err(e) => error!(error = %e, "DHT bootstrap error"),
-                                },
-                                _ => {}
-                            }
-                        }
-                        kad::Event::InboundRequest {
-                            request:
-                                InboundRequest::PutRecord {
-                                    source: _,
-                                    connection: _,
-                                    record: Some(record),
-                                },
-                        } => {
-                            // Verify incoming record
-                            if let Some(dht_record) = verify_record(&record) {
-                                // Now verify that we should overwrite it because it's better than the one we have
-                                let mut overwrite = true;
-                                let store = swarm.behaviour_mut().dht.store_mut();
-                                if let Some(current_record) = store.get(&record.key) {
-                                    if let Ok(current_dht_record) =
-                                        DhtRecord::try_from(&current_record.into_owned())
-                                    {
-                                        if current_dht_record > dht_record {
-                                            overwrite = false;
-                                        }
-                                    }
-                                }
-                                if overwrite && store.put(record).is_err() {
-                                    error!("Could not store record in DHT record store");
-                                }
-                            } else {
-                                warn!(
-                                    "DHT record verification failed: Invalid public key received"
-                                );
-                            }
-                        }
-                        kad::Event::ModeChanged { new_mode } => {
-                            debug!(%new_mode, "DHT mode changed");
-                            if new_mode == kad::Mode::Server {
-                                state.dht_server_mode = true;
-                                if state.dht_bootstrap_state == DhtBootStrapState::Completed {
-                                    let _ = events_tx.send(NetworkEvent::DhtReady);
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                behaviour::BehaviourEvent::Discovery(event) => {
-                    swarm.behaviour_mut().pool.maintain_peers();
-                    match event {
-                        Event::Established {
-                            peer_id,
-                            peer_address,
-                            peer_contact,
-                        } => {
-                            let peer_info =
-                                PeerInfo::new(peer_address.clone(), peer_contact.services);
-                            if connected_peers
-                                .write()
-                                .insert(peer_id, peer_info.clone())
-                                .is_none()
-                            {
-                                info!(%peer_id, peer_address = %peer_info.get_address(), "Peer joined");
-                                let _ =
-                                    events_tx.send(NetworkEvent::PeerJoined(peer_id, peer_info));
+        SwarmEvent::Behaviour(event) => handle_behaviour_event(event, event_info),
 
-                                if swarm.behaviour().is_address_dialable(&peer_address) {
-                                    swarm
-                                        .behaviour_mut()
-                                        .add_peer_address(peer_id, peer_address);
-
-                                    // Bootstrap Kademlia if we're adding our first address
-                                    if state.dht_bootstrap_state == DhtBootStrapState::NotStarted {
-                                        debug!("Bootstrapping DHT");
-                                        if swarm.behaviour_mut().dht.bootstrap().is_err() {
-                                            error!("Bootstrapping DHT error: No known peers");
-                                        }
-                                        state.dht_bootstrap_state = DhtBootStrapState::Started;
-                                    }
-                                }
-                            } else {
-                                error!(%peer_id, "Peer joined but it already exists");
-                            }
-                        }
-                        Event::Update => {}
-                    }
-                }
-                behaviour::BehaviourEvent::Gossipsub(event) => match event {
-                    gossipsub::Event::Message {
-                        propagation_source,
-                        message_id,
-                        message,
-                    } => {
-                        let topic = message.topic.clone();
-                        if let Some(topic_info) = state.gossip_topics.get_mut(&topic) {
-                            let (output, validate) = topic_info;
-                            if !*validate {
-                                if let Err(error) = swarm
-                                    .behaviour_mut()
-                                    .gossipsub
-                                    .report_message_validation_result(
-                                        &message_id,
-                                        &propagation_source,
-                                        gossipsub::MessageAcceptance::Accept,
-                                    )
-                                {
-                                    error!(%message_id, %error, "Failed to report message validation result");
-                                }
-                            }
-
-                            if let Err(error) =
-                                output.try_send((message, message_id, propagation_source))
-                            {
-                                error!(
-                                    %topic,
-                                    %error,
-                                    "Failed to dispatch gossipsub message",
-                                )
-                            }
-                        } else {
-                            warn!(topic = %message.topic, "unknown topic hash");
-                        }
-                        #[cfg(feature = "metrics")]
-                        metrics.note_received_pubsub_message(&topic);
-                    }
-                    gossipsub::Event::Subscribed { peer_id, topic } => {
-                        trace!(%peer_id, %topic, "peer subscribed to topic");
-                    }
-                    gossipsub::Event::Unsubscribed { peer_id, topic } => {
-                        trace!(%peer_id, %topic, "peer unsubscribed");
-                    }
-                    gossipsub::Event::GossipsubNotSupported { peer_id } => {
-                        debug!(%peer_id, "gossipsub not supported");
-                    }
-                },
-                behaviour::BehaviourEvent::Ping(event) => {
-                    match event.result {
-                        Err(error) => {
-                            debug!(%error, peer_id = %event.peer, "Ping failed with peer");
-                            swarm
-                                .behaviour_mut()
-                                .pool
-                                .close_connection(event.peer, CloseReason::RemoteClosed);
-                        }
-                        Ok(duration) => {
-                            trace!(?duration, peer_id = %event.peer, "Ping completed");
-                        }
-                    };
-                }
-                behaviour::BehaviourEvent::Pool(event) => match event {},
-                behaviour::BehaviourEvent::RequestResponse(event) => match event {
-                    request_response::Event::Message {
-                        peer: peer_id,
-                        message,
-                    } => match message {
-                        request_response::Message::Request {
-                            request_id,
-                            request,
-                            channel,
-                        } => {
-                            // We might get empty requests (None) because of our codec implementation
-                            if let Some(request) = request {
-                                if let Ok(type_id) = peek_type(&request) {
-                                    // Filter off sender if not alive.
-                                    let sender_data = state
-                                        .receive_requests
-                                        .get(&type_id)
-                                        .filter(|(sender, ..)| !sender.is_closed());
-
-                                    // If we have a receiver, pass the request. Otherwise send a default empty response
-                                    if let Some((sender, request_rate_limit_data)) = sender_data {
-                                        if rate_limiting.exceeds_rate_limit(
-                                            peer_id,
-                                            type_id,
-                                            request_rate_limit_data,
-                                        ) {
-                                            debug!(
-                                                %type_id,
-                                                %request_id,
-                                                %peer_id,
-                                                max_requests = %request_rate_limit_data.max_requests,
-                                                time_window = ?request_rate_limit_data.time_window,
-                                                "Denied request - exceeded max requests rate",
-                                            );
-                                            let response: Result<(), InboundRequestError> =
-                                                Err(InboundRequestError::ExceedsRateLimit);
-                                            if swarm
-                                                .behaviour_mut()
-                                                .request_response
-                                                .send_response(
-                                                    channel,
-                                                    Some(response.serialize_to_vec()),
-                                                )
-                                                .is_err()
-                                            {
-                                                error!(
-                                                    %type_id,
-                                                    %request_id,
-                                                    %peer_id,
-                                                    "Could not send rate limit error response"
-                                                );
-                                            }
-                                        } else {
-                                            if type_id.requires_response() {
-                                                state.response_channels.insert(request_id, channel);
-                                            } else {
-                                                // Respond on behalf of the actual receiver because the actual receiver isn't interested in responding.
-                                                let response: Result<(), InboundRequestError> =
-                                                    Ok(());
-                                                if swarm
-                                                    .behaviour_mut()
-                                                    .request_response
-                                                    .send_response(
-                                                        channel,
-                                                        Some(response.serialize_to_vec()),
-                                                    )
-                                                    .is_err()
-                                                {
-                                                    error!(
-                                                        %type_id,
-                                                        %request_id,
-                                                        %peer_id,
-                                                        "Could not send auto response",
-                                                    );
-                                                }
-                                            }
-                                            if let Err(e) = sender.try_send((
-                                                request.into(),
-                                                request_id,
-                                                peer_id,
-                                            )) {
-                                                error!(
-                                                    %type_id,
-                                                    %request_id,
-                                                    %peer_id,
-                                                    error = %e,
-                                                    "Failed to dispatch request to handler",
-                                                );
-                                            }
-                                        }
-                                    } else {
-                                        trace!(
-                                            %type_id,
-                                            %request_id,
-                                            %peer_id,
-                                            "No request handler registered, replying with a 'NoReceiver' error",
-                                        );
-                                        let err: Result<(), InboundRequestError> =
-                                            Err(InboundRequestError::NoReceiver);
-                                        if swarm
-                                            .behaviour_mut()
-                                            .request_response
-                                            .send_response(channel, Some(err.serialize_to_vec()))
-                                            .is_err()
-                                        {
-                                            error!(
-                                                %type_id,
-                                                %request_id,
-                                                %peer_id,
-                                                "Could not send default response",
-                                            );
-                                        };
-
-                                        // We remove it in case the channel was already closed.
-                                        state.receive_requests.remove(&type_id);
-                                    }
-                                } else {
-                                    debug!(
-                                        %request_id,
-                                        %peer_id,
-                                        "Could not parse request type",
-                                    );
-                                }
-                            }
-                        }
-                        request_response::Message::Response {
-                            request_id,
-                            response,
-                        } => {
-                            if let Some(channel) = state.requests.remove(&request_id) {
-                                // We might get empty responses (None) because of the implementation of our codecs.
-                                let response = response
-                                    .ok_or(RequestError::OutboundRequest(
-                                        OutboundRequestError::Timeout,
-                                    ))
-                                    .map(|data| data.into());
-
-                                // The initiator of the request might no longer exist, so we
-                                // silently ignore any errors when delivering the response.
-                                channel.send(response).ok();
-
-                                #[cfg(feature = "metrics")]
-                                if let Some(instant) = state.requests_initiated.remove(&request_id)
-                                {
-                                    metrics.note_response_time(instant.elapsed());
-                                }
-                            } else {
-                                debug!(
-                                    %request_id,
-                                    "No request found for response",
-                                );
-                            }
-                        }
-                    },
-                    request_response::Event::OutboundFailure {
-                        peer: peer_id,
-                        request_id,
-                        error,
-                    } => {
-                        error!(
-                            %request_id,
-                            %peer_id,
-                            %error,
-                            "Failed to send request to peer",
-                        );
-                        if let Some(channel) = state.requests.remove(&request_id) {
-                            // The request initiator might no longer exist, so silently ignore
-                            // any errors while delivering the response.
-                            channel.send(Err(to_response_error(error))).ok();
-                        } else {
-                            debug!(
-                                %request_id,
-                                %peer_id,
-                                "No request found for outbound failure"
-                            );
-                        }
-                    }
-                    request_response::Event::InboundFailure {
-                        peer,
-                        request_id,
-                        error,
-                    } => {
-                        error!(
-                            %request_id,
-                            peer_id = %peer,
-                            %error,
-                            "Inbound request failed",
-                        );
-                    }
-                    request_response::Event::ResponseSent { .. } => {}
-                },
-            }
-        }
         _ => {}
     }
+}
+
+fn handle_behaviour_event(event: behaviour::BehaviourEvent, event_info: EventInfo) {
+    match event {
+        behaviour::BehaviourEvent::AutonatClient(event) => {
+            handle_autonat_client_event(event, event_info)
+        }
+        behaviour::BehaviourEvent::AutonatServer(event) => {
+            handle_autonat_server_event(event, event_info)
+        }
+        behaviour::BehaviourEvent::ConnectionLimits(event) => match event {},
+        behaviour::BehaviourEvent::Pool(event) => match event {},
+        behaviour::BehaviourEvent::Dht(event) => handle_dht_event(event, event_info),
+        behaviour::BehaviourEvent::Discovery(event) => handle_discovery_event(event, event_info),
+        behaviour::BehaviourEvent::Gossipsub(event) => handle_gossipsup_event(event, event_info),
+        behaviour::BehaviourEvent::Ping(event) => handle_ping_event(event, event_info),
+        behaviour::BehaviourEvent::RequestResponse(event) => {
+            handle_request_response_event(event, event_info)
+        }
+    }
+}
+
+fn handle_autonat_client_event(event: autonat::v2::client::Event, event_info: EventInfo) {
+    log::trace!(?event, "AutoNAT outbound probe");
+    match event.result {
+        Ok(_) => event_info
+            .state
+            .nat_status
+            .set_address_nat(event.tested_addr, NatStatus::Public),
+        Err(_) => event_info
+            .state
+            .nat_status
+            .set_address_nat(event.tested_addr, NatStatus::Private),
+    }
+}
+
+fn handle_autonat_server_event(event: autonat::v2::server::Event, _event_info: EventInfo) {
+    log::trace!(?event, "AutoNAT inbound probe");
+}
+
+fn handle_dht_event(event: kad::Event, event_info: EventInfo) {
+    match event {
+        kad::Event::OutboundQueryProgressed {
+            id,
+            result: QueryResult::GetRecord(result),
+            stats,
+            step,
+        } => handle_dht_get(id, result, stats, step, event_info),
+
+        kad::Event::OutboundQueryProgressed {
+            id,
+            result: QueryResult::PutRecord(result),
+            stats,
+            step,
+        } => handle_dht_put_record(id, result, stats, step, event_info),
+
+        kad::Event::OutboundQueryProgressed {
+            id,
+            result: QueryResult::Bootstrap(result),
+            stats,
+            step,
+        } => handle_dht_bootstrap(id, result, stats, step, event_info),
+
+        kad::Event::InboundRequest {
+            request:
+                InboundRequest::PutRecord {
+                    source,
+                    connection,
+                    record: Some(record),
+                },
+        } => handle_dht_inbound_put(source, connection, record, event_info),
+
+        kad::Event::ModeChanged { new_mode } => handle_dht_mode_change(new_mode, event_info),
+
+        _ => {}
+    }
+}
+
+fn handle_dht_get(
+    id: QueryId,
+    result: Result<GetRecordOk, GetRecordError>,
+    _stats: QueryStats,
+    step: ProgressStep,
+    event_info: EventInfo,
+) {
+    match result {
+        Ok(GetRecordOk::FoundRecord(record)) => {
+            let Some(dht_record) = verify_record(&record.record) else {
+                warn!("DHT record verification failed: Invalid public key received");
+                return;
+            };
+
+            if step.count.get() == 1_usize {
+                // This is our first record
+                let results = DhtResults {
+                    count: 0, // Will be increased in the next step
+                    best_value: dht_record.clone(),
+                    outdated_values: vec![],
+                };
+                event_info.state.dht_get_results.insert(id, results);
+            }
+
+            // We should always have a stored result
+            let Some(results) = event_info.state.dht_get_results.get_mut(&id) else {
+                log::error!(query_id = ?id, "DHT inconsistent state");
+                return;
+            };
+
+            results.count += 1;
+            // Replace best value if needed and update the outdated values
+            if dht_record > results.best_value {
+                results.outdated_values.push(results.best_value.clone());
+                results.best_value = dht_record;
+            } else if dht_record < results.best_value {
+                results.outdated_values.push(dht_record)
+            }
+            // Check if we already have a quorum
+            if results.count == event_info.state.dht_quorum {
+                event_info
+                    .swarm
+                    .behaviour_mut()
+                    .dht
+                    .query_mut(&id)
+                    .unwrap()
+                    .finish();
+            }
+        }
+        Ok(GetRecordOk::FinishedWithNoAdditionalRecord { cache_candidates }) => {
+            // Remove the query, send the best result to the application layer
+            // and push the best result to the cache candidates
+
+            let Some(results) = event_info.state.dht_get_results.remove(&id) else {
+                panic!("DHT inconsistent state, query_id: {:?}", id);
+            };
+
+            let signed_best_record = results.best_value.clone().get_signed_record();
+            // Send the best result to the application layer
+            if let Some(output) = event_info.state.dht_gets.remove(&id) {
+                if output.send(Ok(signed_best_record.clone().value)).is_err() {
+                    error!(query_id = ?id, error = "receiver hung up", "could not send get record query result to channel");
+                }
+            } else {
+                warn!(query_id = ?id, ?step, "GetRecord query result for unknown query ID");
+            }
+
+            if !results.outdated_values.is_empty() {
+                // Now push the best value to the outdated peers
+                let outdated_peers = results
+                    .outdated_values
+                    .iter()
+                    .map(|dht_record| dht_record.get_peer_id());
+                event_info.swarm.behaviour_mut().dht.put_record_to(
+                    signed_best_record.clone(),
+                    outdated_peers,
+                    Quorum::One,
+                );
+            }
+
+            // Push the best result to the cache candidates
+            if !cache_candidates.is_empty() {
+                let peers = cache_candidates.iter().map(|(_, &peer_id)| peer_id);
+                event_info.swarm.behaviour_mut().dht.put_record_to(
+                    signed_best_record,
+                    peers,
+                    Quorum::One,
+                );
+            }
+        }
+        Err(error) => {
+            if let Some(output) = event_info.state.dht_gets.remove(&id) {
+                if output.send(Err(error.clone().into())).is_err() {
+                    error!(query_id = ?id, query_error=?error, error = "receiver hung up", "could not send get record query result error to channel");
+                }
+            } else {
+                warn!(query_id = ?id, ?step, query_error=?error, "GetRecord query result error for unknown query ID");
+            }
+            event_info.state.dht_get_results.remove(&id);
+        }
+    }
+}
+
+fn handle_dht_put_record(
+    id: QueryId,
+    result: Result<PutRecordOk, PutRecordError>,
+    _stats: QueryStats,
+    _step: ProgressStep,
+    event_info: EventInfo,
+) {
+    // dht_put resolved
+    if let Some(output) = event_info.state.dht_puts.remove(&id) {
+        if output.send(result.map(|_| ()).map_err(Into::into)).is_err() {
+            error!(query_id = ?id, error = "receiver hung up", "could not send put record query result to channel");
+        }
+    } else {
+        warn!(query_id = ?id, "PutRecord query result for unknown query ID");
+    }
+}
+
+fn handle_dht_bootstrap(
+    _id: QueryId,
+    result: Result<BootstrapOk, BootstrapError>,
+    _stats: QueryStats,
+    _step: ProgressStep,
+    event_info: EventInfo,
+) {
+    match result {
+        Ok(result) => {
+            if result.num_remaining != 0 {
+                return;
+            }
+            debug!(?result, "DHT bootstrap successful");
+            event_info.state.dht_bootstrap_state = DhtBootStrapState::Completed;
+            if event_info.state.dht_server_mode {
+                let _ = event_info.events_tx.send(NetworkEvent::DhtReady);
+            }
+        }
+        Err(e) => error!(error = %e, "DHT bootstrap error"),
+    }
+}
+
+fn handle_dht_inbound_put(
+    _source: PeerId,
+    _connection: ConnectionId,
+    record: Record,
+    event_info: EventInfo,
+) {
+    // Verify incoming record
+    let Some(dht_record) = verify_record(&record) else {
+        warn!("DHT record verification failed: Invalid public key received");
+        return;
+    };
+    // Now verify that we should overwrite it because it's better than the one we have
+    let mut overwrite = true;
+    let store = event_info.swarm.behaviour_mut().dht.store_mut();
+    if let Some(current_record) = store.get(&record.key) {
+        if let Ok(current_dht_record) = DhtRecord::try_from(&current_record.into_owned()) {
+            if current_dht_record > dht_record {
+                overwrite = false;
+            }
+        }
+    }
+    if overwrite && store.put(record).is_err() {
+        error!("Could not store record in DHT record store");
+    }
+}
+
+fn handle_dht_mode_change(new_mode: Mode, event_info: EventInfo) {
+    debug!(%new_mode, "DHT mode changed");
+    if new_mode == Mode::Server {
+        event_info.state.dht_server_mode = true;
+        if event_info.state.dht_bootstrap_state == DhtBootStrapState::Completed {
+            let _ = event_info.events_tx.send(NetworkEvent::DhtReady);
+        }
+    }
+}
+
+fn handle_discovery_event(event: discovery::Event, event_info: EventInfo) {
+    event_info.swarm.behaviour_mut().pool.maintain_peers();
+    match event {
+        discovery::Event::Established {
+            peer_id,
+            peer_address,
+            peer_contact,
+        } => {
+            let peer_info = PeerInfo::new(peer_address.clone(), peer_contact.services);
+
+            if event_info
+                .connected_peers
+                .write()
+                .insert(peer_id, peer_info.clone())
+                .is_some()
+            {
+                error!(%peer_id, "Peer joined but it already exists");
+                return;
+            }
+
+            info!(%peer_id, peer_address = %peer_info.get_address(), "Peer joined");
+            let _ = event_info
+                .events_tx
+                .send(NetworkEvent::PeerJoined(peer_id, peer_info));
+
+            // Make sure the address is dialable before adding it.
+            if !event_info
+                .swarm
+                .behaviour()
+                .is_address_dialable(&peer_address)
+            {
+                return;
+            }
+
+            // Add the address for the peer.
+            event_info
+                .swarm
+                .behaviour_mut()
+                .add_peer_address(peer_id, peer_address);
+
+            // Bootstrap Kademlia if we're adding our first address
+            if event_info.state.dht_bootstrap_state == DhtBootStrapState::NotStarted {
+                debug!("Bootstrapping DHT");
+                if event_info.swarm.behaviour_mut().dht.bootstrap().is_err() {
+                    error!("Bootstrapping DHT error: No known peers");
+                }
+                event_info.state.dht_bootstrap_state = DhtBootStrapState::Started;
+            }
+        }
+        discovery::Event::Update => {}
+    }
+}
+
+fn handle_gossipsup_event(event: gossipsub::Event, event_info: EventInfo) {
+    match event {
+        gossipsub::Event::Message {
+            propagation_source,
+            message_id,
+            message,
+        } => {
+            #[cfg(feature = "metrics")]
+            event_info
+                .metrics
+                .note_received_pubsub_message(&message.topic);
+
+            let topic = message.topic.clone();
+            let Some((output, validate)) = event_info.state.gossip_topics.get_mut(&topic) else {
+                warn!(topic = %message.topic, "unknown topic hash");
+                return;
+            };
+
+            if !*validate {
+                if let Err(error) = event_info
+                    .swarm
+                    .behaviour_mut()
+                    .gossipsub
+                    .report_message_validation_result(
+                        &message_id,
+                        &propagation_source,
+                        gossipsub::MessageAcceptance::Accept,
+                    )
+                {
+                    error!(%message_id, %error, "Failed to report message validation result");
+                }
+            }
+
+            if let Err(error) = output.try_send((message, message_id, propagation_source)) {
+                error!(%topic, %error, "Failed to dispatch gossipsub message")
+            }
+        }
+        gossipsub::Event::Subscribed { peer_id, topic } => {
+            trace!(%peer_id, %topic, "peer subscribed to topic");
+        }
+        gossipsub::Event::Unsubscribed { peer_id, topic } => {
+            trace!(%peer_id, %topic, "peer unsubscribed");
+        }
+        gossipsub::Event::GossipsubNotSupported { peer_id } => {
+            debug!(%peer_id, "gossipsub not supported");
+        }
+    }
+}
+
+fn handle_ping_event(event: ping::Event, event_info: EventInfo) {
+    match event.result {
+        Err(error) => {
+            debug!(%error, peer_id = %event.peer, "Ping failed with peer");
+            event_info
+                .swarm
+                .behaviour_mut()
+                .pool
+                .close_connection(event.peer, CloseReason::RemoteClosed);
+        }
+        Ok(duration) => {
+            trace!(?duration, peer_id = %event.peer, "Ping completed");
+        }
+    };
+}
+
+fn handle_request_response_event(
+    event: request_response::Event<Option<Vec<u8>>, Option<Vec<u8>>>,
+    event_info: EventInfo,
+) {
+    match event {
+        request_response::Event::Message {
+            peer: peer_id,
+            message,
+        } => match message {
+            request_response::Message::Request {
+                request_id,
+                request,
+                channel,
+            } => handle_request_response_request(peer_id, request_id, request, channel, event_info),
+            request_response::Message::Response {
+                request_id,
+                response,
+            } => handle_request_response_response(peer_id, request_id, response, event_info),
+        },
+        request_response::Event::OutboundFailure {
+            peer: peer_id,
+            request_id,
+            error,
+        } => handle_request_response_outbound_failure(peer_id, request_id, error, event_info),
+        request_response::Event::InboundFailure {
+            peer: peer_id,
+            request_id,
+            error,
+        } => handle_request_response_inbound_failure(peer_id, request_id, error, event_info),
+        request_response::Event::ResponseSent { .. } => {}
+    }
+}
+
+fn handle_request_response_request(
+    peer_id: PeerId,
+    request_id: InboundRequestId,
+    request: Option<Vec<u8>>,
+    channel: ResponseChannel<Option<Vec<u8>>>,
+    event_info: EventInfo,
+) {
+    // We might get empty requests (None) because of our codec implementation
+    let Some(request) = request else {
+        return;
+    };
+
+    // Peek the request type, if it fails return as the request cannot be determined.
+    let Ok(type_id) = peek_type(&request) else {
+        debug!(%request_id, %peer_id, "Could not parse request type");
+        return;
+    };
+
+    // Filter off sender if not alive.
+    let sender_data = event_info
+        .state
+        .receive_requests
+        .get(&type_id)
+        .filter(|(sender, ..)| !sender.is_closed());
+
+    // If we have a receiver, pass the request. Otherwise send a default empty response
+    if let Some((sender, request_rate_limit_data)) = sender_data {
+        if event_info
+            .rate_limiting
+            .exceeds_rate_limit(peer_id, type_id, request_rate_limit_data)
+        {
+            debug!(
+                %type_id,
+                %request_id,
+                %peer_id,
+                max_requests = %request_rate_limit_data.max_requests,
+                time_window = ?request_rate_limit_data.time_window,
+                "Denied request - exceeded max requests rate",
+            );
+
+            let response: Result<(), InboundRequestError> =
+                Err(InboundRequestError::ExceedsRateLimit);
+            if event_info
+                .swarm
+                .behaviour_mut()
+                .request_response
+                .send_response(channel, Some(response.serialize_to_vec()))
+                .is_err()
+            {
+                error!(%type_id, %request_id, %peer_id, "Could not send rate limit error response");
+            }
+        } else {
+            if type_id.requires_response() {
+                event_info
+                    .state
+                    .response_channels
+                    .insert(request_id, channel);
+            } else {
+                // Respond on behalf of the actual receiver because the actual receiver isn't interested in responding.
+                let response: Result<(), InboundRequestError> = Ok(());
+                if event_info
+                    .swarm
+                    .behaviour_mut()
+                    .request_response
+                    .send_response(channel, Some(response.serialize_to_vec()))
+                    .is_err()
+                {
+                    error!(%type_id, %request_id, %peer_id, "Could not send auto response");
+                }
+            }
+            if let Err(e) = sender.try_send((request.into(), request_id, peer_id)) {
+                error!(%type_id, %request_id, %peer_id, error = %e, "Failed to dispatch request to handler");
+            }
+        }
+    } else {
+        trace!(%type_id, %request_id, %peer_id, "No request handler registered, replying with a 'NoReceiver' error");
+        let err: Result<(), InboundRequestError> = Err(InboundRequestError::NoReceiver);
+        if event_info
+            .swarm
+            .behaviour_mut()
+            .request_response
+            .send_response(channel, Some(err.serialize_to_vec()))
+            .is_err()
+        {
+            error!(%type_id, %request_id, %peer_id, "Could not send default response");
+        };
+
+        // We remove it in case the channel was already closed.
+        event_info.state.receive_requests.remove(&type_id);
+    }
+}
+
+fn handle_request_response_response(
+    _peer_id: PeerId,
+    request_id: OutboundRequestId,
+    response: Option<Vec<u8>>,
+    event_info: EventInfo,
+) {
+    let Some(channel) = event_info.state.requests.remove(&request_id) else {
+        debug!(%request_id, "No request found for response");
+        return;
+    };
+
+    // We might get empty responses (None) because of the implementation of our codecs.
+    let response = response
+        .ok_or(RequestError::OutboundRequest(OutboundRequestError::Timeout))
+        .map(|data| data.into());
+
+    // The initiator of the request might no longer exist, so we
+    // silently ignore any errors when delivering the response.
+    channel.send(response).ok();
+
+    #[cfg(feature = "metrics")]
+    if let Some(instant) = event_info.state.requests_initiated.remove(&request_id) {
+        event_info.metrics.note_response_time(instant.elapsed());
+    }
+}
+
+fn handle_request_response_outbound_failure(
+    peer_id: PeerId,
+    request_id: OutboundRequestId,
+    error: OutboundFailure,
+    event_info: EventInfo,
+) {
+    error!(%request_id, %peer_id, %error, "Failed to send request to peer");
+
+    let Some(channel) = event_info.state.requests.remove(&request_id) else {
+        debug!(%request_id, %peer_id, "No request found for outbound failure");
+        return;
+    };
+
+    // The request initiator might no longer exist, so silently ignore
+    // any errors while delivering the response.
+    channel.send(Err(to_response_error(error))).ok();
+}
+
+fn handle_request_response_inbound_failure(
+    peer_id: PeerId,
+    request_id: InboundRequestId,
+    error: InboundFailure,
+    _event_info: EventInfo,
+) {
+    error!(%request_id, %peer_id, %error, "Inbound request failed");
 }
 
 fn perform_action(action: NetworkAction, swarm: &mut NimiqSwarm, state: &mut TaskState) {
@@ -1150,38 +1215,42 @@ fn perform_action(action: NetworkAction, swarm: &mut NimiqSwarm, state: &mut Tas
 
 /// Returns a DHT record if the record decoding and verification was successful, None otherwise
 pub(crate) fn verify_record(record: &Record) -> Option<DhtRecord> {
-    if let Some(tag) = TaggedSigned::<ValidatorRecord<PeerId>, KeyPair>::peek_tag(&record.value) {
-        match tag {
-            ValidatorRecord::<PeerId>::TAG => {
-                if let Ok(validator_record) =
-                    TaggedSigned::<ValidatorRecord<PeerId>, KeyPair>::deserialize_from_vec(
-                        &record.value,
-                    )
-                {
-                    // In this type of messages we assume the record key is also the public key used to verify these records
-                    if let Ok(compressed_pk) =
-                        CompressedPublicKey::deserialize_from_vec(record.key.as_ref())
-                    {
-                        if let Ok(pk) = compressed_pk.uncompress() {
-                            if validator_record.verify(&pk) {
-                                return Some(DhtRecord::Validator(
-                                    record.publisher.unwrap(),
-                                    validator_record.record,
-                                    record.clone(),
-                                ));
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {
-                log::error!(tag, "DHT invalid record tag received");
-            }
-        }
+    let Some(tag) = TaggedSigned::<ValidatorRecord<PeerId>, KeyPair>::peek_tag(&record.value)
+    else {
+        log::warn!(?record, "DHT Tag not peekable.");
+        return None;
+    };
+
+    if tag != ValidatorRecord::<PeerId>::TAG {
+        log::error!(tag, "DHT invalid record tag received");
+        return None;
     }
 
-    // If we arrived here, it's because something failed in the record verification
-    None
+    let Ok(validator_record) =
+        TaggedSigned::<ValidatorRecord<PeerId>, KeyPair>::deserialize_from_vec(&record.value)
+    else {
+        log::warn!(?record.value, "Failed to deserialize dht value");
+        return None;
+    };
+
+    // In this type of messages we assume the record key is also the public key used to verify these records
+    let Ok(compressed_pk) = CompressedPublicKey::deserialize_from_vec(record.key.as_ref()) else {
+        log::warn!(?record.key, "Failed to deserialize dht key");
+        return None;
+    };
+
+    let Ok(pk) = compressed_pk.uncompress() else {
+        log::warn!(%compressed_pk, "Failed to uncompress public key");
+        return None;
+    };
+
+    validator_record.verify(&pk).then(|| {
+        DhtRecord::Validator(
+            record.publisher.unwrap(),
+            validator_record.record,
+            record.clone(),
+        )
+    })
 }
 
 fn to_response_error(error: OutboundFailure) -> RequestError {
