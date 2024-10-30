@@ -89,9 +89,25 @@ pub struct ConsensusConfig {
     #[builder(default = "10800")]
     /// Minimum distance away, in number of blocks, from the head to switch from state sync to live sync
     pub full_sync_threshold: u32,
-    #[builder(default = "true")]
-    /// History indices enabled. Only effective for history nodes (default: `true`)
+    #[builder(setter(custom))]
+    /// History indices enabled. Defaults to `true` for history nodes and `false` to full/light nodes.
     pub index_history: bool,
+}
+
+impl ConsensusConfigBuilder {
+    fn index_history(
+        &mut self,
+        should_index_history: Option<bool>,
+        sync_mode: SyncMode,
+    ) -> &mut Self {
+        let index_history = should_index_history.unwrap_or(match sync_mode {
+            SyncMode::History => true,
+            SyncMode::Full | SyncMode::Light => false,
+        });
+
+        self.index_history = Some(index_history);
+        self
+    }
 }
 
 impl Default for ConsensusConfig {
@@ -762,7 +778,10 @@ impl ClientConfigBuilder {
         // Configure consensus
         let mut consensus = ConsensusConfigBuilder::default()
             .sync_mode(config_file.consensus.sync_mode)
-            .index_history(config_file.consensus.index_history)
+            .index_history(
+                config_file.consensus.index_history,
+                config_file.consensus.sync_mode.into(),
+            )
             .build()
             .unwrap();
         if let Some(min_peers) = config_file.consensus.min_peers {

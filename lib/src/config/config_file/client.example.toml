@@ -106,9 +106,8 @@ sync_mode = "full"
 # Default: 10800 (3 hours worth of blocks)
 #full_sync_threshold = 10800
 
-# Enable or disable transaction indexing for history nodes.
-# This property only has an effect when the sync_mode is "history"
-# Default: true
+# Enable or disable transaction indexing for history and full nodes.
+# Default: true when the sync_mode is "history" and false when the sync_mode is "full".
 #index_history = true
 
 ##############################################################################

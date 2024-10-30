@@ -220,9 +220,9 @@ pub struct ConsensusSettings {
     pub min_peers: Option<usize>,
     /// Minimum distance away, in number of blocks, from the head to switch from state sync to live sync
     pub full_sync_threshold: Option<u32>,
-    /// History indices enabled. Only effective for history nodes (default: `true`)
-    #[serde(default = "default_true")]
-    pub index_history: bool,
+    /// History indices enabled. Only effective for history and full nodes.
+    #[serde(default)]
+    pub index_history: Option<bool>,
 }
 
 impl Default for ConsensusSettings {
@@ -233,7 +233,7 @@ impl Default for ConsensusSettings {
             network: None,
             min_peers: None,
             full_sync_threshold: None,
-            index_history: true,
+            index_history: None,
         }
     }
 }
