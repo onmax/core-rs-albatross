@@ -59,6 +59,7 @@ impl From<DatabaseConfig> for libmdbx::DatabaseOptions {
                 max_size: value.size.map(|r| r.end),
                 ..Default::default()
             }),
+            liforeclaim: true,
             ..Default::default()
         }
     }
