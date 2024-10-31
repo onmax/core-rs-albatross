@@ -5,11 +5,12 @@ pub mod validator_record;
 
 use async_trait::async_trait;
 use futures::stream::BoxStream;
-use nimiq_bls::{lazy::LazyPublicKey, CompressedPublicKey, SecretKey};
+use nimiq_keys::{Address, KeyPair};
 use nimiq_network_interface::{
     network::{CloseReason, MsgAcceptance, Network, SubscribeEvents, Topic},
     request::{Message, Request, RequestCommon},
 };
+use nimiq_primitives::slots_allocation::Validators;
 
 pub use crate::error::NetworkError;
 
@@ -28,9 +29,9 @@ pub trait ValidatorNetwork: Send + Sync {
     /// `None`, otherwise.
     fn set_validator_id(&self, validator_id: Option<u16>);
 
-    /// Tells the validator network the validator keys for the current set of active validators.
+    /// Tells the validator network the validator addresses for the current set of active validators.
     /// The keys must be ordered, such that the k-th entry is the validator with ID k.
-    async fn set_validators(&self, validator_keys: Vec<LazyPublicKey>);
+    fn set_validators(&self, validators: &Validators);
 
     /// Sends a message to a validator identified by its ID (position) in the `validator keys`.
     /// It must make a reasonable effort to establish a connection to the peer denoted with `validator_id`
@@ -79,8 +80,8 @@ pub trait ValidatorNetwork: Send + Sync {
     /// Sets this node peer ID using its secret key and public key.
     async fn set_public_key(
         &self,
-        public_key: &CompressedPublicKey,
-        secret_key: &SecretKey,
+        validator_address: &Address,
+        signing_key_pair: &KeyPair,
     ) -> Result<(), Self::Error>;
 
     /// Closes the connection to the peer with `peer_id` with the given `close_reason`.

@@ -10,7 +10,7 @@ use libp2p::{
     swarm::NetworkInfo,
     Multiaddr, PeerId,
 };
-use nimiq_bls::KeyPair;
+use nimiq_keys::KeyPair;
 use nimiq_network_interface::{
     network::{CloseReason, MsgAcceptance, PubsubId, Topic},
     peer_info::Services,
@@ -140,7 +140,7 @@ pub(crate) enum DhtBootStrapState {
 
 /// Enum over all of the possible DHT records values
 #[derive(Clone, PartialEq)]
-pub(crate) enum DhtRecord {
+pub enum DhtRecord {
     /// Validator record with its publisher Peer ID,
     /// the decoded validator record and the original serialized record.
     Validator(PeerId, ValidatorRecord<PeerId>, Record),
@@ -174,7 +174,7 @@ impl PartialOrd for DhtRecord {
 
 /// DHT record decoding errors
 #[derive(Debug, Error)]
-pub(crate) enum DhtRecordError {
+pub enum DhtRecordError {
     /// Tag is unknown
     #[error("Unknown record tag")]
     UnknownTag,

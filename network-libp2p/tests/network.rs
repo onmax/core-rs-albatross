@@ -1,4 +1,4 @@
-use std::{num::NonZeroU8, time::Duration};
+use std::{collections::BTreeMap, num::NonZeroU8, sync::Arc, time::Duration};
 
 use futures::{Stream, StreamExt};
 use instant::SystemTime;
@@ -8,22 +8,28 @@ use libp2p::{
     multiaddr::{multiaddr, Multiaddr},
     PeerId,
 };
-use nimiq_bls::KeyPair;
+use nimiq_keys::{Address, KeyPair};
 use nimiq_network_interface::{
     network::{CloseReason, MsgAcceptance, Network as NetworkInterface, NetworkEvent, Topic},
     peer_info::Services,
 };
 use nimiq_network_libp2p::{
+    dht,
     discovery::{self, peer_contacts::PeerContact},
     Config, Network,
 };
+use nimiq_serde::{Deserialize, Serialize};
 use nimiq_test_log::test;
 use nimiq_test_utils::test_rng::test_rng;
 use nimiq_time::{sleep, timeout};
-use nimiq_utils::{key_rng::SecureGenerate, spawn, tagged_signing::TaggedSignable};
+use nimiq_utils::{
+    key_rng::SecureGenerate,
+    spawn,
+    tagged_signing::{TaggedKeyPair, TaggedSignable, TaggedSigned},
+};
 use nimiq_validator_network::validator_record::ValidatorRecord;
+use parking_lot::RwLock;
 use rand::{thread_rng, Rng};
-use serde::{Deserialize, Serialize};
 
 mod helper;
 
@@ -94,7 +100,7 @@ impl TestNetwork {
         let address = multiaddr![Memory(self.next_address)];
         self.next_address += 1;
 
-        let net = Network::new(network_config(address.clone())).await;
+        let net = Network::new(network_config(address.clone()), ()).await;
         net.listen_on(vec![address.clone()]).await;
 
         log::debug!(address = %address, peer_id = %net.get_local_peer_id(), "Creating node");
@@ -122,10 +128,10 @@ async fn create_connected_networks() -> (Network, Network) {
     let addr1 = multiaddr![Memory(rng.gen::<u64>())];
     let addr2 = multiaddr![Memory(rng.gen::<u64>())];
 
-    let net1 = Network::new(network_config(addr1.clone())).await;
+    let net1 = Network::new(network_config(addr1.clone()), ()).await;
     net1.listen_on(vec![addr1.clone()]).await;
 
-    let net2 = Network::new(network_config(addr2.clone())).await;
+    let net2 = Network::new(network_config(addr2.clone()), ()).await;
     net2.listen_on(vec![addr2.clone()]).await;
 
     log::debug!(address = %addr1, peer_id = %net1.get_local_peer_id(), "Network 1");
@@ -156,10 +162,10 @@ async fn create_double_connected_networks() -> (Network, Network) {
     let addr1 = multiaddr![Memory(rng.gen::<u64>())];
     let addr2 = multiaddr![Memory(rng.gen::<u64>())];
 
-    let net1 = Network::new(network_config(addr1.clone())).await;
+    let net1 = Network::new(network_config(addr1.clone()), ()).await;
     net1.listen_on(vec![addr1.clone()]).await;
 
-    let net2 = Network::new(network_config(addr2.clone())).await;
+    let net2 = Network::new(network_config(addr2.clone()), ()).await;
     net2.listen_on(vec![addr2.clone()]).await;
 
     log::debug!(address = %addr1, peer_id = %net1.get_local_peer_id(), "Network 1");
@@ -184,11 +190,74 @@ async fn create_double_connected_networks() -> (Network, Network) {
     (net1, net2)
 }
 
-async fn create_network_with_n_peers(n_peers: usize) -> Vec<Network> {
+struct Verifier {
+    keys: Arc<RwLock<BTreeMap<Address, <KeyPair as TaggedKeyPair>::PublicKey>>>,
+}
+impl Verifier {
+    pub fn new(
+        keys: &Arc<RwLock<BTreeMap<Address, <KeyPair as TaggedKeyPair>::PublicKey>>>,
+    ) -> Self {
+        Self {
+            keys: Arc::clone(&keys),
+        }
+    }
+}
+
+impl dht::Verifier for Verifier {
+    fn verify(
+        &self,
+        record: &libp2p::kad::Record,
+    ) -> Result<dht::DhtRecord, dht::DhtVerifierError> {
+        // Peek the tag to know what kind of record this is.
+        let Some(tag) = TaggedSigned::<ValidatorRecord<PeerId>, KeyPair>::peek_tag(&record.value)
+        else {
+            log::warn!(?record, "DHT Tag not peekable.");
+            return Err(dht::DhtVerifierError::MalformedTag);
+        };
+
+        if tag != ValidatorRecord::<PeerId>::TAG {
+            return Err(dht::DhtVerifierError::UnknownTag);
+        }
+
+        // Deserialize the value of the record, which is a ValidatorRecord. If it fails return an error.
+        let validator_record =
+            TaggedSigned::<ValidatorRecord<PeerId>, KeyPair>::deserialize_from_vec(&record.value)
+                .map_err(dht::DhtVerifierError::MalformedValue)?;
+
+        // Deserialize the key of the record which is an Address. If it fails return an error.
+        let validator_address = Address::deserialize_from_vec(record.key.as_ref())
+            .map_err(dht::DhtVerifierError::MalformedKey)?;
+
+        let keys = self.keys.read();
+        let public_key = keys
+            .get(&validator_address)
+            .ok_or(dht::DhtVerifierError::UnknownValidator(validator_address))?;
+
+        validator_record
+            .verify(&public_key)
+            .then(|| {
+                dht::DhtRecord::Validator(
+                    record.publisher.unwrap(),
+                    validator_record.record,
+                    record.clone(),
+                )
+            })
+            .ok_or(dht::DhtVerifierError::InvalidSignature)
+    }
+}
+
+async fn create_network_with_n_peers(
+    n_peers: usize,
+) -> (
+    Vec<Network>,
+    Arc<RwLock<BTreeMap<Address, <KeyPair as TaggedKeyPair>::PublicKey>>>,
+) {
     let mut networks = Vec::new();
     let mut addresses = Vec::new();
     let mut events = Vec::new();
     let mut rng = thread_rng();
+
+    let keys = Arc::new(RwLock::new(BTreeMap::default()));
 
     // Create all the networks and addresses
     for peer in 0..n_peers {
@@ -198,7 +267,7 @@ async fn create_network_with_n_peers(n_peers: usize) -> Vec<Network> {
 
         addresses.push(addr.clone());
 
-        let network = Network::new(network_config(addr.clone())).await;
+        let network = Network::new(network_config(addr.clone()), Verifier::new(&keys)).await;
         network.listen_on(vec![addr.clone()]).await;
 
         log::debug!(address = %addr, peer_id = %network.get_local_peer_id(), "Network {}", peer);
@@ -319,13 +388,13 @@ async fn create_network_with_n_peers(n_peers: usize) -> Vec<Network> {
         );
     }
 
-    networks
+    (networks, keys)
 }
 
 #[test(tokio::test)]
 async fn connections_stress_and_reconnect() {
     let peers: usize = 5;
-    let networks = create_network_with_n_peers(peers).await;
+    let (networks, _) = create_network_with_n_peers(peers).await;
 
     assert_eq!(peers, networks.len());
 }
@@ -410,7 +479,7 @@ impl TaggedSignable for TestRecord {
 #[test(tokio::test)]
 async fn dht_put_and_get() {
     // We have a quorum of 3 for getting DHT records, so we need at least 3 peers
-    let networks = create_network_with_n_peers(3).await;
+    let (networks, keys) = create_network_with_n_peers(3).await;
     let net1 = &networks[0];
     let net2 = &networks[1];
 
@@ -422,13 +491,18 @@ async fn dht_put_and_get() {
         timestamp: 0x42u64,
     };
 
+    // Generate a key
     let mut rng = test_rng(false);
     let keypair = KeyPair::generate(&mut rng);
 
-    let key = keypair.public_key.compress();
+    // Put it into the keys collection.
+    let key: Address = (&keypair.public).into();
+    assert!(keys.write().insert(key.clone(), keypair.public).is_none());
 
+    // Put the record into the dht, keyed by the address.
     net1.dht_put(&key, &put_record, &keypair).await.unwrap();
 
+    // Fetch the record. and make sure they are identical.
     let fetched_record = net2
         .dht_get::<_, ValidatorRecord<PeerId>, KeyPair>(&key)
         .await

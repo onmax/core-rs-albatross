@@ -15,7 +15,7 @@ use nimiq_account::Validator as ValidatorAccount;
 use nimiq_block::{Block, BlockType, EquivocationProof};
 use nimiq_blockchain::{interface::HistoryInterface, BlockProducer, Blockchain};
 use nimiq_blockchain_interface::{AbstractBlockchain, BlockchainEvent, ForkEvent};
-use nimiq_bls::{lazy::LazyPublicKey, KeyPair as BlsKeyPair};
+use nimiq_bls::KeyPair as BlsKeyPair;
 use nimiq_consensus::{
     messages::{BlockBodyTopic, BlockHeaderMessage, BlockHeaderTopic},
     Consensus, ConsensusEvent, ConsensusProxy,
@@ -353,16 +353,8 @@ where
         // Inform the network about the current validator ID.
         self.network.set_validator_id(*self.slot_band.read());
 
-        let voting_keys: Vec<LazyPublicKey> = validators
-            .iter()
-            .map(|validator| validator.voting_key.clone())
-            .collect();
-        let network = Arc::clone(&self.network);
-
-        // TODO might better be done without the task.
-        spawn(async move {
-            network.set_validators(voting_keys).await;
-        });
+        // Set the elected validators of the current epoch in the network as well.
+        self.network.set_validators(validators);
 
         // Check validator configuration
         if let Some(validator) = self.get_validator(&blockchain) {
@@ -628,14 +620,12 @@ where
 
     /// Publish our own validator record to the DHT.
     fn publish_dht(&self) {
-        let key = self.voting_key();
+        let key_pair = self.signing_key();
+        let validator_address = self.validator_address();
         let network = Arc::clone(&self.network);
 
         spawn(async move {
-            if let Err(err) = network
-                .set_public_key(&key.public_key.compress(), &key.secret_key)
-                .await
-            {
+            if let Err(err) = network.set_public_key(&validator_address, &key_pair).await {
                 error!("could not set up DHT record: {:?}", err);
             }
         });

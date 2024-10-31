@@ -25,6 +25,7 @@ pub static NIMIQ_MODULES: &[&str] = &[
     "nimiq_collections",
     "nimiq_consensus",
     "nimiq_database",
+    "nimiq_dht",
     "nimiq_genesis",
     "nimiq_genesis_builder",
     "nimiq_handel",

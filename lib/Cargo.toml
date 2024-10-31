@@ -57,6 +57,7 @@ nimiq-blockchain-proxy = { workspace = true, default-features = false }
 nimiq-bls = { workspace = true }
 nimiq-consensus = { workspace = true, default-features = false }
 nimiq-database = { workspace = true, optional = true }
+nimiq-dht = { workspace = true }
 nimiq-genesis = { workspace = true, default-features = false }
 nimiq-hash = { workspace = true }
 nimiq-jsonrpc-core = { workspace = true, optional = true }

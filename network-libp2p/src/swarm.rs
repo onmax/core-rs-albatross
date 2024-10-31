@@ -30,16 +30,13 @@ use libp2p::{
 #[cfg(feature = "tokio-websocket")]
 use libp2p::{dns, tcp, websocket};
 use log::Instrument;
-use nimiq_bls::{CompressedPublicKey, KeyPair};
 use nimiq_network_interface::{
     network::{CloseReason, NetworkEvent},
     peer_info::PeerInfo,
     request::{peek_type, InboundRequestError, OutboundRequestError, RequestError},
 };
-use nimiq_serde::{Deserialize, Serialize};
+use nimiq_serde::Serialize;
 use nimiq_time::Interval;
-use nimiq_utils::tagged_signing::{TaggedSignable, TaggedSigned};
-use nimiq_validator_network::validator_record::ValidatorRecord;
 use parking_lot::RwLock;
 use tokio::sync::{broadcast, mpsc};
 
@@ -47,7 +44,7 @@ use tokio::sync::{broadcast, mpsc};
 use crate::network_metrics::NetworkMetrics;
 use crate::{
     autonat::NatStatus,
-    behaviour,
+    behaviour, dht,
     discovery::{self, peer_contacts::PeerContactBook},
     network_types::{
         DhtBootStrapState, DhtRecord, DhtResults, GossipsubTopicInfo, NetworkAction, TaskState,
@@ -65,6 +62,7 @@ struct EventInfo<'a> {
     state: &'a mut TaskState,
     connected_peers: &'a RwLock<HashMap<PeerId, PeerInfo>>,
     rate_limiting: &'a mut RateLimits,
+    dht_verifier: &'a dyn dht::Verifier,
     #[cfg(feature = "metrics")]
     metrics: &'a Arc<NetworkMetrics>,
 }
@@ -115,6 +113,7 @@ pub(crate) async fn swarm_task(
     connected_peers: Arc<RwLock<HashMap<PeerId, PeerInfo>>>,
     mut update_scores: Interval,
     contacts: Arc<RwLock<PeerContactBook>>,
+    dht_verifier: impl dht::Verifier,
     force_dht_server_mode: bool,
     dht_quorum: NonZeroU8,
     #[cfg(feature = "metrics")] metrics: Arc<NetworkMetrics>,
@@ -161,6 +160,7 @@ pub(crate) async fn swarm_task(
                                 state: &mut task_state,
                                 connected_peers: &connected_peers,
                                 rate_limiting: &mut rate_limiting,
+                                dht_verifier: &dht_verifier,
                                 #[cfg( feature = "metrics")] metrics: &metrics,
                             },
                         );
@@ -520,9 +520,13 @@ fn handle_dht_get(
 ) {
     match result {
         Ok(GetRecordOk::FoundRecord(record)) => {
-            let Some(dht_record) = verify_record(&record.record) else {
-                warn!("DHT record verification failed: Invalid public key received");
-                return;
+            // Verify incoming record
+            let dht_record = match event_info.dht_verifier.verify(&record.record) {
+                Ok(record) => record,
+                Err(error) => {
+                    warn!(?error, "DHT record verification failed");
+                    return;
+                }
             };
 
             if step.count.get() == 1_usize {
@@ -660,10 +664,14 @@ fn handle_dht_inbound_put(
     event_info: EventInfo,
 ) {
     // Verify incoming record
-    let Some(dht_record) = verify_record(&record) else {
-        warn!("DHT record verification failed: Invalid public key received");
-        return;
+    let dht_record = match event_info.dht_verifier.verify(&record) {
+        Ok(record) => record,
+        Err(error) => {
+            warn!(?error, "DHT record verification failed");
+            return;
+        }
     };
+
     // Now verify that we should overwrite it because it's better than the one we have
     let mut overwrite = true;
     let store = event_info.swarm.behaviour_mut().dht.store_mut();
@@ -1241,46 +1249,6 @@ fn perform_action(action: NetworkAction, swarm: &mut NimiqSwarm, state: &mut Tas
             swarm.behaviour_mut().pool.close_connection(peer_id, reason)
         }
     }
-}
-
-/// Returns a DHT record if the record decoding and verification was successful, None otherwise
-pub(crate) fn verify_record(record: &Record) -> Option<DhtRecord> {
-    let Some(tag) = TaggedSigned::<ValidatorRecord<PeerId>, KeyPair>::peek_tag(&record.value)
-    else {
-        log::warn!(?record, "DHT Tag not peekable.");
-        return None;
-    };
-
-    if tag != ValidatorRecord::<PeerId>::TAG {
-        log::error!(tag, "DHT invalid record tag received");
-        return None;
-    }
-
-    let Ok(validator_record) =
-        TaggedSigned::<ValidatorRecord<PeerId>, KeyPair>::deserialize_from_vec(&record.value)
-    else {
-        log::warn!(?record.value, "Failed to deserialize dht value");
-        return None;
-    };
-
-    // In this type of messages we assume the record key is also the public key used to verify these records
-    let Ok(compressed_pk) = CompressedPublicKey::deserialize_from_vec(record.key.as_ref()) else {
-        log::warn!(?record.key, "Failed to deserialize dht key");
-        return None;
-    };
-
-    let Ok(pk) = compressed_pk.uncompress() else {
-        log::warn!(%compressed_pk, "Failed to uncompress public key");
-        return None;
-    };
-
-    validator_record.verify(&pk).then(|| {
-        DhtRecord::Validator(
-            record.publisher.unwrap(),
-            validator_record.record,
-            record.clone(),
-        )
-    })
 }
 
 fn to_response_error(error: OutboundFailure) -> RequestError {

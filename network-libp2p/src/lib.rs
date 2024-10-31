@@ -5,6 +5,7 @@ mod autonat;
 mod behaviour;
 mod config;
 mod connection_pool;
+pub mod dht;
 pub mod discovery;
 pub mod dispatch;
 mod error;

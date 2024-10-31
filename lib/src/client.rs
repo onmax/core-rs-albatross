@@ -13,6 +13,7 @@ use nimiq_consensus::{
     sync::syncer_proxy::SyncerProxy, Consensus as AbstractConsensus,
     ConsensusProxy as AbstractConsensusProxy,
 };
+use nimiq_dht::Verifier;
 #[cfg(feature = "zkp-prover")]
 use nimiq_genesis::NetworkId;
 use nimiq_genesis::NetworkInfo;
@@ -345,11 +346,6 @@ impl ClientInner {
             "Advertised addresses",
         );
 
-        let network = Arc::new(Network::new(network_config).await);
-
-        // Start buffering network events as early as possible
-        let network_events = network.subscribe_events();
-
         // We update the services flags depending on the pre-genesis database file being present
         #[cfg(feature = "database-storage")]
         let pre_genesis_environment = if config.storage.has_pre_genesis_database(config.network_id)
@@ -388,7 +384,7 @@ impl ClientInner {
         #[cfg(not(feature = "database-storage"))]
         let zkp_storage = None;
 
-        let (blockchain_proxy, syncer_proxy, zkp_component) = match config.consensus.sync_mode {
+        let blockchain_proxy = match config.consensus.sync_mode {
             #[cfg(not(feature = "full-consensus"))]
             SyncMode::History => {
                 panic!("Can't build a history node without the full-consensus feature enabled")
@@ -398,8 +394,8 @@ impl ClientInner {
                 panic!("Can't build a full node without the full-consensus feature enabled")
             }
             #[cfg(feature = "full-consensus")]
-            SyncMode::History => {
-                blockchain_config.keep_history = true;
+            SyncMode::History | SyncMode::Full => {
+                blockchain_config.keep_history = config.consensus.sync_mode == SyncMode::History;
                 blockchain_config.index_history = config.consensus.index_history;
                 let blockchain = match Blockchain::new_merged(
                     environment.clone(),
@@ -413,8 +409,33 @@ impl ClientInner {
                         return Err(Error::Consensus(BlockchainError(err)));
                     }
                 };
+                BlockchainProxy::from(&blockchain)
+            }
+            SyncMode::Light => BlockchainProxy::from(&Arc::new(RwLock::new(LightBlockchain::new(
+                config.network_id,
+            )))),
+        };
 
-                let blockchain_proxy = BlockchainProxy::from(&blockchain);
+        // Create the Dht verifier
+        let dht_verifier = Verifier::new(blockchain_proxy.clone());
+
+        // Create the network.
+        let network = Arc::new(Network::new(network_config, dht_verifier).await);
+
+        // Start buffering network events as early as possible
+        let network_events = network.subscribe_events();
+
+        let (syncer_proxy, zkp_component) = match config.consensus.sync_mode {
+            #[cfg(not(feature = "full-consensus"))]
+            SyncMode::History => {
+                panic!("Can't build a history node without the full-consensus feature enabled")
+            }
+            #[cfg(not(feature = "full-consensus"))]
+            SyncMode::Full => {
+                panic!("Can't build a full node without the full-consensus feature enabled")
+            }
+            #[cfg(feature = "full-consensus")]
+            SyncMode::History => {
                 #[cfg(feature = "zkp-prover")]
                 let zkp_component = if let Some(zk_prover_config) = config.zk_prover {
                     ZKPComponent::with_prover(
@@ -441,27 +462,10 @@ impl ClientInner {
                     network_events,
                 )
                 .await;
-                (blockchain_proxy, syncer, zkp_component)
+                (syncer, zkp_component)
             }
             #[cfg(feature = "full-consensus")]
             SyncMode::Full => {
-                blockchain_config.keep_history = false;
-                blockchain_config.index_history = config.consensus.index_history;
-
-                let blockchain = match Blockchain::new_merged(
-                    environment.clone(),
-                    pre_genesis_environment,
-                    blockchain_config,
-                    config.network_id,
-                    time,
-                ) {
-                    Ok(blockchain) => Arc::new(RwLock::new(blockchain)),
-                    Err(err) => {
-                        return Err(Error::Consensus(BlockchainError(err)));
-                    }
-                };
-
-                let blockchain_proxy = BlockchainProxy::from(&blockchain);
                 #[cfg(feature = "zkp-prover")]
                 let zkp_component = if let Some(zk_prover_config) = config.zk_prover {
                     ZKPComponent::with_prover(
@@ -491,11 +495,9 @@ impl ClientInner {
                     config.consensus.full_sync_threshold,
                 )
                 .await;
-                (blockchain_proxy, syncer, zkp_component)
+                (syncer, zkp_component)
             }
             SyncMode::Light => {
-                let blockchain = Arc::new(RwLock::new(LightBlockchain::new(config.network_id)));
-                let blockchain_proxy = BlockchainProxy::from(&blockchain);
                 let zkp_component =
                     ZKPComponent::new(blockchain_proxy.clone(), Arc::clone(&network), zkp_storage)
                         .await;
@@ -507,7 +509,7 @@ impl ClientInner {
                     network_events,
                 )
                 .await;
-                (blockchain_proxy, syncer, zkp_component)
+                (syncer, zkp_component)
             }
         };
 

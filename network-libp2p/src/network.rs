@@ -37,6 +37,7 @@ use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 #[cfg(feature = "metrics")]
 use crate::network_metrics::NetworkMetrics;
 use crate::{
+    dht,
     discovery::peer_contacts::PeerContactBook,
     network_types::{GossipsubId, NetworkAction, ValidateMessage},
     rate_limiting::RateLimitConfig,
@@ -74,8 +75,9 @@ impl Network {
     /// # Arguments
     ///
     ///  - `config`: The network configuration, containing key pair, and other behavior-specific configuration.
+    ///  - `dht_verifier`: The verifier used to verify all Dht records.
     ///
-    pub async fn new(config: Config) -> Self {
+    pub async fn new(config: Config, dht_verifier: impl dht::Verifier + 'static) -> Self {
         let required_services = config.required_services;
         // TODO: persist to disk
         let own_peer_contact = config.peer_contact.clone();
@@ -122,6 +124,7 @@ impl Network {
             Arc::clone(&connected_peers),
             update_scores,
             Arc::clone(&contacts),
+            dht_verifier,
             force_dht_server_mode,
             dht_quorum,
             #[cfg(feature = "metrics")]
