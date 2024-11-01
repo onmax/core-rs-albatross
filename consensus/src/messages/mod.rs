@@ -159,31 +159,6 @@ The consensus module uses the following messages:
 203 RequestResponseMessage<Epoch>
 */
 
-/// The max number of MacroChain requests per peer.
-pub const MAX_REQUEST_RESPONSE_MACRO_CHAIN: u32 = 1000;
-/// The max number of BatchSet requests per peer.
-pub const MAX_REQUEST_RESPONSE_BATCH_SET: u32 = 1000;
-/// The max number of HistoryChunk requests per peer.
-pub const MAX_REQUEST_RESPONSE_HISTORY_CHUNK: u32 = 1000;
-/// The max number of RequestBlock requests per peer.
-pub const MAX_REQUEST_RESPONSE_BLOCK: u32 = 1000;
-/// The max number of MissingBlocks requests per peer.
-pub const MAX_REQUEST_RESPONSE_MISSING_BLOCKS: u32 = 1000;
-/// The max number of RequestHead requests per peer.
-pub const MAX_REQUEST_RESPONSE_HEAD: u32 = 1000;
-/// The max number of Transactions proof requests per peer.
-pub const MAX_REQUEST_TRANSACTIONS_PROOF: u32 = 1000;
-/// The max number of Transactions proof requests per peer.
-pub const MAX_REQUEST_TRANSACTIONS_BY_ADDRESS: u32 = 1000;
-// The max number of Trie proof requests per peer.
-pub const MAX_REQUEST_TRIE_PROOF: u32 = 1000;
-/// The max number of Block proof requests per peer.
-pub const MAX_REQUEST_BLOCKS_PROOF: u32 = 1000;
-/// The max number of Subscribe to address requests per peer.
-pub const MAX_REQUEST_SUBSCRIBE_BY_ADDRESS: u32 = 10;
-/// The max number of Address notifications per peer.
-pub const MAX_ADDRESS_NOTIFICATIONS: u32 = 100;
-
 /// Part of [`MacroChain`].
 ///
 /// Metadata of the last checkpoint block in the response.
@@ -244,7 +219,7 @@ impl RequestCommon for RequestMacroChain {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 200;
     type Response = Result<MacroChain, MacroChainError>;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_RESPONSE_MACRO_CHAIN;
+    const MAX_REQUESTS: u32 = 20;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -257,7 +232,7 @@ impl RequestCommon for RequestBatchSet {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 202;
     type Response = Result<BatchSetInfo, BatchSetError>;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_RESPONSE_BATCH_SET;
+    const MAX_REQUESTS: u32 = 100;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -334,7 +309,7 @@ impl RequestCommon for RequestHistoryChunk {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 204;
     type Response = Result<HistoryChunk, HistoryChunkError>;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_RESPONSE_HISTORY_CHUNK;
+    const MAX_REQUESTS: u32 = 500;
 }
 
 #[cfg(feature = "full")]
@@ -384,7 +359,7 @@ impl RequestCommon for RequestBlock {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 207;
     type Response = Result<Block, BlockError>;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_RESPONSE_BLOCK;
+    const MAX_REQUESTS: u32 = 200;
 }
 test_max_req_size!(
     RequestBlock,
@@ -470,7 +445,7 @@ impl RequestCommon for RequestMissingBlocks {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 209;
     type Response = Result<ResponseBlocks, ResponseBlocksError>;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_RESPONSE_MISSING_BLOCKS;
+    const MAX_REQUESTS: u32 = 200;
 }
 
 /// Request the current blockchain head block hash.
@@ -489,7 +464,7 @@ impl RequestCommon for RequestHead {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 210;
     type Response = ResponseHead;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_RESPONSE_HEAD;
+    const MAX_REQUESTS: u32 = 50;
 }
 test_max_req_size!(RequestHead, request_head_req_size, request_head_resp_size);
 
@@ -530,7 +505,7 @@ impl RequestCommon for RequestTransactionsProof {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 213;
     type Response = Result<ResponseTransactionsProof, ResponseTransactionProofError>;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_TRANSACTIONS_PROOF;
+    const MAX_REQUESTS: u32 = 1000;
 }
 
 /// Returns the latest transactions for a given address. All the transactions
@@ -550,7 +525,7 @@ impl RequestCommon for RequestTransactionReceiptsByAddress {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 214;
     type Response = ResponseTransactionReceiptsByAddress;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_TRANSACTIONS_BY_ADDRESS;
+    const MAX_REQUESTS: u32 = 20;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -570,7 +545,7 @@ impl RequestCommon for RequestTrieProof {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 215;
     type Response = Result<ResponseTrieProof, ResponseTrieProofError>;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_TRIE_PROOF;
+    const MAX_REQUESTS: u32 = 50;
 }
 
 /// Response to [`RequestTrieProof`].
@@ -615,7 +590,7 @@ impl RequestCommon for RequestBlocksProof {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 216;
     type Response = Result<ResponseBlocksProof, ResponseBlocksProofError>;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_BLOCKS_PROOF;
+    const MAX_REQUESTS: u32 = 50;
 }
 
 /// Operations supported for the transaction address subscription
@@ -641,7 +616,7 @@ impl RequestCommon for RequestSubscribeToAddress {
     type Kind = RequestMarker;
     const TYPE_ID: u16 = 217;
     type Response = Result<(), SubscribeToAddressesError>;
-    const MAX_REQUESTS: u32 = MAX_REQUEST_SUBSCRIBE_BY_ADDRESS;
+    const MAX_REQUESTS: u32 = 10;
 }
 
 /// Different kind of events that could generate notifications
