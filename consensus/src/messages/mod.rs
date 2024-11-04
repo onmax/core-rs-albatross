@@ -187,6 +187,9 @@ pub enum MacroChainError {
     /// The locators of the request could not be found.
     #[error("unknown locators")]
     UnknownLocators,
+    /// Request contains too many locators.
+    #[error("too many locators")]
+    TooManyLocators,
     /// Error not understood by the recipient, is never sent explicitly.
     #[error("unknown error")]
     #[serde(other)]
@@ -389,6 +392,9 @@ pub enum ResponseBlocksError {
     /// The locators are unknown to the responder.
     #[error("unknown locators")]
     UnknownLocators,
+    /// Request contains too many locators.
+    #[error("too many locators")]
+    TooManyLocators,
     /// The responder couldn't get the intermediate blocks due to another
     /// error.
     #[error("failed to get blocks")]
@@ -480,6 +486,8 @@ pub struct ResponseTransactionsProof {
 pub enum ResponseTransactionProofError {
     #[error("empty list of transactions given")]
     NoTransactionsProvided,
+    #[error("too many transactions given")]
+    TooManyTransactionsProvided,
     #[error("requested txn proof from future block {0}, current head is {1}")]
     RequestedTxnProofFromFuture(u32, u32),
     #[error("requested txn proof that corresponds to a finalized epoch (block number {0}), should use the election block instead")]
@@ -563,6 +571,8 @@ pub struct ResponseTrieProof {
 pub enum ResponseTrieProofError {
     #[error("incomplete trie")]
     IncompleteTrie,
+    #[error("too many keys")]
+    TooManyKeys,
     #[error("unknown error")]
     #[serde(other)]
     Other,
@@ -583,6 +593,8 @@ pub struct ResponseBlocksProof {
 pub enum ResponseBlocksProofError {
     #[error("bad block number {0}")]
     BadBlockNumber(u32),
+    #[error("too many blocks")]
+    TooManyBlocks,
     #[error("unknown error")]
     #[serde(other)]
     Other,
