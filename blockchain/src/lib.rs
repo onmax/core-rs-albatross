@@ -13,6 +13,6 @@ pub(crate) mod blockchain;
 pub(crate) mod blockchain_state;
 #[cfg(feature = "metrics")]
 pub mod chain_metrics;
-pub(crate) mod chain_store;
+pub mod chain_store;
 pub(crate) mod history;
 pub mod reward;

@@ -1,4 +1,4 @@
-use std::{fs, process::exit, time::Duration};
+use std::{fs, process::exit, sync::Arc, time::Duration};
 
 use clap::{Parser, Subcommand};
 use convert_case::{Case, Casing};
@@ -6,6 +6,9 @@ use log::info;
 use nimiq::{
     config::{config::ClientConfig, config_file::ConfigFile},
     extras::logging::initialize_logging,
+};
+use nimiq_blockchain::{
+    chain_store::ChainStore, history_store_proxy::HistoryStoreProxy, HistoryStore,
 };
 use nimiq_hash::Blake2bHash;
 use nimiq_keys::Address;
@@ -228,6 +231,17 @@ async fn main() {
                 exit(1);
             }
         };
+
+        // Check that we have not migrated before
+        let history_store = Arc::new(HistoryStoreProxy::WithoutIndex(Box::new(
+            HistoryStore::new(env.clone(), config.network_id),
+        )));
+
+        let chain_store = ChainStore::new(env.clone(), history_store);
+
+        if chain_store.get_head(None).is_some() {
+            panic!("We already have blocks in the chain store")
+        }
 
         // Create channels in order to communicate with the PoW-to-PoS history migrator
         let (tx_candidate_block, rx_candidate_block) = mpsc::channel(16);
