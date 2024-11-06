@@ -230,7 +230,7 @@ pub async fn check_validators_ready(
 
     log::info!(
         ?activation_block_window,
-        "Validators who are ready in the current activation window: "
+        "Validators who are ready in the current activation window:"
     );
 
     for ready_validator in ready_validators {

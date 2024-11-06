@@ -240,7 +240,8 @@ async fn main() {
         let chain_store = ChainStore::new(env.clone(), history_store);
 
         if chain_store.get_head(None).is_some() {
-            panic!("We already have blocks in the chain store")
+            log::error!("We already have blocks in the chain store");
+            exit(1);
         }
 
         // Create channels in order to communicate with the PoW-to-PoS history migrator
