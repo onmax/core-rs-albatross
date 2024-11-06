@@ -633,15 +633,10 @@ pub struct ClientConfig {
 
     /// The Nimiq network the client should connect to. Usually this should be either `Test` or
     /// `Main` for the Nimiq 1.0 networks. For Albatross there is `MainAlbatross`, `TestAlbatross`
-    /// and `DevAlbatross` available. Since Albatross is still in development at time of writing,
-    /// it is recommended to use `TestAlbatross`.
+    /// and `DevAlbatross` available.
     ///
-    /// Default is `TestAlbatross`
-    ///
-    /// # TODO
-    ///
-    ///  - Rename, to avoid confusion with the libp2p network
-    #[builder(default = "NetworkId::TestAlbatross")]
+    /// Default is `MainAlbatross`
+    #[builder(default = "NetworkId::MainAlbatross")]
     pub network_id: NetworkId,
 
     /// Determines where the database is stored.
@@ -711,6 +706,11 @@ impl ClientConfigBuilder {
     /// Sets the network ID to the Albatross TestNet
     pub fn test(&mut self) -> &mut Self {
         self.network_id(NetworkId::TestAlbatross)
+    }
+
+    /// Sets the network ID to the Albatross MainNet
+    pub fn main(&mut self) -> &mut Self {
+        self.network_id(NetworkId::MainAlbatross)
     }
 
     /// Configuration for Light Client

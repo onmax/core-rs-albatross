@@ -26,7 +26,10 @@ listen_addresses = [
 
 # Seed nodes to connect to when the node starts up. Multiple addresses can be specified.
 seed_nodes = [
-  { address = "/dns4/seed1.pos.nimiq-testnet.com/tcp/8443/wss" },
+  { address = "/dns4/seed-1.pos.nimiq.com/tcp/8443/wss" },
+  { address = "/dns4/seed-2.pos.nimiq.com/tcp/8443/wss" },
+  { address = "/dns4/seed-3.pos.nimiq.com/tcp/8443/wss" },
+  { address = "/dns4/seed-4.pos.nimiq.com/tcp/8443/wss" },
 ]
 
 # Address(es) that will be advertised to peers instead of the ones in `listen_addresses`.
@@ -96,8 +99,8 @@ seed_nodes = [
 
 # The network to connect to.
 # Possible values: "main-albatross", "test-albatross", "dev-albatross"
-# Default: "test-albatross"
-network = "test-albatross"
+# Default: "main-albatross"
+network = "main-albatross"
 
 # The sync mode, which determines the client type.
 # Validator nodes require "full" or "history" sync mode.
