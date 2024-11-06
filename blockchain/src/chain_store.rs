@@ -178,6 +178,7 @@ impl ChainStore {
         txn.clear_table(&self.height_idx);
         txn.clear_table(&self.revert_table);
         txn.clear_table(&self.accounts_diff_table);
+        txn.clear_table(&self.head_table);
     }
 
     pub fn get_head(&self, txn_option: Option<&MdbxReadTransaction>) -> Option<Blake2bHash> {
