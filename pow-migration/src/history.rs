@@ -79,6 +79,38 @@ fn from_pow_transaction(pow_transaction: &PoWTransaction) -> Result<Transaction,
     Ok(tx)
 }
 
+async fn remove_history(
+    env: &MdbxDatabase,
+    pow_client: &Client,
+    history_store: &HistoryStoreProxy,
+    history_store_height: u32,
+    wanted_history_store_height: u32,
+) {
+    let mut num_txns_to_revert = 0usize;
+    for block_height in wanted_history_store_height + 1..=history_store_height {
+        let block = async_retryer(|| pow_client.get_block_by_number(block_height, false))
+            .await
+            .unwrap();
+
+        match block.transactions {
+            PoWTransactionSequence::BlockHashes(transactions) => {
+                num_txns_to_revert += transactions.len()
+            }
+            PoWTransactionSequence::Transactions(_) => panic!("Unexpected transaction type"),
+        }
+    }
+
+    log::info!(
+        wanted_history_store_height,
+        history_store_height,
+        num_txns_to_revert,
+        "Reverting transactions from history store since more than the necessary history was already migrated"
+    );
+    let mut txn = env.write_transaction();
+    history_store.remove_partial_history(&mut txn, 0, num_txns_to_revert);
+    txn.commit();
+}
+
 /// Task that is responsible for migrating the PoW history into a PoS history up until an instructed block height.
 /// It migrates the history up to the `candidate_block` received in `rx_candidate_block` if the head of the PoW chain
 /// is greater than `candidate_block + block_confirmations` and if not waits for this to happen.
@@ -106,6 +138,23 @@ pub async fn migrate_history(
         if candidate_block <= history_store_height {
             tx_migration_completed.send(candidate_block).unwrap();
             continue;
+        }
+
+        if history_store_height > candidate_block {
+            // We have migrated more history than the required.
+            // In this case we remove history items such that the history root can be computed with the
+            // requested candidate block.
+            remove_history(
+                &env,
+                &pow_client,
+                &history_store,
+                history_store_height,
+                candidate_block,
+            )
+            .await;
+
+            history_store_height = get_history_store_height(env.clone(), network_id).await;
+            assert_eq!(history_store_height, candidate_block);
         }
 
         log::info!(
