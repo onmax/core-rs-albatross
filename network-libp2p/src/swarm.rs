@@ -330,6 +330,7 @@ fn handle_event(event: SwarmEvent<behaviour::BehaviourEvent>, event_info: EventI
                         .add_peer_address(peer_id, listen_addr.clone());
 
                     // Bootstrap Kademlia if we're performing our first connection
+                    #[cfg(feature = "kad")]
                     if event_info.state.dht_bootstrap_state == DhtBootStrapState::NotStarted {
                         debug!("Bootstrapping DHT");
                         if event_info.swarm.behaviour_mut().dht.bootstrap().is_err() {
@@ -445,6 +446,7 @@ fn handle_behaviour_event(event: behaviour::BehaviourEvent, event_info: EventInf
         }
         behaviour::BehaviourEvent::ConnectionLimits(event) => match event {},
         behaviour::BehaviourEvent::Pool(event) => match event {},
+        #[cfg(feature = "kad")]
         behaviour::BehaviourEvent::Dht(event) => handle_dht_event(event, event_info),
         behaviour::BehaviourEvent::Discovery(event) => handle_discovery_event(event, event_info),
         behaviour::BehaviourEvent::Gossipsub(event) => handle_gossipsup_event(event, event_info),
@@ -473,6 +475,7 @@ fn handle_autonat_server_event(event: autonat::v2::server::Event, _event_info: E
     log::trace!(?event, "AutoNAT inbound probe");
 }
 
+#[cfg(feature = "kad")]
 fn handle_dht_event(event: kad::Event, event_info: EventInfo) {
     match event {
         kad::Event::OutboundQueryProgressed {
@@ -511,6 +514,7 @@ fn handle_dht_event(event: kad::Event, event_info: EventInfo) {
     }
 }
 
+#[cfg(feature = "kad")]
 fn handle_dht_get(
     id: QueryId,
     result: Result<GetRecordOk, GetRecordError>,
@@ -618,6 +622,7 @@ fn handle_dht_get(
     }
 }
 
+#[cfg(feature = "kad")]
 fn handle_dht_put_record(
     id: QueryId,
     result: Result<PutRecordOk, PutRecordError>,
@@ -635,6 +640,7 @@ fn handle_dht_put_record(
     }
 }
 
+#[cfg(feature = "kad")]
 fn handle_dht_bootstrap(
     _id: QueryId,
     result: Result<BootstrapOk, BootstrapError>,
@@ -657,6 +663,7 @@ fn handle_dht_bootstrap(
     }
 }
 
+#[cfg(feature = "kad")]
 fn handle_dht_inbound_put(
     _source: PeerId,
     _connection: ConnectionId,
@@ -687,6 +694,7 @@ fn handle_dht_inbound_put(
     }
 }
 
+#[cfg(feature = "kad")]
 fn handle_dht_mode_change(new_mode: Mode, event_info: EventInfo) {
     debug!(%new_mode, "DHT mode changed");
     if new_mode == Mode::Server {
@@ -738,6 +746,7 @@ fn handle_discovery_event(event: discovery::Event, event_info: EventInfo) {
                 .add_peer_address(peer_id, peer_address);
 
             // Bootstrap Kademlia if we're adding our first address
+            #[cfg(feature = "kad")]
             if event_info.state.dht_bootstrap_state == DhtBootStrapState::NotStarted {
                 debug!("Bootstrapping DHT");
                 if event_info.swarm.behaviour_mut().dht.bootstrap().is_err() {
@@ -1031,7 +1040,9 @@ fn perform_action(action: NetworkAction, swarm: &mut NimiqSwarm, state: &mut Tas
             output.send(result).ok();
         }
         NetworkAction::DhtGet { key, output } => {
+            #[cfg(feature = "kad")]
             let query_id = swarm.behaviour_mut().dht.get_record(key.into());
+            #[cfg(feature = "kad")]
             state.dht_gets.insert(query_id, output);
         }
         NetworkAction::DhtPut { key, value, output } => {
@@ -1044,6 +1055,7 @@ fn perform_action(action: NetworkAction, swarm: &mut NimiqSwarm, state: &mut Tas
                 expires: None, // This only affects local storage. Records are replicated with configured TTL.
             };
 
+            #[cfg(feature = "kad")]
             match swarm.behaviour_mut().dht.put_record(record, Quorum::One) {
                 Ok(query_id) => {
                     // Remember put operation to resolve when we receive a `QueryResult::PutRecord`

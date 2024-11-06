@@ -293,7 +293,10 @@ async fn create_network_with_n_peers(
 
     // Wait for all PeerJoined events
     let all_joined = futures::stream::select_all(events)
-        .take(n_peers * (n_peers - 1 + 1/*1 x DHT bootstrapped*/))
+        .filter(|(local_peer_id, event)| {
+            std::future::ready(matches!(event, Ok(NetworkEvent::PeerJoined(..))))
+        })
+        .take(n_peers * (n_peers - 1))
         .for_each(|(local_peer_id, event)| async move {
             match event {
                 Ok(NetworkEvent::PeerJoined(peer_id, _)) => {
@@ -477,6 +480,7 @@ impl TaggedSignable for TestRecord {
 }
 
 #[test(tokio::test)]
+#[cfg(feature = "kad")]
 async fn dht_put_and_get() {
     // We have a quorum of 3 for getting DHT records, so we need at least 3 peers
     let (networks, keys) = create_network_with_n_peers(3).await;

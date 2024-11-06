@@ -37,6 +37,7 @@ pub struct Behaviour {
     pub discovery: discovery::Behaviour,
     pub autonat_server: autonat::server::Behaviour,
     pub autonat_client: autonat::client::Behaviour,
+    #[cfg(feature = "kad")]
     pub dht: kad::Behaviour<MemoryStore>,
     pub gossipsub: gossipsub::Behaviour,
     pub ping: ping::Behaviour,
@@ -55,7 +56,9 @@ impl Behaviour {
 
         // DHT behaviour
         let store = MemoryStore::new(peer_id);
+        #[cfg(feature = "kad")]
         let mut dht = kad::Behaviour::with_config(peer_id, store, config.kademlia);
+        #[cfg(feature = "kad")]
         if force_dht_server_mode {
             dht.set_mode(Some(kad::Mode::Server));
         }
@@ -125,6 +128,7 @@ impl Behaviour {
         let connection_limits = connection_limits::Behaviour::new(limits);
 
         Self {
+            #[cfg(feature = "kad")]
             dht,
             discovery,
             gossipsub,
@@ -140,17 +144,20 @@ impl Behaviour {
     /// Adds a peer address into the DHT
     pub fn add_peer_address(&mut self, peer_id: PeerId, address: Multiaddr) {
         // Add address to the DHT
+        #[cfg(feature = "kad")]
         self.dht.add_address(&peer_id, address);
     }
 
     /// Removes a peer from the DHT
     pub fn remove_peer(&mut self, peer_id: PeerId) {
+        #[cfg(feature = "kad")]
         self.dht.remove_peer(&peer_id);
     }
 
     /// Removes a peer address from the DHT
     pub fn remove_peer_address(&mut self, peer_id: PeerId, address: Multiaddr) {
         // Remove address from the DHT
+        #[cfg(feature = "kad")]
         self.dht.remove_address(&peer_id, &address);
     }
 

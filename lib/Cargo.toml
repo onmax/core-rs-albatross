@@ -95,6 +95,7 @@ full-consensus = [
     "database-storage",
     "nimiq-blockchain",
     "nimiq-consensus/full",
+    "nimiq-network-libp2p/kad",
 ]
 launcher = []
 logging = ["nimiq-log", "serde_json", "tokio", "tracing-subscriber"]

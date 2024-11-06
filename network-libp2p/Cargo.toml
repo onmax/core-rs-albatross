@@ -42,7 +42,7 @@ tokio-stream = "0.1"
 unsigned-varint = "0.8"
 void = "1.0"
 
-nimiq-keys = { workspace = true } 
+nimiq-keys = { workspace = true }
 nimiq-macros = { workspace = true }
 nimiq-network-interface = { workspace = true }
 nimiq-hash = { workspace = true }
@@ -92,5 +92,6 @@ nimiq-test-log = { workspace = true }
 nimiq-test-utils = { workspace = true }
 
 [features]
+kad = []
 metrics = ["prometheus-client"]
 tokio-websocket = ["libp2p/dns", "libp2p/tcp", "libp2p/tokio", "libp2p/websocket"]
