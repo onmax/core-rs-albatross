@@ -68,8 +68,6 @@ impl<TValidatorNetwork: ValidatorNetwork + 'static> NextProduceMicroBlockEvent<T
         }
     }
 
-    // TODO Remove this line
-    #[allow(unreachable_code)]
     async fn next(
         self,
     ) -> (
@@ -131,11 +129,6 @@ impl<TValidatorNetwork: ValidatorNetwork + 'static> NextProduceMicroBlockEvent<T
                         %error,
                         "Failed to construct micro block"
                     );
-
-                    // Add an artificial panic here so that it's easier to catch any remaining
-                    // mempool bugs.
-                    // TODO Remove this line and the #[allow(unreachable_code)] annotation on this function.
-                    panic!("Failed to construct micro block");
 
                     // Sleep a bit to allow the task to be cancelled externally if needed.
                     delay = Duration::from_millis(50);

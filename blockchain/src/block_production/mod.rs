@@ -19,7 +19,7 @@ use crate::{interface::HistoryInterface, Blockchain};
 
 #[derive(Debug, Error)]
 pub enum BlockProducerError {
-    #[error("Failed to commit: error={0}, account={1:?}, transactions={2:?}, inherents={3:?}")]
+    #[error("Failed to commit: error={0}, account={1:#?}, transactions={2:#?}, inherents={3:#?}")]
     AccountsError(AccountsError, Account, Vec<Transaction>, Vec<Inherent>),
     #[error("Failed to add to history")]
     HistoryError,
