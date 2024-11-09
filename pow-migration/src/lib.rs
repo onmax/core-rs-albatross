@@ -132,7 +132,9 @@ pub async fn report_online(
     // Get the latest online transaction that was sent
     txns.sort_by(|a, b| a.block_number.cmp(&b.block_number));
 
-    let latest_online_bn = txns.last().unwrap().block_number;
+    let latest_online_bn = txns.last().unwrap().block_number.expect(
+        "Block number should exist since it was checked in the validity of online transactions",
+    );
 
     // We report as online every POW_BLOCKS_PER_HOUR.
     if pow_block_number > latest_online_bn + POW_BLOCKS_PER_HOUR {

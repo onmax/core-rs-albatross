@@ -124,16 +124,22 @@ fn is_valid_ready_txn(
     genesis_config_hash: &String,
 ) -> bool {
     // Check if the txn contains extra data and matches our genesis config hash
+    let Some(block_number) = txn.block_number else {
+        return false;
+    };
     Some(genesis_config_hash) == txn.data.as_ref()
-        && block_window.contains(&txn.block_number)
+        && block_window.contains(&block_number)
         && txn.to_address == Address::burn_address().to_user_friendly_address()
 }
 
 /// Checks if the provided transaction meets the criteria in order to be
 /// considered a valid online-transaction
 fn is_valid_online_txn(txn: &TransactionDetails, block_window: &Range<u32>) -> bool {
+    let Some(block_number) = txn.block_number else {
+        return false;
+    };
     Some(hex::encode("online")) == txn.data
-        && block_window.contains(&txn.block_number)
+        && block_window.contains(&block_number)
         && txn.to_address == Address::burn_address().to_user_friendly_address()
 }
 

@@ -199,7 +199,12 @@ pub async fn get_validators(
     let mut validators = vec![];
 
     // Remove any transaction outside of the validator registration window
-    transactions.retain(|txn| block_window.contains(&txn.block_number));
+    transactions.retain(|txn| {
+        let Some(block_number) = txn.block_number else {
+            return false;
+        };
+        block_window.contains(&block_number)
+    });
 
     // Group all transactions by its sender
     for txn in transactions {
@@ -377,7 +382,12 @@ pub async fn get_stakers(
     }
 
     // Remove any transaction outside of the validator registration window
-    transactions.retain(|txn| block_window.contains(&txn.block_number));
+    transactions.retain(|txn| {
+        let Some(block_number) = txn.block_number else {
+            return false;
+        };
+        block_window.contains(&block_number)
+    });
 
     // Group all transactions by its sender
     for txn in transactions {
