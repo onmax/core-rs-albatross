@@ -13,6 +13,7 @@ use nimiq_consensus::{
     sync::syncer_proxy::SyncerProxy, Consensus as AbstractConsensus,
     ConsensusProxy as AbstractConsensusProxy,
 };
+#[cfg(feature = "full-consensus")]
 use nimiq_dht::Verifier;
 #[cfg(feature = "zkp-prover")]
 use nimiq_genesis::NetworkId;
@@ -417,10 +418,18 @@ impl ClientInner {
         };
 
         // Create the Dht verifier
+        #[cfg(feature = "full-consensus")]
         let dht_verifier = Verifier::new(blockchain_proxy.clone());
 
         // Create the network.
-        let network = Arc::new(Network::new(network_config, dht_verifier).await);
+        let network = Arc::new(
+            Network::new(
+                network_config,
+                #[cfg(feature = "full-consensus")]
+                dht_verifier,
+            )
+            .await,
+        );
 
         // Start buffering network events as early as possible
         let network_events = network.subscribe_events();

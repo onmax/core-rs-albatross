@@ -77,7 +77,10 @@ impl Network {
     ///  - `config`: The network configuration, containing key pair, and other behavior-specific configuration.
     ///  - `dht_verifier`: The verifier used to verify all Dht records.
     ///
-    pub async fn new(config: Config, dht_verifier: impl dht::Verifier + 'static) -> Self {
+    pub async fn new(
+        config: Config,
+        #[cfg(feature = "kad")] dht_verifier: impl dht::Verifier + 'static,
+    ) -> Self {
         let required_services = config.required_services;
         // TODO: persist to disk
         let own_peer_contact = config.peer_contact.clone();
@@ -124,6 +127,7 @@ impl Network {
             Arc::clone(&connected_peers),
             update_scores,
             Arc::clone(&contacts),
+            #[cfg(feature = "kad")]
             dht_verifier,
             force_dht_server_mode,
             dht_quorum,
