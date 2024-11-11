@@ -81,7 +81,7 @@ fn from_pow_transaction(pow_transaction: &PoWTransaction) -> Result<Transaction,
 async fn remove_history(
     env: &MdbxDatabase,
     pow_client: &Client,
-    history_store: &HistoryStoreProxy,
+    history_store: &UnmergedHistoryStoreProxy,
     history_store_height: u32,
     wanted_history_store_height: u32,
 ) {
