@@ -113,6 +113,11 @@ pub async fn report_online(
         - (NUMBER_ONLINE_REPORTING_WINDOWS * block_windows.readiness_window);
     let online_range = online_start..block_windows.election_candidate;
 
+    if pow_block_number < online_start {
+        // We are not yet in the online reporting window
+        return Ok(0);
+    }
+
     // First we obtain the list of online txns that we have sent
     let mut txns = get_online_txns(pow_client, validator_address.to_string(), online_range).await;
 
