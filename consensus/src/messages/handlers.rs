@@ -28,7 +28,7 @@ use crate::sync::live::{
 };
 
 impl RequestMacroChain {
-    const MAX_LOCATORS: usize = 255;
+    const MAX_LOCATORS: usize = 100;
     const MAX_EPOCHS: u32 = 255;
 }
 impl<N: Network> Handle<N, BlockchainProxy> for RequestMacroChain {
@@ -213,7 +213,7 @@ impl<N: Network> Handle<N, BlockchainProxy> for RequestMissingBlocks {
     }
 }
 impl RequestMissingBlocks {
-    const MAX_LOCATORS: usize = 255;
+    const MAX_LOCATORS: usize = 100;
 
     fn handle_backward<N: Network>(
         &self,
