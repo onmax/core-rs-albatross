@@ -22,8 +22,12 @@ use crate::{
 type PubsubHeader<N> = (BlockHeaderMessage, <N as Network>::PubsubId);
 type PubsubBody<N> = (BlockBodyMessage, <N as Network>::PubsubId);
 type CachedBody<N> = (BlockBody, <N as Network>::PubsubId);
-/// First the body root and second the header hash.
-type CachedBodyKey = (Blake2sHash, Blake2bHash);
+
+#[derive(Clone, Eq, Hash, PartialEq)]
+struct CachedBodyKey {
+    body_root: Blake2sHash,
+    header_message_hash: Blake2bHash,
+}
 
 pub struct BlockAssembler<N: Network> {
     network: Arc<N>,
@@ -98,73 +102,83 @@ impl<N: Network> Stream for BlockAssembler<N> {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         while let Poll::Ready(item) = self.header_stream.poll_next_unpin(cx) {
-            let header = match item {
-                Some(header) => header,
-                None => return Poll::Ready(None),
+            let Some((header_message, header_id)) = item else {
+                return Poll::Ready(None);
             };
 
-            let hash: Blake2bHash = header.0.hash();
-            let body_key = (header.0.body_root().clone(), hash.clone());
+            let hash: Blake2bHash = header_message.hash();
+            let body_key = CachedBodyKey {
+                body_root: header_message.body_root().clone(),
+                header_message_hash: header_message.hash(),
+            };
 
-            if let Some(body) = self.cached_bodies.remove(&body_key) {
+            if let Some((body_message, body_id)) = self.cached_bodies.remove(&body_key) {
                 // Check that header and body type match.
-                if header.0.ty() != body.0.ty() {
+                if header_message.ty() != body_message.ty() {
                     debug!(
-                        block = %header.0,
-                        peer_id_header = %header.1.propagation_source(),
-                        peer_id_body = %body.1.propagation_source(),
+                        block = %header_message,
+                        peer_id_header = %header_id.propagation_source(),
+                        peer_id_body = %body_id.propagation_source(),
                         "Discarding block - header and body types don't match"
                     );
 
-                    self.reject_messages(header.1, body.1);
+                    self.reject_messages(header_id, body_id);
 
                     continue;
                 }
 
                 return Poll::Ready(Some((
-                    Self::assemble_block(header.0, body.0),
-                    BlockSource::announced(header.1, Some(body.1)),
+                    Self::assemble_block(header_message, body_message),
+                    BlockSource::announced(header_id, Some(body_id)),
                 )));
             }
 
-            self.cached_headers.insert(hash, header);
+            self.cached_headers
+                .insert(hash, (header_message, header_id));
         }
 
         while let Poll::Ready(item) = self.body_stream.poll_next_unpin(cx) {
-            let body = match item {
-                Some(body) => body,
-                None => return Poll::Ready(None),
+            let Some((body_message, body_id)) = item else {
+                return Poll::Ready(None);
             };
 
-            let hash = body.0.body.hash();
-            if let Some(header) = self.cached_headers.get(&body.0.header_message_hash) {
-                if *header.0.body_root() == hash {
-                    let header = self.cached_headers.remove(&body.0.header_message_hash).unwrap();
+            let hash = body_message.body.hash();
+            if self
+                .cached_headers
+                .get(&body_message.header_message_hash)
+                .is_some_and(|(header_message, _)| *header_message.body_root() == hash)
+            {
+                let (header_message, header_id) = self
+                    .cached_headers
+                    .remove(&body_message.header_message_hash)
+                    .unwrap();
 
-                    // Check that header and body type match.
-                    if header.0.ty() != body.0.body.ty() {
-                        debug!(
-                            block = %header.0,
-                            peer_id_header = %header.1.propagation_source(),
-                            peer_id_body = %body.1.propagation_source(),
-                            "Discarding block - header and body types don't match"
-                        );
+                // Check that header and body type match.
+                if header_message.ty() != body_message.body.ty() {
+                    debug!(
+                        block = %header_message,
+                        peer_id_header = %header_id.propagation_source(),
+                        peer_id_body = %body_id.propagation_source(),
+                        "Discarding block - header and body types don't match"
+                    );
 
-                        self.reject_messages(header.1, body.1);
+                    self.reject_messages(header_id, body_id);
 
-                        continue;
-                    }
-
-                    return Poll::Ready(Some((
-                        Self::assemble_block(header.0, body.0.body),
-                        BlockSource::announced(header.1, Some(body.1)),
-                    )));
+                    continue;
                 }
+
+                return Poll::Ready(Some((
+                    Self::assemble_block(header_message, body_message.body),
+                    BlockSource::announced(header_id, Some(body_id)),
+                )));
             }
 
-            let body_key = (hash, body.0.header_message_hash);
-            let cached_body = (body.0.body, body.1);
-            self.cached_bodies.insert(body_key, cached_body);
+            let body_key = CachedBodyKey {
+                body_root: hash,
+                header_message_hash: body_message.header_message_hash,
+            };
+            self.cached_bodies
+                .insert(body_key, (body_message.body, body_id));
         }
 
         // The cache stream never returns None, so it's ok to ignore that case here.
