@@ -23,9 +23,10 @@ pub trait Verifier: Send + Sync {
 /// Dummy implementation for testcases
 impl Verifier for () {
     fn verify(&self, record: &Record) -> Result<DhtRecord, DhtVerifierError> {
+        let peer_id = PeerId::random();
         Ok(DhtRecord::Validator(
-            PeerId::random(),
-            ValidatorRecord::<PeerId>::new(PeerId::random(), 0u64),
+            peer_id,
+            ValidatorRecord::<PeerId>::new(peer_id, Address::default(), 0u64),
             record.clone(),
         ))
     }

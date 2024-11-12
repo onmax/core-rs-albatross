@@ -11,18 +11,36 @@ use libp2p::{
     multiaddr::Protocol,
     Multiaddr, PeerId,
 };
-use nimiq_network_interface::peer_info::{PeerInfo, Services};
+use nimiq_keys::{Address, KeyPair};
+use nimiq_network_interface::{
+    network::Network as NetworkInterface,
+    peer_info::{PeerInfo, Services},
+};
 use nimiq_utils::tagged_signing::{TaggedKeyPair, TaggedSignable, TaggedSignature};
+use nimiq_validator_network::validator_record::ValidatorRecord;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::utils;
+use crate::{utils, Network};
 
 #[derive(Debug, Error)]
 pub enum PeerContactError {
     #[error("Exceeded number of advertised addresses")]
     AdvertisedAddressesExceeded,
+}
+
+/// The validator info contains all information which is not present in a [PeerContact]
+/// such that a [ValidatorRecord] can be constructed. Importantly this also includes the signature.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ValidatorInfo {
+    /// The address of the validator. This is the unique identifier for a validator.
+    validator_address: Address,
+
+    /// The signature for the [ValidatorRecord].
+    /// It does _not_ verify for this structure, but only once the [nimiq_utils::tagged_signing::TaggedSigned] is reconstructed
+    /// with the given information of this struct and the corresponding [PeerContact].
+    signature: TaggedSignature<ValidatorRecord<<Network as NetworkInterface>::PeerId>, KeyPair>,
 }
 
 /// A plain peer contact. This contains:
@@ -44,6 +62,10 @@ pub struct PeerContact {
 
     /// Services supported by this peer.
     pub services: Services,
+
+    /// Optional [ValidatorInfo] in case the node represented by this contact is
+    /// running a validator.
+    validator_info: Option<ValidatorInfo>,
 
     /// Timestamp when this peer contact was created in *seconds* since unix epoch.
     timestamp: u64,
@@ -70,6 +92,7 @@ impl PeerContact {
             addresses,
             public_key,
             services,
+            validator_info: None,
             timestamp,
         })
     }

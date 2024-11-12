@@ -493,6 +493,7 @@ where
         let peer_id = self.network.get_local_peer_id();
         let record = ValidatorRecord::new(
             peer_id,
+            validator_address.clone(),
             (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000) as u64,
         );
         self.network

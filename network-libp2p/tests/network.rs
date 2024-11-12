@@ -293,7 +293,7 @@ async fn create_network_with_n_peers(
 
     // Wait for all PeerJoined events
     let all_joined = futures::stream::select_all(events)
-        .filter(|(local_peer_id, event)| {
+        .filter(|(_local_peer_id, event)| {
             std::future::ready(matches!(event, Ok(NetworkEvent::PeerJoined(..))))
         })
         .take(n_peers * (n_peers - 1))
@@ -490,17 +490,19 @@ async fn dht_put_and_get() {
     // FIXME: Add delay while networks share their addresses
     sleep(Duration::from_secs(2)).await;
 
-    let put_record = ValidatorRecord {
-        peer_id: net1.get_local_peer_id(),
-        timestamp: 0x42u64,
-    };
-
     // Generate a key
     let mut rng = test_rng(false);
     let keypair = KeyPair::generate(&mut rng);
 
     // Put it into the keys collection.
     let key: Address = (&keypair.public).into();
+
+    let put_record = ValidatorRecord {
+        peer_id: net1.get_local_peer_id(),
+        validator_address: key.clone(),
+        timestamp: 0x42u64,
+    };
+
     assert!(keys.write().insert(key.clone(), keypair.public).is_none());
 
     // Put the record into the dht, keyed by the address.

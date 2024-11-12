@@ -1,3 +1,4 @@
+use nimiq_keys::Address;
 use nimiq_serde::{Deserialize, Serialize};
 use nimiq_utils::tagged_signing::TaggedSignable;
 
@@ -17,6 +18,8 @@ where
 {
     /// Validator Peer ID
     pub peer_id: TPeerId,
+    /// The Address of the validator. This is the unique identifier of a validator.
+    pub validator_address: Address,
     /// Record timestamp in milliseconds since 1970-01-01 00:00:00 UTC, excluding leap seconds (Unix time)
     pub timestamp: u64,
 }
@@ -25,8 +28,12 @@ impl<TPeerId> ValidatorRecord<TPeerId>
 where
     TPeerId: Serialize + Deserialize,
 {
-    pub fn new(peer_id: TPeerId, timestamp: u64) -> Self {
-        Self { peer_id, timestamp }
+    pub fn new(peer_id: TPeerId, validator_address: Address, timestamp: u64) -> Self {
+        Self {
+            peer_id,
+            validator_address,
+            timestamp,
+        }
     }
 }
 
