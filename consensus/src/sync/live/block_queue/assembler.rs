@@ -137,9 +137,9 @@ impl<N: Network> Stream for BlockAssembler<N> {
             };
 
             let hash = body.0.body.hash();
-            if let Some(header) = self.cached_headers.get(&body.0.header_hash) {
+            if let Some(header) = self.cached_headers.get(&body.0.header_message_hash) {
                 if *header.0.body_root() == hash {
-                    let header = self.cached_headers.remove(&body.0.header_hash).unwrap();
+                    let header = self.cached_headers.remove(&body.0.header_message_hash).unwrap();
 
                     // Check that header and body type match.
                     if header.0.ty() != body.0.body.ty() {
@@ -162,7 +162,7 @@ impl<N: Network> Stream for BlockAssembler<N> {
                 }
             }
 
-            let body_key = (hash, body.0.header_hash);
+            let body_key = (hash, body.0.header_message_hash);
             let cached_body = (body.0.body, body.1);
             self.cached_bodies.insert(body_key, cached_body);
         }

@@ -59,26 +59,26 @@ impl BlockHeaderMessage {
     pub fn split_block(block: Block) -> (BlockHeaderMessage, BlockBodyMessage) {
         match block {
             Block::Macro(block) => {
-                let header = BlockHeaderMessage::Macro {
+                let header_message = BlockHeaderMessage::Macro {
                     header: block.header,
                     justification: block.justification.expect("Justification is required"),
                 };
-                let body = BlockBodyMessage {
-                    header_hash: header.hash(),
+                let body_message = BlockBodyMessage {
+                    header_message_hash: header_message.hash(),
                     body: BlockBody::Macro(block.body.expect("Body is required")),
                 };
-                (header, body)
+                (header_message, body_message)
             }
             Block::Micro(block) => {
-                let header = BlockHeaderMessage::Micro {
+                let header_message = BlockHeaderMessage::Micro {
                     header: block.header,
                     justification: block.justification.expect("Justification is required"),
                 };
-                let body = BlockBodyMessage {
-                    header_hash: header.hash(),
+                let body_message = BlockBodyMessage {
+                    header_message_hash: header_message.hash(),
                     body: BlockBody::Micro(block.body.expect("Body is required")),
                 };
-                (header, body)
+                (header_message, body_message)
             }
         }
     }
@@ -124,7 +124,12 @@ impl From<BlockHeaderMessage> for Block {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BlockBodyMessage {
-    pub header_hash: Blake2bHash,
+    /// Hash of the corresponding [`BlockHeaderMessage`].
+    ///
+    /// This is used instead of the hash of the contained
+    /// [`MacroHeader`]/[`MicroHeader`] since the header hash wouldn't capture
+    /// the justification.
+    pub header_message_hash: Blake2bHash,
     pub body: BlockBody,
 }
 
