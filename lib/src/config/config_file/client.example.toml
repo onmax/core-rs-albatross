@@ -26,10 +26,20 @@ listen_addresses = [
 
 # Seed nodes to connect to when the node starts up. Multiple addresses can be specified.
 seed_nodes = [
-  { address = "/dns4/seed-1.pos.nimiq.com/tcp/8443/wss" },
-  { address = "/dns4/seed-2.pos.nimiq.com/tcp/8443/wss" },
-  { address = "/dns4/seed-3.pos.nimiq.com/tcp/8443/wss" },
-  { address = "/dns4/seed-4.pos.nimiq.com/tcp/8443/wss" },
+  { address = "/dns4/amsterdam.seed.nimiq.network/tcp/8443/wss" },
+  { address = "/dns4/berlin.seed.nimiq.com/tcp/8443/wss" },
+  { address = "/dns4/buenos-aires.seed.nimiq.com/tcp/8443/wss" },
+  { address = "/dns4/cairo.seed.nimiq-network.com/tcp/8443/wss" },
+  { address = "/dns4/istanbul.seed.nimiq.network/tcp/8443/wss" },
+  { address = "/dns4/lagos.seed.nimiq.com/tcp/8443/wss" },
+  { address = "/dns4/mumbai.seed.nimiq-network.com/tcp/8443/wss" },
+  { address = "/dns4/new-york.seed.nimiq.com/tcp/8443/wss" },
+  { address = "/dns4/san-jose.seed.nimiq.com/tcp/8443/wss" },
+  { address = "/dns4/sao-paulo.seed.nimiq-network.com/tcp/8443/wss" },
+  { address = "/dns4/shanghai.seed.nimiq.network/tcp/8443/wss" },
+  { address = "/dns4/sydney.seed.nimiq-network.com/tcp/8443/wss" },
+  { address = "/dns4/tokyo.seed.nimiq-network.com/tcp/8443/wss" },
+  { address = "/dns4/toronto.seed.nimiq.network/tcp/8443/wss" },
 ]
 
 # Address(es) that will be advertised to peers instead of the ones in `listen_addresses`.
