@@ -25,21 +25,29 @@ listen_addresses = [
 ]
 
 # Seed nodes to connect to when the node starts up. Multiple addresses can be specified.
+# - Testnet seed nodes (uncomment the following lines and comment mainnet ones for Testnet):
+# seed_nodes = [
+#   { address = "/dns4/seed1.pos.nimiq-testnet.com/tcp/8443/wss" },
+#   { address = "/dns4/seed2.pos.nimiq-testnet.com/tcp/8443/wss" },
+#   { address = "/dns4/seed3.pos.nimiq-testnet.com/tcp/8443/wss" },
+#   { address = "/dns4/seed4.pos.nimiq-testnet.com/tcp/8443/wss" },
+# ]
+# - Mainnet seed nodes:
 seed_nodes = [
-  { address = "/dns4/amsterdam.seed.nimiq.network/tcp/8443/wss" },
-  { address = "/dns4/berlin.seed.nimiq.com/tcp/8443/wss" },
-  { address = "/dns4/buenos-aires.seed.nimiq.com/tcp/8443/wss" },
-  { address = "/dns4/cairo.seed.nimiq-network.com/tcp/8443/wss" },
-  { address = "/dns4/istanbul.seed.nimiq.network/tcp/8443/wss" },
-  { address = "/dns4/lagos.seed.nimiq.com/tcp/8443/wss" },
-  { address = "/dns4/mumbai.seed.nimiq-network.com/tcp/8443/wss" },
-  { address = "/dns4/new-york.seed.nimiq.com/tcp/8443/wss" },
-  { address = "/dns4/san-jose.seed.nimiq.com/tcp/8443/wss" },
-  { address = "/dns4/sao-paulo.seed.nimiq-network.com/tcp/8443/wss" },
-  { address = "/dns4/shanghai.seed.nimiq.network/tcp/8443/wss" },
-  { address = "/dns4/sydney.seed.nimiq-network.com/tcp/8443/wss" },
-  { address = "/dns4/tokyo.seed.nimiq-network.com/tcp/8443/wss" },
-  { address = "/dns4/toronto.seed.nimiq.network/tcp/8443/wss" },
+  { address = "/dns4/aurora.seed.nimiq.com/tcp/443/wss" },
+  { address = "/dns4/catalyst.seed.nimiq.network/tcp/443/wss" },
+  { address = "/dns4/cipher.seed.nimiq-network.com/tcp/443/wss" },
+  { address = "/dns4/eclipse.seed.nimiq.cloud/tcp/443/wss" },
+  { address = "/dns4/lumina.seed.nimiq.systems/tcp/443/wss" },
+  { address = "/dns4/nebula.seed.nimiq.com/tcp/443/wss" },
+  { address = "/dns4/nexus.seed.nimiq.network/tcp/443/wss" },
+  { address = "/dns4/polaris.seed.nimiq-network.com/tcp/443/wss" },
+  { address = "/dns4/photon.seed.nimiq.cloud/tcp/443/wss" },
+  { address = "/dns4/pulsar.seed.nimiq.systems/tcp/443/wss" },
+  { address = "/dns4/quasar.seed.nimiq.com/tcp/443/wss" },
+  { address = "/dns4/solstice.seed.nimiq.network/tcp/443/wss" },
+  { address = "/dns4/vortex.seed.nimiq.cloud/tcp/443/wss" },
+  { address = "/dns4/zenith.seed.nimiq.systems/tcp/443/wss" },
 ]
 
 # Address(es) that will be advertised to peers instead of the ones in `listen_addresses`.
