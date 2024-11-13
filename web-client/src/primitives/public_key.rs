@@ -111,6 +111,14 @@ impl PublicKey {
     pub fn to_address(&self) -> Address {
         Address::from(nimiq_keys::Address::from(&self.inner))
     }
+
+    pub fn equals(&self, other: &PublicKey) -> bool {
+        self.inner == other.inner
+    }
+
+    pub fn compare(&self, other: &PublicKey) -> i32 {
+        self.inner.cmp(&other.inner) as i32
+    }
 }
 
 impl From<nimiq_keys::Ed25519PublicKey> for PublicKey {

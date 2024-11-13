@@ -118,6 +118,14 @@ impl ES256PublicKey {
     pub fn to_address(&self) -> Address {
         Address::from(nimiq_keys::Address::from(&self.inner))
     }
+
+    pub fn equals(&self, other: &ES256PublicKey) -> bool {
+        self.inner == other.inner
+    }
+
+    pub fn compare(&self, other: &ES256PublicKey) -> i32 {
+        self.inner.cmp(&other.inner) as i32
+    }
 }
 
 impl From<nimiq_keys::ES256PublicKey> for ES256PublicKey {

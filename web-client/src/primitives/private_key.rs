@@ -70,6 +70,10 @@ impl PrivateKey {
     pub fn to_hex(&self) -> String {
         self.inner.to_hex()
     }
+
+    pub fn equals(&self, other: &PrivateKey) -> bool {
+        self.inner == other.inner
+    }
 }
 
 impl From<nimiq_keys::PrivateKey> for PrivateKey {

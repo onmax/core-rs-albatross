@@ -91,6 +91,16 @@ impl Address {
     pub fn serialize(&self) -> Vec<u8> {
         self.inner.serialize_to_vec()
     }
+
+    #[cfg(feature = "primitives")]
+    pub fn equals(&self, other: &Address) -> bool {
+        self.inner == other.inner
+    }
+
+    #[cfg(feature = "primitives")]
+    pub fn compare(&self, other: &Address) -> i32 {
+        self.inner.cmp(&other.inner) as i32
+    }
 }
 
 impl From<nimiq_keys::Address> for Address {
