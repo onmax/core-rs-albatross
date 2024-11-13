@@ -13,43 +13,41 @@ use nimiq_utils::stream::FuturesUnordered;
 
 use crate::ValidatorNetwork;
 
-pub struct SingleResponseRequester<'a, TValidatorNetwork, TRequest, TContext, TOutput>
+pub struct SingleResponseRequester<'a, TValidatorNetwork, TRequest, TOutput>
 where
     TValidatorNetwork: ValidatorNetwork + 'static,
     TRequest: Request + Clone,
-    TContext: Clone + Send + Unpin,
 {
     network: Arc<TValidatorNetwork>,
     remaining_peers: Vec<u16>,
     request: TRequest,
-    context: TContext,
     desired_pending_requests: usize,
-    verification_fn: fn(<TRequest as RequestCommon>::Response, TContext) -> Option<TOutput>,
+    verification_fn:
+        Box<dyn FnMut(<TRequest as RequestCommon>::Response) -> Option<TOutput> + Send>,
 
     pending_futures:
         FuturesUnordered<BoxFuture<'a, Result<<TRequest as RequestCommon>::Response, u16>>>,
 }
 
-impl<'a, TValidatorNetwork, TRequest, TContext, TOutput>
-    SingleResponseRequester<'a, TValidatorNetwork, TRequest, TContext, TOutput>
+impl<'a, TValidatorNetwork, TRequest, TOutput>
+    SingleResponseRequester<'a, TValidatorNetwork, TRequest, TOutput>
 where
     TValidatorNetwork: ValidatorNetwork + 'static,
     TRequest: Request + Clone,
-    TContext: Clone + Send + Unpin,
 {
     pub fn new(
         network: Arc<TValidatorNetwork>,
         remaining_peers: Vec<u16>,
         request: TRequest,
-        context: TContext,
         desired_pending_requests: usize,
-        verification_fn: fn(<TRequest as RequestCommon>::Response, TContext) -> Option<TOutput>,
+        verification_fn: Box<
+            dyn FnMut(<TRequest as RequestCommon>::Response) -> Option<TOutput> + Send,
+        >,
     ) -> Self {
         let mut this = Self {
             network,
             remaining_peers,
             request,
-            context,
             desired_pending_requests,
             verification_fn,
             pending_futures: FuturesUnordered::default(),
@@ -89,12 +87,11 @@ where
     }
 }
 
-impl<'a, TValidatorNetwork, TRequest, TContext, TOutput> Future
-    for SingleResponseRequester<'a, TValidatorNetwork, TRequest, TContext, TOutput>
+impl<'a, TValidatorNetwork, TRequest, TOutput> Future
+    for SingleResponseRequester<'a, TValidatorNetwork, TRequest, TOutput>
 where
     TValidatorNetwork: ValidatorNetwork + 'static,
     TRequest: Request + Clone,
-    TContext: Clone + Send + Unpin,
 {
     type Output = Option<TOutput>;
 
@@ -103,8 +100,7 @@ where
             while let Poll::Ready(response) = self.pending_futures.poll_next_unpin(cx) {
                 match response {
                     Some(Ok(response)) => {
-                        if let Some(output) = (self.verification_fn)(response, self.context.clone())
-                        {
+                        if let Some(output) = (self.verification_fn)(response) {
                             return Poll::Ready(Some(output));
                         }
                         // If the verification_fn does not produce a result do nothing and try the next.

@@ -282,13 +282,10 @@ where
             proposal_hash,
         };
 
-        SingleResponseRequester::new(
-            Arc::clone(&self.network),
-            candidate_peers,
-            request,
-            (Arc::clone(&self.blockchain), self.block_height),
-            3,
-            |response, (blockchain, block_height)| {
+        SingleResponseRequester::new(Arc::clone(&self.network), candidate_peers, request, 3, {
+            let blockchain = Arc::clone(&self.blockchain);
+            let block_height = self.block_height;
+            Box::new(move |response| {
                 if let Some(signed_proposal) = response {
                     let blockchain = blockchain.read();
 
@@ -327,8 +324,8 @@ where
                     }
                 }
                 None
-            },
-        )
+            })
+        })
         .boxed()
     }
 
