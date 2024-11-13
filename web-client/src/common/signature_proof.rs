@@ -1,15 +1,19 @@
 use std::str;
 
+#[cfg(feature = "primitives")]
 use js_sys::Array;
 use nimiq_serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use crate::{
-    common::address::Address,
-    primitives::{
-        es256_public_key::ES256PublicKey, es256_signature::ES256Signature, public_key::PublicKey,
-        signature::Signature,
-    },
+#[cfg(feature = "primitives")]
+use crate::common::address::Address;
+#[cfg(feature = "primitives")]
+use crate::common::transaction::PlainTransactionProofType;
+use crate::common::transaction::{PlainStandardProof, PlainTransactionProof};
+#[cfg(feature = "primitives")]
+use crate::primitives::{
+    es256_public_key::ES256PublicKey, es256_signature::ES256Signature, public_key::PublicKey,
+    signature::Signature,
 };
 
 /// A signature proof represents a signature together with its public key and the public key's merkle path.
@@ -19,6 +23,7 @@ pub struct SignatureProof {
     inner: nimiq_transaction::SignatureProof,
 }
 
+#[cfg(feature = "primitives")]
 #[wasm_bindgen]
 impl SignatureProof {
     /// Creates a Ed25519/Schnorr signature proof for a single-sig signature.
@@ -108,12 +113,6 @@ impl SignatureProof {
         ))
     }
 
-    /// Deserializes a signature proof from a byte array.
-    pub fn deserialize(bytes: &[u8]) -> Result<SignatureProof, JsError> {
-        let proof = nimiq_transaction::SignatureProof::deserialize_from_vec(bytes)?;
-        Ok(SignatureProof::from(proof))
-    }
-
     fn make_merkle_path(
         values: &[nimiq_keys::PublicKey],
         leaf_value: &nimiq_keys::PublicKey,
@@ -181,16 +180,23 @@ impl SignatureProof {
     pub fn serialize(&self) -> Vec<u8> {
         self.inner.serialize_to_vec()
     }
-}
 
-impl From<nimiq_transaction::SignatureProof> for SignatureProof {
-    fn from(signature_proof: nimiq_transaction::SignatureProof) -> Self {
-        SignatureProof {
-            inner: signature_proof,
-        }
+    pub fn to_plain(&self) -> Result<PlainTransactionProofType, JsError> {
+        let plain = self.to_plain_transaction_proof();
+        Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 }
 
+#[wasm_bindgen]
+impl SignatureProof {
+    /// Deserializes a signature proof from a byte array.
+    pub fn deserialize(bytes: &[u8]) -> Result<SignatureProof, JsError> {
+        let proof = nimiq_transaction::SignatureProof::deserialize_from_vec(bytes)?;
+        Ok(SignatureProof::from(proof))
+    }
+}
+
+#[cfg(feature = "primitives")]
 impl SignatureProof {
     pub fn native_ref(&self) -> &nimiq_transaction::SignatureProof {
         &self.inner
@@ -246,6 +252,33 @@ impl SignatureProof {
     }
 }
 
+impl SignatureProof {
+    pub fn to_plain_transaction_proof(&self) -> PlainTransactionProof {
+        PlainTransactionProof::Standard(PlainStandardProof {
+            raw: hex::encode(self.inner.serialize_to_vec()),
+            signature: match self.inner.signature {
+                nimiq_keys::Signature::Ed25519(ref signature) => signature.to_hex(),
+                nimiq_keys::Signature::ES256(ref signature) => signature.to_hex(),
+            },
+            public_key: match self.inner.public_key {
+                nimiq_keys::PublicKey::Ed25519(ref public_key) => public_key.to_hex(),
+                nimiq_keys::PublicKey::ES256(ref public_key) => public_key.to_hex(),
+            },
+            signer: self.inner.compute_signer().to_user_friendly_address(),
+            path_length: self.inner.merkle_path.len() as u8,
+        })
+    }
+}
+
+impl From<nimiq_transaction::SignatureProof> for SignatureProof {
+    fn from(signature_proof: nimiq_transaction::SignatureProof) -> Self {
+        SignatureProof {
+            inner: signature_proof,
+        }
+    }
+}
+
+#[cfg(feature = "primitives")]
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(typescript_type = "PublicKey | ES256PublicKey")]
@@ -264,9 +297,9 @@ mod tests {
     use wasm_bindgen::prelude::JsValue;
     use wasm_bindgen_test::*;
 
-    use crate::primitives::{
-        es256_public_key::ES256PublicKey, es256_signature::ES256Signature,
-        signature_proof::SignatureProof,
+    use crate::{
+        common::signature_proof::SignatureProof,
+        primitives::{es256_public_key::ES256PublicKey, es256_signature::ES256Signature},
     };
 
     /// Tests a signature generated with Desktop Chrome, which follows the Webauthn standard.

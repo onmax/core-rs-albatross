@@ -1,21 +1,16 @@
 use std::str::FromStr;
 
 use nimiq_hash::{Blake2bHash, Hash};
-use nimiq_keys::{PublicKey, Signature};
 #[cfg(feature = "client")]
 use nimiq_primitives::policy::Policy;
 use nimiq_primitives::{account::AccountType, coin::Coin, networks::NetworkId};
 use nimiq_serde::{Deserialize, Serialize};
 use nimiq_transaction::{
     account::{
-        htlc_contract::{
-            AnyHash, CreationTransactionData as HtlcCreationTransactionData,
-            OutgoingHTLCTransactionProof,
-        },
-        staking_contract::{IncomingStakingTransactionData, OutgoingStakingTransactionData},
+        staking_contract::OutgoingStakingTransactionData,
         vesting_contract::CreationTransactionData as VestingCreationTransactionData,
     },
-    SignatureProof, TransactionFlags, TransactionFormat,
+    TransactionFlags, TransactionFormat,
 };
 #[cfg(feature = "client")]
 use nimiq_transaction::{
@@ -33,6 +28,9 @@ use wasm_bindgen_derive::TryFromJsValue;
 
 use crate::common::{
     address::Address,
+    hashed_time_locked_contract::HashedTimeLockedContract,
+    signature_proof::SignatureProof,
+    staking_contract::StakingContract,
     utils::{from_network_id, to_network_id},
 };
 #[cfg(feature = "primitives")]
@@ -473,113 +471,7 @@ impl Transaction {
             data: {
                 if self.inner.recipient_type == AccountType::Staking {
                     // Parse transaction data
-                    let data = IncomingStakingTransactionData::parse(&self.inner).unwrap();
-                    match data {
-                        IncomingStakingTransactionData::CreateStaker {
-                            delegation,
-                            proof: _proof,
-                        } => PlainTransactionRecipientData::CreateStaker(PlainCreateStakerData {
-                            raw: hex::encode(self.recipient_data()),
-                            delegation: delegation
-                                .map(|address| address.to_user_friendly_address()),
-                        }),
-                        IncomingStakingTransactionData::AddStake { staker_address } => {
-                            PlainTransactionRecipientData::AddStake(PlainAddStakeData {
-                                raw: hex::encode(self.recipient_data()),
-                                staker: staker_address.to_user_friendly_address(),
-                            })
-                        }
-                        IncomingStakingTransactionData::UpdateStaker {
-                            new_delegation,
-                            reactivate_all_stake,
-                            proof: _proof,
-                        } => PlainTransactionRecipientData::UpdateStaker(PlainUpdateStakerData {
-                            raw: hex::encode(self.recipient_data()),
-                            new_delegation: new_delegation
-                                .map(|address| address.to_user_friendly_address()),
-                            reactivate_all_stake,
-                        }),
-                        IncomingStakingTransactionData::CreateValidator {
-                            signing_key,
-                            voting_key,
-                            reward_address,
-                            signal_data,
-                            proof_of_knowledge,
-                            proof: _proof,
-                        } => PlainTransactionRecipientData::CreateValidator(
-                            PlainCreateValidatorData {
-                                raw: hex::encode(self.recipient_data()),
-                                signing_key: signing_key.to_hex(),
-                                voting_key: voting_key.to_hex(),
-                                reward_address: reward_address.to_user_friendly_address(),
-                                signal_data: signal_data.map(hex::encode),
-                                proof_of_knowledge: proof_of_knowledge.to_hex(),
-                            },
-                        ),
-                        IncomingStakingTransactionData::UpdateValidator {
-                            new_signing_key,
-                            new_voting_key,
-                            new_reward_address,
-                            new_signal_data,
-                            new_proof_of_knowledge,
-                            proof: _proof,
-                        } => PlainTransactionRecipientData::UpdateValidator(
-                            PlainUpdateValidatorData {
-                                raw: hex::encode(self.recipient_data()),
-                                new_signing_key: new_signing_key
-                                    .map(|signing_key| signing_key.to_hex()),
-                                new_voting_key: new_voting_key
-                                    .map(|voting_key| voting_key.to_hex()),
-                                new_reward_address: new_reward_address.map(|reward_address| {
-                                    reward_address.to_user_friendly_address()
-                                }),
-                                new_signal_data: new_signal_data
-                                    .map(|signal_data| signal_data.map(hex::encode)),
-                                new_proof_of_knowledge: new_proof_of_knowledge
-                                    .map(|proof_of_knowledge| proof_of_knowledge.to_hex()),
-                            },
-                        ),
-                        IncomingStakingTransactionData::DeactivateValidator {
-                            validator_address,
-                            proof: _proof,
-                        } => {
-                            PlainTransactionRecipientData::DeactivateValidator(PlainValidatorData {
-                                raw: hex::encode(self.recipient_data()),
-                                validator: validator_address.to_user_friendly_address(),
-                            })
-                        }
-                        IncomingStakingTransactionData::ReactivateValidator {
-                            validator_address,
-                            proof: _proof,
-                        } => {
-                            PlainTransactionRecipientData::ReactivateValidator(PlainValidatorData {
-                                raw: hex::encode(self.recipient_data()),
-                                validator: validator_address.to_user_friendly_address(),
-                            })
-                        }
-                        IncomingStakingTransactionData::RetireValidator { proof: _proof } => {
-                            PlainTransactionRecipientData::RetireValidator(PlainRawData {
-                                raw: hex::encode(self.recipient_data()),
-                            })
-                        }
-                        IncomingStakingTransactionData::SetActiveStake {
-                            new_active_balance,
-                            proof: _proof,
-                        } => {
-                            PlainTransactionRecipientData::SetActiveStake(PlainSetActiveStakeData {
-                                raw: hex::encode(self.recipient_data()),
-                                new_active_balance: new_active_balance.into(),
-                            })
-                        }
-                        IncomingStakingTransactionData::RetireStake {
-                            retire_stake,
-                            proof: _proof,
-                        } => PlainTransactionRecipientData::RetireStake(PlainRetireStakeData {
-                            raw: hex::encode(self.recipient_data()),
-                            retire_stake: retire_stake.into(),
-                        }),
-                    }
-                    // In the future we might add other staking notifications
+                    StakingContract::parse_data(&self.inner.recipient_data).unwrap()
                 } else if self.inner.recipient_type == AccountType::Vesting {
                     let data = VestingCreationTransactionData::parse(&self.inner).unwrap();
                     PlainTransactionRecipientData::Vesting(PlainVestingData {
@@ -590,20 +482,7 @@ impl Transaction {
                         time_step: data.time_step,
                     })
                 } else if self.inner.recipient_type == AccountType::HTLC {
-                    let data = HtlcCreationTransactionData::parse(&self.inner).unwrap();
-                    PlainTransactionRecipientData::Htlc(PlainHtlcData {
-                        raw: hex::encode(self.recipient_data()),
-                        sender: data.sender.to_user_friendly_address(),
-                        recipient: data.recipient.to_user_friendly_address(),
-                        hash_algorithm: match data.hash_root {
-                            AnyHash::Blake2b(_) => "blake2b".to_string(),
-                            AnyHash::Sha256(_) => "sha256".to_string(),
-                            AnyHash::Sha512(_) => "sha512".to_string(),
-                        },
-                        hash_root: data.hash_root.to_hex(),
-                        hash_count: data.hash_count,
-                        timeout: data.timeout,
-                    })
+                    HashedTimeLockedContract::parse_data(&self.inner.recipient_data).unwrap()
                 } else {
                     PlainTransactionRecipientData::Raw(PlainRawData {
                         raw: hex::encode(self.recipient_data()),
@@ -614,99 +493,10 @@ impl Transaction {
                 if self.inner.proof.is_empty() {
                     PlainTransactionProof::Empty(PlainEmptyProof::default())
                 } else if self.inner.sender_type == AccountType::HTLC {
-                    let proof = OutgoingHTLCTransactionProof::parse(&self.inner).unwrap();
-                    match proof {
-                        OutgoingHTLCTransactionProof::RegularTransfer {
-                            hash_depth,
-                            hash_root,
-                            pre_image,
-                            signature_proof,
-                        } => {
-                            PlainTransactionProof::RegularTransfer(PlainHtlcRegularTransferProof {
-                                raw: hex::encode(self.proof()),
-                                hash_algorithm: match hash_root {
-                                    AnyHash::Blake2b(_) => "blake2b".to_string(),
-                                    AnyHash::Sha256(_) => "sha256".to_string(),
-                                    AnyHash::Sha512(_) => "sha512".to_string(),
-                                },
-                                hash_depth,
-                                hash_root: hash_root.to_hex(),
-                                pre_image: pre_image.to_hex(),
-                                signer: signature_proof.compute_signer().to_user_friendly_address(),
-                                signature: match signature_proof.signature {
-                                    Signature::Ed25519(ref signature) => signature.to_hex(),
-                                    Signature::ES256(ref signature) => signature.to_hex(),
-                                },
-                                public_key: match signature_proof.public_key {
-                                    PublicKey::Ed25519(ref public_key) => public_key.to_hex(),
-                                    PublicKey::ES256(ref public_key) => public_key.to_hex(),
-                                },
-                                path_length: signature_proof.merkle_path.len() as u8,
-                            })
-                        }
-                        OutgoingHTLCTransactionProof::TimeoutResolve {
-                            signature_proof_sender,
-                        } => PlainTransactionProof::TimeoutResolve(PlainHtlcTimeoutResolveProof {
-                            raw: hex::encode(self.proof()),
-                            creator: signature_proof_sender
-                                .compute_signer()
-                                .to_user_friendly_address(),
-                            creator_signature: match signature_proof_sender.signature {
-                                Signature::Ed25519(ref signature) => signature.to_hex(),
-                                Signature::ES256(ref signature) => signature.to_hex(),
-                            },
-                            creator_public_key: match signature_proof_sender.public_key {
-                                PublicKey::Ed25519(ref public_key) => public_key.to_hex(),
-                                PublicKey::ES256(ref public_key) => public_key.to_hex(),
-                            },
-                            creator_path_length: signature_proof_sender.merkle_path.len() as u8,
-                        }),
-                        OutgoingHTLCTransactionProof::EarlyResolve {
-                            signature_proof_recipient,
-                            signature_proof_sender,
-                        } => PlainTransactionProof::EarlyResolve(PlainHtlcEarlyResolveProof {
-                            raw: hex::encode(self.proof()),
-                            signer: signature_proof_recipient
-                                .compute_signer()
-                                .to_user_friendly_address(),
-                            signature: match signature_proof_recipient.signature {
-                                Signature::Ed25519(ref signature) => signature.to_hex(),
-                                Signature::ES256(ref signature) => signature.to_hex(),
-                            },
-                            public_key: match signature_proof_recipient.public_key {
-                                PublicKey::Ed25519(ref public_key) => public_key.to_hex(),
-                                PublicKey::ES256(ref public_key) => public_key.to_hex(),
-                            },
-                            path_length: signature_proof_recipient.merkle_path.len() as u8,
-                            creator: signature_proof_sender
-                                .compute_signer()
-                                .to_user_friendly_address(),
-                            creator_signature: match signature_proof_sender.signature {
-                                Signature::Ed25519(ref signature) => signature.to_hex(),
-                                Signature::ES256(ref signature) => signature.to_hex(),
-                            },
-                            creator_public_key: match signature_proof_sender.public_key {
-                                PublicKey::Ed25519(ref public_key) => public_key.to_hex(),
-                                PublicKey::ES256(ref public_key) => public_key.to_hex(),
-                            },
-                            creator_path_length: signature_proof_sender.merkle_path.len() as u8,
-                        }),
-                    }
+                    HashedTimeLockedContract::parse_proof(&self.inner.proof).unwrap()
                 } else {
-                    let proof = SignatureProof::deserialize_all(&self.inner.proof).unwrap();
-                    PlainTransactionProof::Standard(PlainStandardProof {
-                        raw: hex::encode(self.proof()),
-                        signature: match proof.signature {
-                            Signature::Ed25519(ref signature) => signature.to_hex(),
-                            Signature::ES256(ref signature) => signature.to_hex(),
-                        },
-                        public_key: match proof.public_key {
-                            PublicKey::Ed25519(ref public_key) => public_key.to_hex(),
-                            PublicKey::ES256(ref public_key) => public_key.to_hex(),
-                        },
-                        signer: proof.compute_signer().to_user_friendly_address(),
-                        path_length: proof.merkle_path.len() as u8,
-                    })
+                    let proof = SignatureProof::deserialize(&self.inner.proof).unwrap();
+                    proof.to_plain_transaction_proof()
                 }
             },
             size: self.serialized_size(),
@@ -820,24 +610,24 @@ pub struct PlainHtlcData {
 #[derive(Clone, serde::Serialize, serde::Deserialize, Tsify)]
 #[serde(rename_all = "camelCase")]
 pub struct PlainCreateValidatorData {
-    raw: String,
-    signing_key: String,
-    voting_key: String,
-    reward_address: String,
-    signal_data: Option<String>,
-    proof_of_knowledge: String,
+    pub raw: String,
+    pub signing_key: String,
+    pub voting_key: String,
+    pub reward_address: String,
+    pub signal_data: Option<String>,
+    pub proof_of_knowledge: String,
 }
 
 /// JSON-compatible and human-readable format of validator update data.
 #[derive(Clone, serde::Serialize, serde::Deserialize, Tsify)]
 #[serde(rename_all = "camelCase")]
 pub struct PlainUpdateValidatorData {
-    raw: String,
-    new_signing_key: Option<String>,
-    new_voting_key: Option<String>,
-    new_reward_address: Option<String>,
-    new_signal_data: Option<Option<String>>,
-    new_proof_of_knowledge: Option<String>,
+    pub raw: String,
+    pub new_signing_key: Option<String>,
+    pub new_voting_key: Option<String>,
+    pub new_reward_address: Option<String>,
+    pub new_signal_data: Option<Option<String>>,
+    pub new_proof_of_knowledge: Option<String>,
 }
 
 /// JSON-compatible and human-readable format of validator deactivation/reactivation data.
@@ -1246,6 +1036,12 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "PlainTransactionReceipt[]")]
     pub type PlainTransactionReceiptArrayType;
+
+    #[wasm_bindgen(typescript_type = "PlainTransactionRecipientData")]
+    pub type PlainTransactionRecipientDataType;
+
+    #[wasm_bindgen(typescript_type = "PlainTransactionProof")]
+    pub type PlainTransactionProofType;
 }
 
 #[cfg(feature = "primitives")]

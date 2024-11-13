@@ -68,7 +68,7 @@ impl AccountTransactionVerification for VestingContractVerifier {
 /// Data used to create vesting contracts.
 ///
 /// Used in [`Transaction::recipient_data`].
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct CreationTransactionData {
     /// The owner of the contract, the only address that can interact with it.
     pub owner: Address,
