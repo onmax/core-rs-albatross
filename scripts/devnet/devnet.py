@@ -70,9 +70,9 @@ def parse_args():
     parser.add_argument('-k', "--kills", type=int, default=1,
                         help="How many validators are killed each cycle, by "
                         "default just 1")
-    parser.add_argument('-dt', "--down-time", type=check_positive, default=10,
+    parser.add_argument('-dt', "--down-time", type=check_positive, default=30,
                         help="Time in seconds that validators are taken down, "
-                        "by default 10s")
+                        "by default 30s")
     parser.add_argument('-ut', "--up-time", type=check_positive, default=100,
                         help="Time in seconds during which all validators are "
                         "up, by default 100s")
