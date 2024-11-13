@@ -18,10 +18,8 @@ impl ES256Signature {
     ///
     /// Throws when the byte array contains less than 64 bytes.
     pub fn deserialize(bytes: &[u8]) -> Result<ES256Signature, JsError> {
-        match nimiq_keys::ES256Signature::from_bytes(bytes) {
-            Ok(sig) => Ok(ES256Signature::from(sig)),
-            Err(err) => Err(JsError::from(err)),
-        }
+        let sig = nimiq_keys::ES256Signature::from_bytes(bytes)?;
+        Ok(ES256Signature::from(sig))
     }
 
     /// Serializes the signature to a byte array.

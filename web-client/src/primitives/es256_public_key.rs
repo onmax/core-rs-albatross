@@ -30,10 +30,7 @@ impl ES256PublicKey {
     ///
     /// Throws when the byte array contains less than 33 bytes.
     pub fn deserialize(bytes: &[u8]) -> Result<ES256PublicKey, JsError> {
-        if bytes.len() != nimiq_keys::ES256PublicKey::SIZE {
-            return Err(JsError::new("Public key primitive: Invalid length"));
-        }
-        let key = nimiq_keys::ES256PublicKey::deserialize_from_vec(bytes)?;
+        let key = nimiq_keys::ES256PublicKey::deserialize_all(bytes)?;
         Ok(ES256PublicKey::from(key))
     }
 
