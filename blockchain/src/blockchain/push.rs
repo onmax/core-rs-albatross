@@ -366,8 +366,12 @@ impl Blockchain {
 
             if !this.config.keep_history {
                 // Prune the History Store.
-                this.history_store
-                    .remove_history(&mut txn, Policy::epoch_at(block_number).saturating_sub(1));
+                // We will never prune pre-genesis data here.
+                let pruned_history_epoch = Policy::epoch_at(block_number).saturating_sub(1);
+                if pruned_history_epoch > 0 {
+                    this.history_store
+                        .remove_history(&mut txn, pruned_history_epoch);
+                }
             }
         }
 
