@@ -1,7 +1,7 @@
 use std::str;
 
 use js_sys::Array;
-use nimiq_serde::Serialize;
+use nimiq_serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 use crate::{
@@ -106,6 +106,12 @@ impl SignatureProof {
                 client_data_json,
             )?,
         ))
+    }
+
+    /// Deserializes a signature proof from a byte array.
+    pub fn deserialize(bytes: &[u8]) -> Result<SignatureProof, JsError> {
+        let proof = nimiq_transaction::SignatureProof::deserialize_from_vec(bytes)?;
+        Ok(SignatureProof::from(proof))
     }
 
     fn make_merkle_path(

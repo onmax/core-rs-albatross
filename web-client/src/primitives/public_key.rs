@@ -24,6 +24,16 @@ impl PublicKey {
 
 #[wasm_bindgen]
 impl PublicKey {
+    #[wasm_bindgen(getter = SIZE)]
+    pub fn size() -> usize {
+        nimiq_keys::Ed25519PublicKey::SIZE
+    }
+
+    #[wasm_bindgen(getter = serializedSize)]
+    pub fn serialized_size(&self) -> usize {
+        PublicKey::size()
+    }
+
     /// Derives a public key from an existing private key.
     pub fn derive(private_key: &PrivateKey) -> PublicKey {
         PublicKey::from(nimiq_keys::Ed25519PublicKey::from(private_key.native_ref()))
