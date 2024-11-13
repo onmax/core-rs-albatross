@@ -254,6 +254,7 @@ impl SkipBlockAggregation {
             .filter_map(move |(item, validator_id)| {
                 // Check that the update is for the current skip block aggregation.
                 if item.info != current_skip_block {
+                    debug!(?current_skip_block, received_skip_block =? item.info,"Discarding skip block update as it comes from a different skip block aggregation");
                     return future::ready(None);
                 }
 
