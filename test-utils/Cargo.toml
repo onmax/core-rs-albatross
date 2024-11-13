@@ -62,7 +62,7 @@ nimiq-keys = { workspace = true }
 nimiq-log = { workspace = true }
 nimiq-mempool = { workspace = true }
 nimiq-network-interface = { workspace = true }
-nimiq-network-libp2p = { workspace = true }
+nimiq-network-libp2p = { workspace = true, features = ["kad"] }
 nimiq-network-mock = { workspace = true }
 nimiq-primitives = { workspace = true, features = ["tendermint"] }
 nimiq-serde = { workspace = true }
