@@ -41,7 +41,7 @@ impl<N: NetworkInterface + TestNetwork> Node<N> {
         Self::new_history(
             peer_id,
             genesis_info.block,
-            genesis_info.accounts,
+            genesis_info.accounts.expect("history nodes need accounts"),
             hub,
             is_prover_active,
         )
@@ -65,7 +65,7 @@ impl<N: NetworkInterface + TestNetwork> Node<N> {
                 Arc::clone(&clock),
                 NetworkId::UnitAlbatross,
                 block,
-                accounts,
+                Some(accounts),
             )
             .unwrap(),
         ));

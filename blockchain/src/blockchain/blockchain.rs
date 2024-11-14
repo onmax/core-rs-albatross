@@ -126,7 +126,7 @@ impl Blockchain {
         time: Arc<OffsetTime>,
         network_id: NetworkId,
         genesis_block: Block,
-        genesis_accounts: Vec<TrieItem>,
+        genesis_accounts: Option<Vec<TrieItem>>,
     ) -> Result<Self, BlockchainError> {
         Self::with_genesis_merged(
             env,
@@ -148,7 +148,7 @@ impl Blockchain {
         time: Arc<OffsetTime>,
         network_id: NetworkId,
         genesis_block: Block,
-        genesis_accounts: Vec<TrieItem>,
+        genesis_accounts: Option<Vec<TrieItem>>,
     ) -> Result<Self, BlockchainError> {
         if !Policy::is_election_block_at(genesis_block.block_number()) {
             log::error!(
@@ -345,7 +345,7 @@ impl Blockchain {
         time: Arc<OffsetTime>,
         network_id: NetworkId,
         genesis_block: Block,
-        genesis_accounts: Vec<TrieItem>,
+        genesis_accounts: Option<Vec<TrieItem>>,
     ) -> Result<Self, BlockchainError> {
         // Initialize chain & accounts with genesis block.
         let head_hash = genesis_block.hash();
@@ -359,9 +359,23 @@ impl Blockchain {
         let main_chain = ChainInfo::new(genesis_block, true);
 
         // Initialize accounts.
-        let accounts = Accounts::new(env.clone());
-        let mut txn = env.write_transaction();
-        accounts.init(&mut (&mut txn).into(), genesis_accounts);
+        let accounts;
+        let mut txn;
+        if let Some(genesis_accounts) = genesis_accounts {
+            accounts = Accounts::new(env.clone());
+            txn = env.write_transaction();
+            accounts.init(&mut (&mut txn).into(), genesis_accounts);
+        } else {
+            if config.keep_history {
+                if network_id == NetworkId::MainAlbatross {
+                    return Err(BlockchainError::GenesisAccountsRequiredMainnet);
+                } else {
+                    return Err(BlockchainError::GenesisAccountsRequired);
+                }
+            }
+            accounts = Accounts::new_incomplete(env.clone());
+            txn = env.write_transaction();
+        }
 
         // Store genesis block.
         chain_store.put_chain_info(&mut txn, &head_hash, &main_chain, true);

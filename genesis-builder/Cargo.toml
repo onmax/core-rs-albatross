@@ -28,7 +28,7 @@ nimiq-bls = { workspace = true, features = ["serde-derive"] }
 nimiq-database = { workspace = true }
 nimiq-hash = { workspace = true }
 nimiq-keys = { workspace = true, features = ["serde-derive"] }
-nimiq-primitives = { workspace = true, features = ["serde-derive", "tree-proof"] }
+nimiq-primitives = { workspace = true, features = ["serde-derive", "slots", "tree-proof"] }
 nimiq-serde = { workspace = true }
 nimiq-transaction = { workspace = true }
 nimiq-trie = { workspace = true }

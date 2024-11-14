@@ -4,7 +4,7 @@ use nimiq_database::mdbx::{DatabaseConfig, MdbxDatabase};
 use nimiq_genesis_builder::GenesisBuilder;
 use nimiq_hash::Blake2bHash;
 
-fn write_genesis_rs(directory: &Path, name: &str, genesis_hash: &Blake2bHash) {
+fn write_genesis_rs(directory: &Path, name: &str, genesis_hash: &Blake2bHash, have_accounts: bool) {
     let hash = {
         let mut hash = String::new();
         write!(&mut hash, "0x{:02x}", genesis_hash.0[0]).unwrap();
@@ -14,11 +14,17 @@ fn write_genesis_rs(directory: &Path, name: &str, genesis_hash: &Blake2bHash) {
         hash
     };
 
+    let accounts_expr = if have_accounts {
+        format!(r#"Some(include_bytes!(concat!(env!("OUT_DIR"), "/genesis/{name}/accounts.dat")))"#)
+    } else {
+        String::from("None")
+    };
+
     let genesis_rs = format!(
         r#"GenesisData {{
             block: include_bytes!(concat!(env!("OUT_DIR"), "/genesis/{name}/block.dat")),
             hash: Blake2bHash([{hash}]),
-            accounts: include_bytes!(concat!(env!("OUT_DIR"), "/genesis/{name}/accounts.dat")),
+            accounts: {accounts_expr},
     }}"#,
     );
     log::debug!("Writing genesis source code: {}", &genesis_rs);
@@ -41,8 +47,8 @@ fn generate_albatross(name: &str, out_dir: &Path, src_dir: &Path) {
     })
     .expect("Could not open a volatile database");
     let builder = GenesisBuilder::from_config_file(genesis_config).unwrap();
-    let genesis_hash = builder.write_to_files(db, &directory).unwrap();
-    write_genesis_rs(&directory, name, &genesis_hash);
+    let (genesis_hash, have_accounts) = builder.write_to_files(db, &directory).unwrap();
+    write_genesis_rs(&directory, name, &genesis_hash, have_accounts);
 }
 
 fn main() {

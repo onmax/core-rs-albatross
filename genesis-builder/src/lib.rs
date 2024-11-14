@@ -20,8 +20,14 @@ use nimiq_database::{
 use nimiq_hash::{Blake2bHash, Blake2sHash, Hash};
 use nimiq_keys::{Address, Ed25519PublicKey as SchnorrPublicKey};
 use nimiq_primitives::{
-    account::AccountError, coin::Coin, key_nibbles::KeyNibbles, networks::NetworkId,
-    policy::Policy, trie::TrieItem, TreeProof,
+    account::AccountError,
+    coin::Coin,
+    key_nibbles::KeyNibbles,
+    networks::NetworkId,
+    policy::Policy,
+    slots_allocation::{Validator, Validators},
+    trie::TrieItem,
+    TreeProof,
 };
 use nimiq_serde::{Deserialize, DeserializeError, Serialize};
 use nimiq_trie::WriteTransactionProxy;
@@ -50,6 +56,9 @@ pub enum GenesisBuilderError {
     /// Failure at staking
     #[error("Failed to stake: {0}")]
     StakingError(#[from] AccountError),
+    /// Data for both thin and full accounts specified
+    #[error("Data for both thin and full accounts specified")]
+    DataForBothThinAndFullAccounts,
 }
 
 /// Output of the Genesis builder that represents the Genesis block and its
@@ -61,7 +70,7 @@ pub struct GenesisInfo {
     /// The genesis block hash.
     pub hash: Blake2bHash,
     /// The genesis accounts Trie.
-    pub accounts: Vec<TrieItem>,
+    pub accounts: Option<Vec<TrieItem>>,
 }
 
 /// Auxiliary struct for generating `GenesisInfo`.
@@ -80,6 +89,31 @@ pub struct GenesisBuilder {
     pub parent_election_hash: Option<Blake2bHash>,
     /// Merkle root over all of the transactions previous the genesis block.
     pub history_root: Option<Blake2bHash>,
+    pub accounts_data: Option<GenesisBuilderAccounts>,
+}
+
+/// Data about accounts at the genesis block.
+///
+/// There are two ways to specify those: either with all existing accounts,
+/// validators and stakers; or by just specifying some metadata.
+///
+/// You need everything if you want to start a history node for the first time.
+///
+/// The motivation for using only the accounts metadata is that it's smaller by
+/// orders of magnitude, which is helpful if you're not running a history node,
+/// e.g. in a web client.
+pub enum GenesisBuilderAccounts {
+    /// Full accounts data.
+    Full(GenesisBuilderFullAccounts),
+    /// Only accounts metadata.
+    Thin(GenesisBuilderThinAccounts),
+}
+
+/// Full genesis accounts data.
+///
+/// Includes all existing accounts.
+#[derive(Default)]
+pub struct GenesisBuilderFullAccounts {
     /// The set of validators for the genesis state.
     pub validators: Vec<config::GenesisValidator>,
     /// The set of stakers for the genesis state.
@@ -90,6 +124,71 @@ pub struct GenesisBuilder {
     pub vesting_accounts: Vec<config::GenesisVestingContract>,
     /// The set of HTLC accounts for the genesis state.
     pub htlc_accounts: Vec<config::GenesisHTLC>,
+}
+
+/// Thin genesis accounts data.
+///
+/// Only contains some metadata and the elected validators for the first epoch.
+#[derive(Default)]
+pub struct GenesisBuilderThinAccounts {
+    /// The total amount of existing coin at the genesis block.
+    supply: Coin,
+    /// The root of the Merkle tree of the genesis state.
+    state_root: Option<Blake2bHash>,
+    /// The elected validators for the first epoch after the genesis block.
+    slots: Vec<Validator>,
+}
+
+trait GenesisBuilderAccountsOption: Sized {
+    fn as_accounts_option_mut(&mut self) -> &mut Option<GenesisBuilderAccounts>;
+
+    fn full(&mut self) -> Result<&mut GenesisBuilderFullAccounts, GenesisBuilderError> {
+        use GenesisBuilderAccounts::*;
+        match self
+            .as_accounts_option_mut()
+            .get_or_insert_with(|| Full(Default::default()))
+        {
+            Full(full) => Ok(full),
+            Thin(_) => Err(GenesisBuilderError::DataForBothThinAndFullAccounts),
+        }
+    }
+    fn thin(&mut self) -> Result<&mut GenesisBuilderThinAccounts, GenesisBuilderError> {
+        use GenesisBuilderAccounts::*;
+        match self
+            .as_accounts_option_mut()
+            .get_or_insert_with(|| Thin(Default::default()))
+        {
+            Full(_) => Err(GenesisBuilderError::DataForBothThinAndFullAccounts),
+            Thin(thin) => Ok(thin),
+        }
+    }
+    #[allow(clippy::ok_expect)]
+    fn expect_full(&mut self) -> &mut GenesisBuilderFullAccounts {
+        self.as_accounts_option_mut()
+            .full()
+            .ok()
+            .expect("full accounts expected, got thin accounts")
+    }
+}
+
+impl GenesisBuilderAccountsOption for Option<GenesisBuilderAccounts> {
+    fn as_accounts_option_mut(&mut self) -> &mut Option<GenesisBuilderAccounts> {
+        self
+    }
+}
+
+impl<'a> Default for &'a GenesisBuilderAccounts {
+    fn default() -> &'a GenesisBuilderAccounts {
+        const DEFAULT: &GenesisBuilderAccounts =
+            &GenesisBuilderAccounts::Full(GenesisBuilderFullAccounts {
+                validators: Vec::new(),
+                stakers: Vec::new(),
+                basic_accounts: Vec::new(),
+                vesting_accounts: Vec::new(),
+                htlc_accounts: Vec::new(),
+            });
+        DEFAULT
+    }
 }
 
 impl Default for GenesisBuilder {
@@ -105,16 +204,12 @@ impl GenesisBuilder {
         GenesisBuilder {
             network: NetworkId::UnitAlbatross,
             timestamp: None,
+            block_number: 0,
             vrf_seed: None,
             parent_election_hash: None,
             parent_hash: None,
             history_root: None,
-            validators: vec![],
-            stakers: vec![],
-            basic_accounts: vec![],
-            vesting_accounts: vec![],
-            htlc_accounts: vec![],
-            block_number: 0,
+            accounts_data: None,
         }
     }
 
@@ -122,8 +217,12 @@ impl GenesisBuilder {
     ///
     /// See `genesis/src/genesis/unit-albatross.toml` for an example.
     pub fn from_config_file<P: AsRef<Path>>(path: P) -> Result<Self, GenesisBuilderError> {
+        Self::from_config(toml::from_str(&read_to_string(path)?)?)
+    }
+
+    pub fn from_config(config: config::GenesisConfig) -> Result<Self, GenesisBuilderError> {
         let mut result = Self::new_without_defaults();
-        result.with_config_file(path)?;
+        result.with_config(config)?;
         Ok(result)
     }
 
@@ -201,15 +300,18 @@ impl GenesisBuilder {
         jailed_from: Option<u32>,
         retired: bool,
     ) -> &mut Self {
-        self.validators.push(config::GenesisValidator {
-            validator_address,
-            signing_key,
-            voting_key,
-            reward_address,
-            inactive_from,
-            jailed_from,
-            retired,
-        });
+        self.accounts_data
+            .expect_full()
+            .validators
+            .push(config::GenesisValidator {
+                validator_address,
+                signing_key,
+                voting_key,
+                reward_address,
+                inactive_from,
+                jailed_from,
+                retired,
+            });
         self
     }
 
@@ -222,26 +324,31 @@ impl GenesisBuilder {
         inactive_balance: Coin,
         inactive_from: Option<u32>,
     ) -> &mut Self {
-        self.stakers.push(config::GenesisStaker {
-            staker_address,
-            balance,
-            delegation: validator_address,
-            inactive_balance,
-            inactive_from,
-        });
+        self.accounts_data
+            .expect_full()
+            .stakers
+            .push(config::GenesisStaker {
+                staker_address,
+                balance,
+                delegation: validator_address,
+                inactive_balance,
+                inactive_from,
+            });
         self
     }
 
     /// Add a basic account with a certain balance to the genesis block.
     pub fn with_basic_account(&mut self, address: Address, balance: Coin) -> &mut Self {
-        self.basic_accounts
+        self.accounts_data
+            .expect_full()
+            .basic_accounts
             .push(config::GenesisAccount { address, balance });
         self
     }
 
-    fn with_config_file<P: AsRef<Path>>(
+    fn with_config(
         &mut self,
-        path: P,
+        config: config::GenesisConfig,
     ) -> Result<&mut Self, GenesisBuilderError> {
         let config::GenesisConfig {
             network,
@@ -256,19 +363,53 @@ impl GenesisBuilder {
             mut basic_accounts,
             mut vesting_accounts,
             mut htlc_accounts,
-        } = toml::from_str(&read_to_string(path)?)?;
+            supply,
+            state_root,
+            mut slots,
+        } = config;
         self.with_network(network);
         timestamp.map(|t| self.with_timestamp(t));
+        self.block_number = block_number;
         vrf_seed.map(|vrf_seed| self.with_vrf_seed(vrf_seed));
         parent_election_hash.map(|hash| self.with_parent_election_hash(hash));
         parent_hash.map(|hash| self.with_parent_hash(hash));
         history_root.map(|history_root| self.with_history_root(history_root));
-        self.validators.append(&mut validators);
-        self.stakers.append(&mut stakers);
-        self.basic_accounts.append(&mut basic_accounts);
-        self.vesting_accounts.append(&mut vesting_accounts);
-        self.htlc_accounts.append(&mut htlc_accounts);
-        self.block_number = block_number;
+        if !validators.is_empty() {
+            self.accounts_data
+                .full()?
+                .validators
+                .append(&mut validators);
+        }
+        if !stakers.is_empty() {
+            self.accounts_data.full()?.stakers.append(&mut stakers);
+        }
+        if !basic_accounts.is_empty() {
+            self.accounts_data
+                .full()?
+                .basic_accounts
+                .append(&mut basic_accounts);
+        }
+        if !vesting_accounts.is_empty() {
+            self.accounts_data
+                .full()?
+                .vesting_accounts
+                .append(&mut vesting_accounts);
+        }
+        if !htlc_accounts.is_empty() {
+            self.accounts_data
+                .full()?
+                .htlc_accounts
+                .append(&mut htlc_accounts);
+        }
+        if let Some(supply) = supply {
+            self.accounts_data.thin()?.supply = supply;
+        }
+        if let Some(state_root) = state_root {
+            self.accounts_data.thin()?.state_root = Some(state_root);
+        }
+        if !slots.is_empty() {
+            self.accounts_data.thin()?.slots.append(&mut slots);
+        }
         Ok(self)
     }
 
@@ -280,81 +421,6 @@ impl GenesisBuilder {
         let parent_hash = self.parent_hash.clone().unwrap_or_default();
         let history_root = self.history_root.clone().unwrap_or_default();
 
-        // Initialize the accounts.
-        let accounts = Accounts::new(db.clone());
-
-        // Note: This line needs to be AFTER we call Accounts::new().
-        let mut raw_txn = db.write_transaction();
-        let mut txn = (&mut raw_txn).into();
-
-        debug!("Genesis accounts");
-        for genesis_account in &self.basic_accounts {
-            let key = KeyNibbles::from(&genesis_account.address);
-
-            let account = Account::Basic(BasicAccount {
-                balance: genesis_account.balance,
-            });
-
-            accounts
-                .tree
-                .put(&mut txn, &key, account)
-                .expect("Failed to store account");
-        }
-
-        debug!("Vesting contracts");
-        for vesting_contract in &self.vesting_accounts {
-            let key = KeyNibbles::from(&vesting_contract.address);
-
-            let account = Account::Vesting(VestingContract {
-                balance: vesting_contract.balance,
-                owner: vesting_contract.owner.clone(),
-                start_time: vesting_contract.start_time,
-                step_amount: vesting_contract.step_amount,
-                time_step: vesting_contract.time_step,
-                total_amount: vesting_contract.total_amount,
-            });
-
-            accounts
-                .tree
-                .put(&mut txn, &key, account)
-                .expect("Failed to store account");
-        }
-
-        debug!("HTLC contracts");
-        for htlc_contract in &self.htlc_accounts {
-            let key = KeyNibbles::from(&htlc_contract.address);
-
-            let account = Account::HTLC(HashedTimeLockedContract {
-                balance: htlc_contract.balance,
-                sender: htlc_contract.sender.clone(),
-                recipient: htlc_contract.recipient.clone(),
-                hash_count: htlc_contract.hash_count,
-                hash_root: htlc_contract.hash_root.clone(),
-                timeout: htlc_contract.timeout,
-                total_amount: htlc_contract.total_amount,
-            });
-
-            accounts
-                .tree
-                .put(&mut txn, &key, account)
-                .expect("Failed to store account");
-        }
-
-        debug!("Staking contract");
-        // First generate the Staking contract in the Accounts.
-        let staking_contract = self.generate_staking_contract(&accounts, &mut txn)?;
-
-        // Update hashes in tree.
-        accounts
-            .tree
-            .update_root(&mut txn)
-            .expect("Tree must be complete");
-
-        // Fetch all accounts & contract data items from the tree.
-        let genesis_accounts = accounts
-            .get_chunk(KeyNibbles::ROOT, usize::MAX - 1, Some(&txn))
-            .items;
-
         // Generate seeds
         // seed of genesis block = VRF(seed_0)
         let seed = self
@@ -363,10 +429,118 @@ impl GenesisBuilder {
             .ok_or(GenesisBuilderError::NoVrfSeed)?;
         debug!(%seed);
 
-        // Generate slot allocation from staking contract.
-        let data_store = accounts.data_store(&Policy::STAKING_CONTRACT_ADDRESS);
-        let slots = staking_contract.select_validators(&data_store.read(&txn), &seed);
-        debug!(?slots);
+        let genesis_accounts;
+        let supply;
+        let state_root;
+        let slots;
+
+        match self.accounts_data.as_ref().unwrap_or_default() {
+            GenesisBuilderAccounts::Full(full) => {
+                // Initialize the accounts.
+                let accounts = Accounts::new(db.clone());
+
+                // Note: This line needs to be AFTER we call Accounts::new().
+                let mut raw_txn = db.write_transaction();
+                let mut txn = (&mut raw_txn).into();
+
+                debug!("Genesis accounts");
+                for genesis_account in &full.basic_accounts {
+                    let key = KeyNibbles::from(&genesis_account.address);
+
+                    let account = Account::Basic(BasicAccount {
+                        balance: genesis_account.balance,
+                    });
+
+                    accounts
+                        .tree
+                        .put(&mut txn, &key, account)
+                        .expect("Failed to store account");
+                }
+
+                debug!("Vesting contracts");
+                for vesting_contract in &full.vesting_accounts {
+                    let key = KeyNibbles::from(&vesting_contract.address);
+
+                    let account = Account::Vesting(VestingContract {
+                        balance: vesting_contract.balance,
+                        owner: vesting_contract.owner.clone(),
+                        start_time: vesting_contract.start_time,
+                        step_amount: vesting_contract.step_amount,
+                        time_step: vesting_contract.time_step,
+                        total_amount: vesting_contract.total_amount,
+                    });
+
+                    accounts
+                        .tree
+                        .put(&mut txn, &key, account)
+                        .expect("Failed to store account");
+                }
+
+                debug!("HTLC contracts");
+                for htlc_contract in &full.htlc_accounts {
+                    let key = KeyNibbles::from(&htlc_contract.address);
+
+                    let account = Account::HTLC(HashedTimeLockedContract {
+                        balance: htlc_contract.balance,
+                        sender: htlc_contract.sender.clone(),
+                        recipient: htlc_contract.recipient.clone(),
+                        hash_count: htlc_contract.hash_count,
+                        hash_root: htlc_contract.hash_root.clone(),
+                        timeout: htlc_contract.timeout,
+                        total_amount: htlc_contract.total_amount,
+                    });
+
+                    accounts
+                        .tree
+                        .put(&mut txn, &key, account)
+                        .expect("Failed to store account");
+                }
+
+                debug!("Staking contract");
+                // First generate the Staking contract in the Accounts.
+                let staking_contract = full.generate_staking_contract(&accounts, &mut txn)?;
+
+                // Update hashes in tree.
+                accounts
+                    .tree
+                    .update_root(&mut txn)
+                    .expect("Tree must be complete");
+
+                // Fetch all accounts & contract data items from the tree.
+                genesis_accounts = Some(
+                    accounts
+                        .get_chunk(KeyNibbles::ROOT, usize::MAX - 1, Some(&txn))
+                        .items,
+                );
+
+                // Generate slot allocation from staking contract.
+                let data_store = accounts.data_store(&Policy::STAKING_CONTRACT_ADDRESS);
+                slots = staking_contract.select_validators(&data_store.read(&txn), &seed);
+                debug!(?slots);
+
+                // State root
+                state_root = accounts.get_root_hash_assert(Some(&txn));
+                debug!(state_root = %state_root);
+
+                // Supply
+                supply = accounts
+                    .get_chunk(KeyNibbles::default(), usize::MAX - 1, Some(&txn))
+                    .items
+                    .into_iter()
+                    .filter(|trie| trie.key.to_address().is_some())
+                    .map(|trie| Account::deserialize_from_vec(&trie.value).unwrap())
+                    .fold(Coin::ZERO, |sum, account| sum + account.balance());
+                debug!(initial_supply = %supply);
+
+                raw_txn.abort();
+            }
+            GenesisBuilderAccounts::Thin(thin) => {
+                genesis_accounts = None;
+                supply = thin.supply;
+                state_root = thin.state_root.clone().unwrap_or_default();
+                slots = Validators::new(thin.slots.clone());
+            }
+        }
 
         // Body
         let body = MacroBody {
@@ -375,22 +549,6 @@ impl GenesisBuilder {
 
         let body_root = body.hash::<Blake2sHash>();
         debug!(%body_root);
-
-        // State root
-        let state_root = accounts.get_root_hash_assert(Some(&txn));
-        debug!(state_root = %state_root);
-
-        // Supply
-        let supply = accounts
-            .get_chunk(KeyNibbles::default(), usize::MAX - 1, Some(&txn))
-            .items
-            .into_iter()
-            .filter(|trie| trie.key.to_address().is_some())
-            .map(|trie| Account::deserialize_from_vec(&trie.value).unwrap())
-            .fold(Coin::ZERO, |sum, account| sum + account.balance());
-        debug!(initial_supply = %supply);
-
-        raw_txn.abort();
 
         // The header
         let header = MacroHeader {
@@ -425,7 +583,9 @@ impl GenesisBuilder {
             accounts: genesis_accounts,
         })
     }
+}
 
+impl GenesisBuilderFullAccounts {
     fn generate_staking_contract(
         &self,
         accounts: &Accounts,
@@ -479,12 +639,14 @@ impl GenesisBuilder {
 
         Ok(staking_contract)
     }
+}
 
+impl GenesisBuilder {
     pub fn write_to_files<P: AsRef<Path>>(
         &self,
         db: MdbxDatabase,
         directory: P,
-    ) -> Result<Blake2bHash, GenesisBuilderError> {
+    ) -> Result<(Blake2bHash, bool), GenesisBuilderError> {
         let GenesisInfo {
             block,
             hash,
@@ -505,15 +667,18 @@ impl GenesisBuilder {
             .open(&block_path)?;
         block.serialize_to_writer(&mut file)?;
 
-        let accounts_path = directory.as_ref().join("accounts.dat");
-        info!(path = %accounts_path.display(), "Writing accounts to");
-        let mut file = OpenOptions::new()
-            .create(true)
-            .truncate(true)
-            .write(true)
-            .open(&accounts_path)?;
-        accounts.serialize_to_writer(&mut file)?;
+        let have_accounts = accounts.is_some();
+        if let Some(accounts) = accounts {
+            let accounts_path = directory.as_ref().join("accounts.dat");
+            info!(path = %accounts_path.display(), "Writing accounts to");
+            let mut file = OpenOptions::new()
+                .create(true)
+                .truncate(true)
+                .write(true)
+                .open(&accounts_path)?;
+            accounts.serialize_to_writer(&mut file)?;
+        }
 
-        Ok(hash)
+        Ok((hash, have_accounts))
     }
 }

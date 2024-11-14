@@ -4718,6 +4718,8 @@ dependencies = [
  "convert_case",
  "hex",
  "nimiq-bls",
+ "nimiq-database",
+ "nimiq-genesis-builder",
  "nimiq-hash",
  "nimiq-keys",
  "nimiq-primitives",
@@ -4731,6 +4733,7 @@ dependencies = [
  "serde_json",
  "syn 2.0.85",
  "thiserror",
+ "toml",
  "tracing",
 ]
 

@@ -135,7 +135,7 @@ impl<N: NetworkInterface + TestNetwork> MockNode<N> {
     pub async fn new(
         peer_id: u64,
         block: Block,
-        accounts: Vec<TrieItem>,
+        accounts: Option<Vec<TrieItem>>,
         hub: &mut Option<MockHub>,
     ) -> Self {
         let network = N::build_network(peer_id, block.hash(), hub).await;

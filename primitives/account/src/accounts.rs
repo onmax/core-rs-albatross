@@ -50,6 +50,12 @@ impl Accounts {
         Accounts { env, tree }
     }
 
+    /// Creates a new Accounts, marked as incomplete.
+    pub fn new_incomplete(env: MdbxDatabase) -> Self {
+        let tree = AccountsTrie::new_incomplete(&env, AccountsTrieTable);
+        Accounts { env, tree }
+    }
+
     /// Initializes the Accounts struct with a given list of accounts.
     pub fn init(&self, txn: &mut WriteTransactionProxy, genesis_accounts: Vec<TrieItem>) {
         self.tree.init(txn, genesis_accounts)

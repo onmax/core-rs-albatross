@@ -1,7 +1,8 @@
+use nimiq_block::MacroHeader;
 use nimiq_bls::PublicKey as BlsPublicKey;
 use nimiq_hash::Blake2bHash;
 use nimiq_keys::{Address, Ed25519PublicKey as SchnorrPublicKey};
-use nimiq_primitives::{coin::Coin, networks::NetworkId};
+use nimiq_primitives::{coin::Coin, networks::NetworkId, slots_allocation::Validator};
 use nimiq_serde::{Deserialize, Serialize};
 use nimiq_transaction::account::htlc_contract::AnyHash;
 use nimiq_vrf::VrfSeed;
@@ -53,6 +54,14 @@ pub struct GenesisConfig {
     /// Set of HTLC accounts for the genesis state.
     #[serde(default)]
     pub htlc_accounts: Vec<GenesisHTLC>,
+
+    /// The total amount of existing coin at the genesis block.
+    pub supply: Option<Coin>,
+    /// The root of the Merkle tree of the genesis state.
+    pub state_root: Option<Blake2bHash>,
+    /// The elected validators for the first epoch after the genesis block.
+    #[serde(default)]
+    pub slots: Vec<Validator>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -121,4 +130,46 @@ pub struct GenesisHTLC {
     pub timeout: u64,
     /// HTLC total amount
     pub total_amount: Coin,
+}
+
+impl GenesisConfig {
+    pub fn trimmed_from_genesis(header: &MacroHeader) -> GenesisConfig {
+        assert!(
+            header.timestamp % 1000 == 0,
+            "genesis blocks must be on whole seconds",
+        );
+        let supply = Coin::deserialize_all(&header.extra_data)
+            .expect("genesis extra_data must encode supply");
+
+        GenesisConfig {
+            // Always.
+            network: header.network,
+            timestamp: Some(
+                OffsetDateTime::from_unix_timestamp((header.timestamp / 1000).try_into().unwrap())
+                    .unwrap(),
+            ),
+            vrf_seed: Some(header.seed.clone()),
+            parent_election_hash: Some(header.parent_election_hash.clone()),
+            parent_hash: Some(header.parent_hash.clone()),
+            history_root: Some(header.history_root.clone()),
+            block_number: header.block_number,
+
+            // Not applicable for trimmed config.
+            validators: Vec::new(),
+            stakers: Vec::new(),
+            basic_accounts: Vec::new(),
+            vesting_accounts: Vec::new(),
+            htlc_accounts: Vec::new(),
+
+            // Trimmed config.
+            supply: Some(supply),
+            state_root: Some(header.state_root.clone()),
+            slots: header
+                .validators
+                .as_ref()
+                .expect("genesis block must have validators")
+                .validators
+                .clone(),
+        }
+    }
 }

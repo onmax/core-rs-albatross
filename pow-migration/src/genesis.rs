@@ -130,6 +130,10 @@ pub async fn get_pos_genesis(
         basic_accounts: genesis_accounts.basic_accounts,
         vesting_accounts: genesis_accounts.vesting_accounts,
         htlc_accounts: genesis_accounts.htlc_accounts,
+
+        supply: None,
+        state_root: None,
+        slots: Vec::new(),
     })
 }
 

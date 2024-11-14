@@ -458,11 +458,11 @@ fn accounts_performance() {
     );
 
     let genesis_info = genesis_builder.generate(env.clone()).unwrap();
-    let length = genesis_info.accounts.len();
+    let length = genesis_info.accounts.as_ref().unwrap().len();
     let accounts = Accounts::new(env.clone());
     let mut txn = env.write_transaction();
     let start = Instant::now();
-    accounts.init(&mut (&mut txn).into(), genesis_info.accounts);
+    accounts.init(&mut (&mut txn).into(), genesis_info.accounts.unwrap());
     let duration = start.elapsed();
     println!(
         "Time elapsed after account init: {} ms, Accounts per second {}",
@@ -581,11 +581,11 @@ fn accounts_performance_history_sync_batches_single_sender() {
     );
 
     let genesis_info = genesis_builder.generate(env.clone()).unwrap();
-    let length = genesis_info.accounts.len();
+    let length = genesis_info.accounts.as_ref().unwrap().len();
     let accounts = Accounts::new(env.clone());
     let mut txn = env.write_transaction();
     let start = Instant::now();
-    accounts.init(&mut (&mut txn).into(), genesis_info.accounts);
+    accounts.init(&mut (&mut txn).into(), genesis_info.accounts.unwrap());
     let duration = start.elapsed();
     log::debug!(
         "Time elapsed after account init: {} ms, Accounts per second {}",
@@ -710,11 +710,11 @@ fn accounts_performance_history_sync_batches_many_to_many() {
     );
 
     let genesis_info = genesis_builder.generate(env.clone()).unwrap();
-    let length = genesis_info.accounts.len();
+    let length = genesis_info.accounts.as_ref().unwrap().len();
     let accounts = Accounts::new(env.clone());
     let mut txn = env.write_transaction();
     let start = Instant::now();
-    accounts.init(&mut (&mut txn).into(), genesis_info.accounts);
+    accounts.init(&mut (&mut txn).into(), genesis_info.accounts.unwrap());
     let duration = start.elapsed();
     log::debug!(
         "Time elapsed after account init: {} ms, Accounts per second {}",

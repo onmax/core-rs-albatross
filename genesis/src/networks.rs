@@ -18,7 +18,7 @@ use nimiq_serde::Serialize;
 struct GenesisData {
     block: &'static [u8],
     hash: Blake2bHash,
-    accounts: &'static [u8],
+    accounts: Option<&'static [u8]>,
 }
 
 #[derive(Clone, Debug)]
@@ -51,9 +51,11 @@ impl NetworkInfo {
     }
 
     #[inline]
-    pub fn genesis_accounts(&self) -> Vec<TrieItem> {
-        Deserialize::deserialize_from_vec(self.genesis.accounts)
-            .expect("Failed to deserialize genesis accounts.")
+    pub fn genesis_accounts(&self) -> Option<Vec<TrieItem>> {
+        self.genesis.accounts.as_ref().map(|accounts| {
+            Deserialize::deserialize_from_vec(accounts)
+                .expect("Failed to deserialize genesis accounts.")
+        })
     }
 
     pub fn from_network_id(network_id: NetworkId) -> &'static Self {
@@ -73,12 +75,12 @@ fn read_genesis_config(config: &Path) -> Result<GenesisData, GenesisBuilderError
     } = GenesisBuilder::from_config_file(config)?.generate(env)?;
 
     let block = block.serialize_to_vec();
-    let accounts = accounts.serialize_to_vec();
+    let accounts = accounts.map(|accounts| accounts.serialize_to_vec());
 
     Ok(GenesisData {
         block: Box::leak(block.into_boxed_slice()),
         hash,
-        accounts: Box::leak(accounts.into_boxed_slice()),
+        accounts: accounts.map(|accounts| Box::leak(accounts.into_boxed_slice()) as &'static _),
     })
 }
 
