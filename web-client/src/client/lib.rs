@@ -162,6 +162,9 @@ impl Client {
         config.network.only_secure_ws_connections = true;
         config.network_id = web_config.network_id;
         config.network.desired_peer_count = 6;
+        config.network.peer_count_max = 50;
+        config.network.peer_count_per_ip_max = 10;
+        config.network.peer_count_per_subnet_max = 10;
 
         log::info!(?config, "Final configuration");
 
