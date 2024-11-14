@@ -25,7 +25,7 @@ hex = "0.4"
 log = { workspace = true }
 serde = "1.0"
 serde_repr = "0.1"
-thiserror = "1.0"
+thiserror = "2.0"
 
 nimiq-bls = { workspace = true, features = ["cache", "serde-derive"]}
 nimiq-collections = { workspace = true }

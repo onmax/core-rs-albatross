@@ -27,7 +27,7 @@ parking_lot = "0.12"
 prometheus-client = { version = "0.22.3", optional = true }
 rand = "0.8"
 serde = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 tokio = { version = "1.41", features = ["sync"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 

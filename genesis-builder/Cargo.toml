@@ -17,7 +17,7 @@ workspace = true
 hex = "0.4"
 log = { workspace = true }
 serde = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 time = { version = "0.3", features = ["formatting", "parsing", "serde"] }
 toml = "0.8"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

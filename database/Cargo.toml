@@ -26,7 +26,7 @@ workspace = true
 libmdbx = "0.5.2"
 log = { workspace = true }
 tempfile = "3"
-thiserror = "1.0"
+thiserror = "2.0"
 
 nimiq-database-value = { workspace = true }
 

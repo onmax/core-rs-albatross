@@ -19,7 +19,7 @@ log = { workspace = true }
 parking_lot = "0.12"
 rand = "0.8"
 serde = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 
 nimiq-bls = { workspace = true }
 nimiq-collections = { workspace = true }

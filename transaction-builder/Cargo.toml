@@ -19,7 +19,7 @@ workspace = true
 
 [dependencies]
 serde = { version = "1.0", optional = true }
-thiserror = "1.0"
+thiserror = "2.0"
 
 nimiq-bls = { workspace = true }
 nimiq-hash = { workspace = true }

@@ -36,7 +36,7 @@ prometheus-client = { version = "0.22.3", optional = true }
 rand = "0.8"
 serde = "1.0"
 sha2 = "0.10"
-thiserror = "1.0"
+thiserror = "2.0"
 tokio = { version = "1.41", features = ["macros", "rt", "tracing"] }
 tokio-stream = "0.1"
 unsigned-varint = "0.8"
