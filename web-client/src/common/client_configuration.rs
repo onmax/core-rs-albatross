@@ -43,8 +43,23 @@ pub struct PlainClientConfiguration {
 impl Default for ClientConfiguration {
     fn default() -> Self {
         Self {
-            network_id: NetworkId::TestAlbatross,
-            seed_nodes: vec!["/dns4/seed1.pos.nimiq-testnet.com/tcp/8443/wss".to_string()],
+            network_id: NetworkId::MainAlbatross,
+            seed_nodes: vec![
+                "/dns4/aurora.seed.nimiq.com/tcp/443/wss".to_string(),
+                "/dns4/catalyst.seed.nimiq.network/tcp/443/wss".to_string(),
+                "/dns4/cipher.seed.nimiq-network.com/tcp/443/wss".to_string(),
+                "/dns4/eclipse.seed.nimiq.cloud/tcp/443/wss".to_string(),
+                "/dns4/lumina.seed.nimiq.systems/tcp/443/wss".to_string(),
+                "/dns4/nebula.seed.nimiq.com/tcp/443/wss".to_string(),
+                "/dns4/nexus.seed.nimiq.network/tcp/443/wss".to_string(),
+                "/dns4/polaris.seed.nimiq-network.com/tcp/443/wss".to_string(),
+                "/dns4/photon.seed.nimiq.cloud/tcp/443/wss".to_string(),
+                "/dns4/pulsar.seed.nimiq.systems/tcp/443/wss".to_string(),
+                "/dns4/quasar.seed.nimiq.com/tcp/443/wss".to_string(),
+                "/dns4/solstice.seed.nimiq.network/tcp/443/wss".to_string(),
+                "/dns4/vortex.seed.nimiq.cloud/tcp/443/wss".to_string(),
+                "/dns4/zenith.seed.nimiq.systems/tcp/443/wss".to_string(),
+            ],
             log_level: "info".to_string(),
         }
     }
@@ -63,8 +78,8 @@ impl ClientConfiguration {
 
     /// Sets the network ID the client should use. Input is case-insensitive.
     ///
-    /// Possible values are `'TestAlbatross' | 'DevAlbatross'`.
-    /// Default is `'TestAlbatross'`.
+    /// Possible values are `'MainAlbatross' | 'TestAlbatross' | 'DevAlbatross'`.
+    /// Default is `'MainAlbatross'`.
     pub fn network(&mut self, network: String) -> Result<(), JsError> {
         self.network_id = NetworkId::from_str(&network)?;
         Ok(())
