@@ -26,6 +26,16 @@ pub struct SignatureProof {
 #[cfg(feature = "primitives")]
 #[wasm_bindgen]
 impl SignatureProof {
+    #[wasm_bindgen(getter = SINGLE_SIG_SIZE)]
+    pub fn single_sig_size() -> usize {
+        nimiq_keys::Ed25519PublicKey::SIZE + 1 + nimiq_keys::Ed25519Signature::SIZE
+    }
+
+    #[wasm_bindgen(getter = ES256_SINGLE_SIG_SIZE)]
+    pub fn es256_single_sig_size() -> usize {
+        nimiq_keys::ES256PublicKey::SIZE + 1 + nimiq_keys::ES256Signature::SIZE
+    }
+
     /// Creates a Ed25519/Schnorr signature proof for a single-sig signature.
     #[wasm_bindgen(js_name = singleSig)]
     pub fn single_sig(public_key: &PublicKey, signature: &Signature) -> SignatureProof {
