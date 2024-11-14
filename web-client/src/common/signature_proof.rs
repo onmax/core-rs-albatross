@@ -181,6 +181,8 @@ impl SignatureProof {
         self.inner.serialize_to_vec()
     }
 
+    /// Creates a JSON-compatible plain object representing the signature proof.
+    #[wasm_bindgen(js_name = toPlain)]
     pub fn to_plain(&self) -> Result<PlainTransactionProofType, JsError> {
         let plain = self.to_plain_transaction_proof();
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())

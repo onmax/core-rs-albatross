@@ -87,16 +87,22 @@ impl Address {
         self.inner.to_hex()
     }
 
+    /// Returns the byte representation of the address.
     #[cfg(feature = "primitives")]
     pub fn serialize(&self) -> Vec<u8> {
         self.inner.serialize_to_vec()
     }
 
+    /// Returns if this address is equal to the other address.
     #[cfg(feature = "primitives")]
     pub fn equals(&self, other: &Address) -> bool {
         self.inner == other.inner
     }
 
+    /// Compares this address to the other address.
+    ///
+    /// Returns -1 if this address is smaller than the other address, 0 if they are equal,
+    /// and 1 if this address is larger than the other address.
     #[cfg(feature = "primitives")]
     pub fn compare(&self, other: &Address) -> i32 {
         self.inner.cmp(&other.inner) as i32

@@ -71,6 +71,7 @@ impl PrivateKey {
         self.inner.to_hex()
     }
 
+    /// Returns if this private key is equal to the other private key.
     pub fn equals(&self, other: &PrivateKey) -> bool {
         self.inner == other.inner
     }

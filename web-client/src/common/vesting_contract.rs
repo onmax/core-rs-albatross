@@ -9,18 +9,21 @@ use crate::common::{
     transaction::{PlainTransactionProof, PlainTransactionRecipientData, PlainVestingData},
 };
 
+/// Utility class providing methods to parse Vesting Contract transaction data and proofs.
 #[wasm_bindgen]
 pub struct VestingContract;
 
 #[cfg(feature = "primitives")]
 #[wasm_bindgen]
 impl VestingContract {
+    /// Parses the data of a Vesting Contract creation transaction into a plain object.
     #[wasm_bindgen(js_name = dataToPlain)]
     pub fn data_to_plain(data: &[u8]) -> Result<PlainTransactionRecipientDataType, JsError> {
         let plain = VestingContract::parse_data(data)?;
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 
+    /// Parses the proof of a Vesting Contract claiming transaction into a plain object.
     #[wasm_bindgen(js_name = proofToPlain)]
     pub fn proof_to_plain(proof: &[u8]) -> Result<PlainTransactionProofType, JsError> {
         let plain = VestingContract::parse_proof(proof)?;

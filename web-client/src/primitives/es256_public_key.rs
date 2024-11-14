@@ -116,10 +116,15 @@ impl ES256PublicKey {
         Address::from(nimiq_keys::Address::from(&self.inner))
     }
 
+    /// Returns if this public key is equal to the other public key.
     pub fn equals(&self, other: &ES256PublicKey) -> bool {
         self.inner == other.inner
     }
 
+    /// Compares this public key to the other public key.
+    ///
+    /// Returns -1 if this public key is smaller than the other public key, 0 if they are equal,
+    /// and 1 if this public key is larger than the other public key.
     pub fn compare(&self, other: &ES256PublicKey) -> i32 {
         self.inner.cmp(&other.inner) as i32
     }
