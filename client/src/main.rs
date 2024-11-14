@@ -85,10 +85,10 @@ async fn main_inner() -> Result<(), Error> {
         let con_metrics_monitor = tokio_metrics::TaskMonitor::new();
         let instr_con = con_metrics_monitor.instrument(consensus);
         spawn(instr_con);
-        nimiq_task_metric.push(NimiqTaskMonitor {
-            name: "consensus".to_string(),
-            monitor: con_metrics_monitor,
-        });
+        nimiq_task_metric.push(NimiqTaskMonitor::new(
+            "consensus".to_string(),
+            con_metrics_monitor,
+        ));
     } else {
         spawn(consensus);
     }
@@ -107,14 +107,14 @@ async fn main_inner() -> Result<(), Error> {
             let mp_metrics_monitor = validator.get_mempool_monitor();
             let inst_validator = val_metric_monitor.instrument(validator);
             spawn(inst_validator);
-            nimiq_task_metric.push(NimiqTaskMonitor {
-                name: "mempool".to_string(),
-                monitor: mp_metrics_monitor,
-            });
-            nimiq_task_metric.push(NimiqTaskMonitor {
-                name: "validator".to_string(),
-                monitor: val_metric_monitor,
-            });
+            nimiq_task_metric.push(NimiqTaskMonitor::new(
+                "mempool".to_string(),
+                mp_metrics_monitor,
+            ));
+            nimiq_task_metric.push(NimiqTaskMonitor::new(
+                "validator".to_string(),
+                val_metric_monitor,
+            ));
         } else {
             spawn(validator);
         }
@@ -125,14 +125,14 @@ async fn main_inner() -> Result<(), Error> {
             let mp_metrics_monitor = mempool_task.get_mempool_monitor();
             let inst_mempool = val_metric_monitor.instrument(mempool_task);
             spawn(inst_mempool);
-            nimiq_task_metric.push(NimiqTaskMonitor {
-                name: "mempool".to_string(),
-                monitor: mp_metrics_monitor,
-            });
-            nimiq_task_metric.push(NimiqTaskMonitor {
-                name: "mempool-task".to_string(),
-                monitor: val_metric_monitor,
-            });
+            nimiq_task_metric.push(NimiqTaskMonitor::new(
+                "mempool".to_string(),
+                mp_metrics_monitor,
+            ));
+            nimiq_task_metric.push(NimiqTaskMonitor::new(
+                "mempool_task".to_string(),
+                val_metric_monitor,
+            ));
         } else {
             spawn(mempool_task);
         }

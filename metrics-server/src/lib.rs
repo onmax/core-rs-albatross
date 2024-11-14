@@ -31,10 +31,23 @@ mod server;
 mod tokio_runtime;
 mod tokio_task;
 
+/// Monitor (metrics) for a Nimiq task
 #[derive(Clone)]
 pub struct NimiqTaskMonitor {
-    pub name: String,
-    pub monitor: TaskMonitor,
+    name: String,
+    monitor: TaskMonitor,
+}
+
+impl NimiqTaskMonitor {
+    pub fn new(name: String, monitor: TaskMonitor) -> Self {
+        // Metrics name **should** be snake case according to OpenMetrics spec.
+        assert!(
+            name.chars()
+                .all(|char| char.is_alphanumeric() || char == '_'),
+            "Metrics names should not contain non-alphanumeric characters except for underscores"
+        );
+        Self { name, monitor }
+    }
 }
 
 struct NumericClosureMetric<T: EncodeGaugeValue + Sized + Debug> {
