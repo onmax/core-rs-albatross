@@ -338,10 +338,6 @@ impl Mempool {
             }
         }
 
-        // Update all sender balances that were affected by the adopted blocks.
-        // Remove the transactions that have become invalid.
-        Mempool::recompute_sender_balances(affected_senders, &blockchain, &mut mempool_state);
-
         // Iterate over the transactions in the reverted blocks,
         // what we need to know is if we need to add back the transaction into the mempool
         // This is similar to an operation where we try to add a transaction,
@@ -372,9 +368,20 @@ impl Mempool {
                     mempool_state
                         .put(&blockchain, tx.clone(), TxPriority::Medium)
                         .ok();
+
+                    // Check if we know the recipient of this transaction.
+                    if mempool_state.state_by_sender.contains_key(&tx.recipient) {
+                        // Reverting the transaction has changed the balance (and potentially account type) of the
+                        // recipient, which means that transactions might have become invalid.
+                        affected_senders.insert(tx.recipient.clone());
+                    }
                 }
             }
         }
+
+        // Update all sender balances that were affected by the adopted blocks.
+        // Remove the transactions that have become invalid.
+        Mempool::recompute_sender_balances(affected_senders, &blockchain, &mut mempool_state);
     }
 
     /// Get the mempool into a consistent and up-to-date state.

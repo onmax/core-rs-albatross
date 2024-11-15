@@ -17,6 +17,7 @@ use nimiq_primitives::{coin::Coin, networks::NetworkId, policy::Policy};
 use nimiq_serde::{Deserialize, Serialize};
 use nimiq_test_log::test;
 use nimiq_test_utils::{
+    block_production::TemporaryBlockProducer,
     blockchain::{produce_macro_blocks_with_txns, signing_key, voting_key},
     test_rng::test_rng,
     test_transaction::{generate_accounts, generate_transactions, TestTransaction},
@@ -1932,6 +1933,113 @@ async fn applies_total_tx_size_limits() {
     }
     assert_eq!(mempool_txns.len(), (num_txns - 1) as usize);
 }
+
+#[test(tokio::test)]
+// Check that txs are removed from the mempool if they become invalid due to a rebranch.
+// block1 contains a basic tx from a to b. Then, a tx from b to c is added to the mempool
+// (which is valid at that time). When block1 gets rerverted, the tx in the mempool becomes invalid
+// (since b has no balance anymore) and should be removed.
+async fn mempool_update_rebase_invalidates_basic_tx() {
+    let key_pair1 = ed25519_key_pair(ACCOUNT_SECRET_KEY);
+    let key_pair2 = SchnorrKeyPair::generate(&mut test_rng(true));
+
+    let basic_tx = TransactionBuilder::new_basic(
+        &key_pair1,
+        Address::from(&key_pair2.public),
+        100.try_into().unwrap(),
+        Coin::ZERO,
+        1 + Policy::genesis_block_number(),
+        NetworkId::UnitAlbatross,
+    )
+    .unwrap();
+
+    let basic_tx2 = TransactionBuilder::new_basic(
+        &key_pair2,
+        Address::default(),
+        100.try_into().unwrap(),
+        Coin::ZERO,
+        1 + Policy::genesis_block_number(),
+        NetworkId::UnitAlbatross,
+    )
+    .unwrap();
+
+    assert_rebase_invalidates_mempool_tx(basic_tx, basic_tx2).await;
+}
+
+#[test(tokio::test)]
+// Check that txs are removed from the mempool if they become invalid due to a rebranch.
+// block1 contains a vesting creation tx. Then, a redeem tx is added to the mempool
+// (which is valid at that time). When block1 gets rerverted, the redeem tx becomes invalid and
+// should be removed.
+async fn mempool_update_rebase_invalidates_vesting_tx() {
+    let key_pair = ed25519_key_pair(ACCOUNT_SECRET_KEY);
+
+    let create_vesting_tx = TransactionBuilder::new_create_vesting(
+        &key_pair,
+        Address::from(&key_pair.public),
+        0,
+        0,
+        1,
+        Coin::from_u64_unchecked(1000),
+        Coin::from_u64_unchecked(100),
+        1 + Policy::genesis_block_number(),
+        NetworkId::UnitAlbatross,
+    )
+    .unwrap();
+    let vesting_address = create_vesting_tx.contract_creation_address();
+
+    let redeem_tx = TransactionBuilder::new_redeem_vesting(
+        &key_pair,
+        vesting_address.clone(),
+        Address::default(),
+        Coin::from_u64_unchecked(99),
+        Coin::from_u64_unchecked(100),
+        1 + Policy::genesis_block_number(),
+        NetworkId::UnitAlbatross,
+    )
+    .unwrap();
+
+    assert_rebase_invalidates_mempool_tx(create_vesting_tx, redeem_tx).await;
+}
+
+/// tx1 will be included in block1. Then, tx2 is put into the mempool. Then, block1 gets reverted,
+/// which should cause tx2 to be removed from the mempool and tx1 to be added back.
+async fn assert_rebase_invalidates_mempool_tx(tx1: Transaction, tx2: Transaction) {
+    let temp_producer1 = TemporaryBlockProducer::new();
+    let block = temp_producer1.next_block(vec![], false);
+    let temp_producer2 = TemporaryBlockProducer::new();
+    assert_eq!(temp_producer2.push(block), Ok(PushResult::Extended));
+
+    // Create mempool and subscribe with a custom txn stream.
+    let mempool = Mempool::new(
+        Arc::clone(&temp_producer1.blockchain),
+        MempoolConfig::default(),
+    );
+    let mut hub = MockHub::new();
+    let mock_id = MockId::new(hub.new_address().into());
+    let mock_network = Arc::new(hub.new_network());
+
+    // Include tx1 in block1
+    let block1 = temp_producer1.next_block_with_txs(vec![], false, vec![tx1.clone()]);
+    let block1_and_hash = &[(Blake2bHash::default(), block1)];
+    mempool.update(block1_and_hash, [].as_ref());
+
+    // Put tx2 into mempool
+    send_txn_to_mempool(&mempool, mock_network, mock_id, vec![tx2.clone()]).await;
+    assert_eq!(mempool.get_transactions(), vec![tx2.clone()]);
+
+    // Trigger a rebranch that removes tx1 from the chain
+    let fork_block = temp_producer2.next_block(vec![], true);
+    let fork_and_hash = &[(Blake2bHash::default(), fork_block.clone())];
+    assert_eq!(temp_producer1.push(fork_block), Ok(PushResult::Rebranched));
+    mempool.update(fork_and_hash, block1_and_hash);
+
+    // Expect tx2 to be removed from the mempool and tx1 to be added back.
+    assert_eq!(mempool.get_transactions(), vec![tx1]);
+
+    temp_producer1.next_block_with_txs(vec![], false, mempool.get_transactions_for_block(10_000).0);
+}
+
 #[test(tokio::test)]
 async fn it_can_reject_invalid_vesting_contract_transaction() {
     let time = Arc::new(OffsetTime::new());
