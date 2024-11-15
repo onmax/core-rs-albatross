@@ -52,9 +52,37 @@ impl BlockMetrics {
     fn register_chain(registry: &mut Registry, blockchain: BlockchainProxy) {
         let sub_registry = registry.sub_registry_with_prefix("blockchain");
 
-        let closure = NumericClosureMetric::new_gauge(Box::new(move || {
-            blockchain.read().block_number() as i64
-        }));
+        let bc = blockchain.clone();
+        let closure =
+            NumericClosureMetric::new_gauge(Box::new(move || bc.read().block_number() as i64));
         sub_registry.register("block_number", "Number of latest block", closure);
+
+        let bc = blockchain.clone();
+        let closure =
+            NumericClosureMetric::new_gauge(Box::new(move || bc.read().batch_number() as i64));
+        sub_registry.register("batch_number", "Number of latest batch", closure);
+
+        let bc = blockchain.clone();
+        let closure =
+            NumericClosureMetric::new_gauge(Box::new(move || bc.read().epoch_number() as i64));
+        sub_registry.register("epoch_number", "Number of latest epoch", closure);
+
+        let bc = blockchain.clone();
+        let closure =
+            NumericClosureMetric::new_gauge(Box::new(move || bc.read().timestamp() as i64));
+        sub_registry.register("timestamp", "Timestamp of latest block", closure);
+
+        let closure = NumericClosureMetric::new_gauge(Box::new(move || {
+            blockchain
+                .read()
+                .current_validators()
+                .map(|validators| validators.num_validators())
+                .unwrap_or(0) as i64
+        }));
+        sub_registry.register(
+            "elected_validators",
+            "Number of elected validators",
+            closure,
+        );
     }
 }
