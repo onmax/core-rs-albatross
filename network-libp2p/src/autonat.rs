@@ -40,12 +40,9 @@ impl NatState {
 
     /// Set the NAT status of address
     pub fn set_address_nat(&mut self, address: Multiaddr, nat_status: NatStatus) {
-        let address_status = self
-            .address_status
-            .entry(address.clone())
-            .or_insert(nat_status);
+        self.address_status.insert(address.clone(), nat_status);
 
-        if *address_status == NatStatus::Public {
+        if nat_status == NatStatus::Public {
             self.confirmed_addresses.insert(address);
         } else {
             self.confirmed_addresses.remove(&address);
@@ -55,8 +52,8 @@ impl NatState {
 
     /// Mark the address as confirmed thus publicly reachable
     pub fn add_confirmed_address(&mut self, address: Multiaddr) {
-        let address_status = self.address_status.entry(address.clone()).or_default();
-        *address_status = NatStatus::Public;
+        self.address_status
+            .insert(address.clone(), NatStatus::Public);
 
         self.confirmed_addresses.insert(address);
         self.update_state();
