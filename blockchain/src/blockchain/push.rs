@@ -406,12 +406,11 @@ impl Blockchain {
         let chunk_result = this.commit_chunks(chunks, &block_hash);
         let duration = start.elapsed();
 
-        let num_transactions = this.state.main_chain.head.num_transactions();
         #[cfg(feature = "metrics")]
-        this.metrics.note_extend(num_transactions);
+        this.metrics.note_extend(&this.state.main_chain.head);
         debug!(
             block = %this.state.main_chain.head,
-            num_transactions,
+            num_transactions = this.state.main_chain.head.num_transactions(),
             kind = "extend",
             ?duration,
             "Accepted block",

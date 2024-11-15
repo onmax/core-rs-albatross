@@ -11,6 +11,7 @@ use prometheus_client::{
 pub struct BlockchainMetrics {
     block_push_counts: Family<PushResultLabels, Counter>,
     transactions_counts: Family<TransactionProcessedLabels, Counter>,
+    skip_blocks: Counter,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
@@ -53,6 +54,12 @@ impl BlockchainMetrics {
             "Count of transactions applied/reverted",
             self.transactions_counts.clone(),
         );
+
+        registry.register(
+            "skip_blocks",
+            "Number of skip blocks applied",
+            self.skip_blocks.clone(),
+        );
     }
 
     #[inline]
@@ -87,12 +94,16 @@ impl BlockchainMetrics {
     }
 
     #[inline]
-    pub fn note_extend(&self, tx_count: usize) {
+    pub fn note_extend(&self, block: &Block) {
         self.transactions_counts
             .get_or_create(&TransactionProcessedLabels {
                 ty: TransactionProcessed::Applied,
             })
-            .inc_by(tx_count as u64);
+            .inc_by(block.num_transactions() as u64);
+
+        if block.is_skip() {
+            self.skip_blocks.inc();
+        }
     }
 
     #[inline]
@@ -118,6 +129,10 @@ impl BlockchainMetrics {
                         ty: TransactionProcessed::Applied,
                     })
                     .inc_by(block.num_transactions() as u64);
+            }
+
+            if block.is_skip() {
+                self.skip_blocks.inc();
             }
         }
     }

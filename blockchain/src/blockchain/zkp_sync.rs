@@ -133,12 +133,11 @@ impl Blockchain {
         // Downgrade the lock again as the notify listeners might want to acquire read access themselves.
         let this = RwLockWriteGuard::downgrade_to_upgradable(this);
 
-        let num_transactions = this.state.main_chain.head.num_transactions();
         #[cfg(feature = "metrics")]
-        this.metrics.note_extend(num_transactions);
+        this.metrics.note_extend(&this.state.main_chain.head);
         debug!(
             block = %this.state.main_chain.head,
-            num_transactions,
+            num_transactions = this.state.main_chain.head.num_transactions(),
             kind = "push_zkp",
             "Accepted block",
         );
@@ -315,12 +314,11 @@ impl Blockchain {
         // Downgrade the lock again as the notify listeners might want to acquire read access themselves.
         let this = RwLockWriteGuard::downgrade_to_upgradable(this);
 
-        let num_transactions = this.state.main_chain.head.num_transactions();
         #[cfg(feature = "metrics")]
-        this.metrics.note_extend(num_transactions);
+        this.metrics.note_extend(&this.state.main_chain.head);
         debug!(
             block = %this.state.main_chain.head,
-            num_transactions,
+            num_transactions = this.state.main_chain.head.num_transactions(),
             kind = "push_macro",
             "Accepted block",
         );
