@@ -22,9 +22,9 @@ impl Blockchain {
         trusted: bool,
     ) -> Result<(), PushError> {
         // We expect full blocks (with body) here.
-        block
-            .body()
-            .ok_or(PushError::InvalidBlock(BlockError::MissingBody))?;
+        if !block.has_body() {
+            return Err(PushError::InvalidBlock(BlockError::MissingBody));
+        }
 
         // Perform block intrinsic checks.
         block.verify(self.network_id)?;

@@ -12,8 +12,7 @@ use nimiq_transaction::ExecutedTransaction;
 use nimiq_vrf::VrfSeed;
 
 use crate::{
-    macro_block::MacroBlock, micro_block::MicroBlock, BlockError, MacroBody, MacroHeader,
-    MicroBody, MicroJustification, TendermintProof,
+    macro_block::MacroBlock, micro_block::MicroBlock, BlockError, MacroBody, MacroHeader, MicroBody,
 };
 
 /// Defines the type of the block, either Micro or Macro (which includes both checkpoint and
@@ -204,26 +203,11 @@ impl Block {
         }
     }
 
-    /// Returns the justification of the block. If the block has no justification then it returns
-    /// None.
-    pub fn justification(&self) -> Option<BlockJustification> {
-        // TODO Can we eliminate the clone()s here?
-        Some(match self {
-            Block::Macro(ref block) => {
-                BlockJustification::Macro(block.justification.as_ref()?.clone())
-            }
-            Block::Micro(ref block) => {
-                BlockJustification::Micro(block.justification.as_ref()?.clone())
-            }
-        })
-    }
-
-    /// Returns the body of the block. If the block has no body then it returns None.
-    pub fn body(&self) -> Option<BlockBody> {
-        // TODO Can we eliminate the clone()s here?
+    /// Returns true if this block contains a body.
+    pub fn has_body(&self) -> bool {
         match self {
-            Block::Macro(ref block) => Some(BlockBody::Macro(block.body.as_ref()?.clone())),
-            Block::Micro(ref block) => Some(BlockBody::Micro(block.body.as_ref()?.clone())),
+            Block::Macro(ref block) => block.body.is_some(),
+            Block::Micro(ref block) => block.body.is_some(),
         }
     }
 
@@ -386,9 +370,12 @@ impl Block {
         self.verify_header(network, self.is_skip())?;
 
         // Verify body if it exists.
-        if let Some(body) = self.body() {
+        if self.has_body() {
             // Check the body root.
-            let body_hash = body.hash();
+            let body_hash = match self {
+                Block::Macro(block) => block.body.as_ref().unwrap().hash(),
+                Block::Micro(block) => block.body.as_ref().unwrap().hash(),
+            };
             if *self.body_root() != body_hash {
                 warn!(
                     %self,
@@ -401,10 +388,10 @@ impl Block {
             }
 
             // Perform block type specific body verification.
-            match body {
-                BlockBody::Micro(body) => body.verify(self.is_skip(), self.block_number())?,
-                BlockBody::Macro(_) => {}
-            };
+            if let Block::Micro(block) = self {
+                let body = block.body.as_ref().unwrap();
+                body.verify(self.is_skip(), self.block_number())?;
+            }
         }
 
         Ok(())
@@ -626,23 +613,6 @@ impl fmt::Display for Block {
         match self {
             Block::Macro(block) => fmt::Display::fmt(block, f),
             Block::Micro(block) => fmt::Display::fmt(block, f),
-        }
-    }
-}
-
-/// Struct representing the justification of a block.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum BlockJustification {
-    Micro(MicroJustification),
-    Macro(TendermintProof),
-}
-
-impl BlockJustification {
-    /// Returns the type of the block.
-    pub fn ty(&self) -> BlockType {
-        match self {
-            BlockJustification::Macro(_) => BlockType::Macro,
-            BlockJustification::Micro(_) => BlockType::Micro,
         }
     }
 }

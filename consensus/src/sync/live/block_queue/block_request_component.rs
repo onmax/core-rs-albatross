@@ -188,10 +188,10 @@ impl<N: Network> BlockRequestComponent<N> {
                     }
 
                     for block in blocks.iter() {
-                        if block.body().is_some() != request.include_body {
+                        if block.has_body() != request.include_body {
                             log::error!(
                                 is_macro = block.is_macro(),
-                                has_body = block.body().is_some(),
+                                has_body = block.has_body(),
                                 include_body = request.include_body,
                                 "Received block with body where none was expected or vice versa",
                             );

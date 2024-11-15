@@ -1,4 +1,4 @@
-use nimiq_block::{Block, BlockBody::Micro};
+use nimiq_block::Block;
 use nimiq_blockchain_interface::{ChunksPushError, ChunksPushResult, PushError, PushResult};
 use nimiq_hash::Blake2bHash;
 use prometheus_client::{
@@ -101,23 +101,23 @@ impl BlockchainMetrics {
         reverted_blocks: &[(Blake2bHash, Block)],
         adopted_blocks: &[(Blake2bHash, Block)],
     ) {
-        for (_, micro_block) in reverted_blocks {
-            if let Some(Micro(micro_body)) = micro_block.body() {
+        for (_, block) in reverted_blocks {
+            if block.is_micro() {
                 self.transactions_counts
                     .get_or_create(&TransactionProcessedLabels {
                         ty: TransactionProcessed::Reverted,
                     })
-                    .inc_by(micro_body.transactions.len() as u64);
+                    .inc_by(block.num_transactions() as u64);
             }
         }
 
-        for (_, micro_block) in adopted_blocks {
-            if let Some(Micro(micro_body)) = micro_block.body() {
+        for (_, block) in adopted_blocks {
+            if block.is_micro() {
                 self.transactions_counts
                     .get_or_create(&TransactionProcessedLabels {
                         ty: TransactionProcessed::Applied,
                     })
-                    .inc_by(micro_body.transactions.len() as u64);
+                    .inc_by(block.num_transactions() as u64);
             }
         }
     }

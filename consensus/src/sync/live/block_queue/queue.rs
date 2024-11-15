@@ -153,7 +153,7 @@ impl<N: Network> BlockQueue<N> {
         block_source: BlockSource<N>,
     ) -> Option<QueuedBlock<N>> {
         // Reject block if it includes a body when we didn't request one or vice versa.
-        if block.body().is_some() != self.config.include_body {
+        if block.has_body() != self.config.include_body {
             block_source.reject_block(&self.network);
             return None;
         }

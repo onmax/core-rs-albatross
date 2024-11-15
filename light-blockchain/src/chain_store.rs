@@ -27,7 +27,7 @@ impl ChainStore {
             .chain_db
             .get(hash)
             .ok_or(BlockchainError::BlockNotFound)?;
-        if include_body && chain_info.head.body().is_none() {
+        if include_body && !chain_info.head.has_body() {
             return Err(BlockchainError::BlockBodyNotFound);
         }
         Ok(chain_info)
@@ -287,7 +287,7 @@ impl ChainStore {
                 .get(&hash)
                 .map(|chain_info| chain_info.head.clone())
             {
-                if include_body && block.body().is_none() {
+                if include_body && !block.has_body() {
                     return Err(BlockchainError::BlockBodyNotFound);
                 }
                 hash = block.parent_hash().clone();
@@ -321,7 +321,7 @@ impl ChainStore {
 
                 chain_info = chain_info_opt.unwrap();
                 let block = chain_info.head.clone();
-                if include_body && block.body().is_none() {
+                if include_body && !block.has_body() {
                     return Err(BlockchainError::BlockBodyNotFound);
                 }
                 blocks.push(block);
@@ -421,7 +421,7 @@ mod tests {
             }
             Ok(info) => {
                 assert!(info.on_main_chain);
-                assert!(info.head.body().is_none());
+                assert!(!info.head.has_body());
                 assert_eq!(info.head.hash(), block_1.hash());
             }
         }
@@ -438,7 +438,7 @@ mod tests {
             }
             Ok(info) => {
                 assert!(info.on_main_chain);
-                assert!(info.head.body().is_none());
+                assert!(!info.head.has_body());
                 assert_eq!(info.head.hash(), block_1.hash());
             }
         }
