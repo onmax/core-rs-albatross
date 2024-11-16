@@ -4416,6 +4416,7 @@ dependencies = [
  "nimiq-mempool",
  "nimiq-network-interface",
  "nimiq-network-libp2p",
+ "nimiq-primitives",
  "nimiq-utils",
  "parking_lot",
  "prometheus-client",

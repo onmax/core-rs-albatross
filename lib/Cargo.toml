@@ -91,6 +91,7 @@ nimiq-test-log = { workspace = true }
 database-storage = ["nimiq-database", "nimiq-zkp-component/database-storage"]
 deadlock = ["parking_lot/deadlock_detection"]
 default = ["full-consensus"]
+extended-metrics = ["nimiq-metrics-server/extended-staking"]
 full-consensus = [
     "database-storage",
     "nimiq-blockchain",

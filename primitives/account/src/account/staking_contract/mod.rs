@@ -94,35 +94,50 @@ impl StakingContract {
         StakingContractStoreRead::new(data_store).get_tombstone(address)
     }
 
-    /// Get a list containing the addresses of all stakers that are delegating for a given validator.
-    /// IMPORTANT: This is a very expensive operation, iterating over all existing stakers in the contract.
+    /// Get the list of all stakers that are delegating for the given validator.
+    /// IMPORTANT: This is potentially a very expensive operation!
     pub fn get_stakers_for_validator<T: DataStoreReadOps + DataStoreIterOps>(
         &self,
         data_store: &T,
         address: &Address,
     ) -> Vec<Staker> {
-        let read = StakingContractStoreRead::new(data_store);
-
-        if let Some(validator) = read.get_validator(address) {
-            let num_stakers = validator.num_stakers;
-            return read
-                .iter_stakers()
-                .filter(|staker| staker.delegation.as_ref() == Some(address))
-                .take(num_stakers as usize)
-                .collect();
-        }
-        vec![]
+        self.iter_stakers_for_validator(data_store, address)
+            .collect()
     }
 
-    /// Get a list containing all validators
-    /// IMPORTANT: This is a very expensive operation, iterating over all existing validators in the contract.
+    /// Get an iterator over all stakers that are delegating for the given validator.
+    pub fn iter_stakers_for_validator<'a, T: DataStoreReadOps + DataStoreIterOps + 'a>(
+        &self,
+        data_store: &'a T,
+        address: &'a Address,
+    ) -> impl Iterator<Item = Staker> + 'a {
+        let read = StakingContractStoreRead::new(data_store);
+
+        let num_stakers = read
+            .get_validator(address)
+            .map(|validator| validator.num_stakers)
+            .unwrap_or(0);
+
+        read.iter_stakers()
+            .filter(|staker| staker.delegation.as_ref() == Some(address))
+            .take(num_stakers as usize)
+    }
+
+    /// Get the list of all validators in the contract.
+    /// IMPORTANT: This is potentially a very expensive operation!
     pub fn get_validators<T: DataStoreReadOps + DataStoreIterOps>(
         &self,
         data_store: &T,
     ) -> Vec<Validator> {
-        StakingContractStoreRead::new(data_store)
-            .iter_validators()
-            .collect()
+        self.iter_validators(data_store).collect()
+    }
+
+    /// Get an iterator over all validators in the contract.
+    pub fn iter_validators<'a, T: DataStoreReadOps + DataStoreIterOps + 'a>(
+        &self,
+        data_store: &'a T,
+    ) -> impl Iterator<Item = Validator> + 'a {
+        StakingContractStoreRead::new(data_store).iter_validators()
     }
 
     /// Given a seed, it randomly distributes the validator slots across all validators. It is

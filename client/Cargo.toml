@@ -32,7 +32,7 @@ nimiq-utils = { workspace = true, features = ["spawn"] }
 workspace = true
 features = [
     "database-storage",
-    "deadlock",
+    "extended-metrics",
     "full-consensus",
     "logging",
     "loki",

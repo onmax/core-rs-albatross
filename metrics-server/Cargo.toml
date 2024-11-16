@@ -43,4 +43,8 @@ nimiq-consensus = { workspace = true, features = ["full"] }
 nimiq-mempool = { workspace = true, features = ["metrics"] }
 nimiq-network-interface = { workspace = true }
 nimiq-network-libp2p = { workspace = true, features = ["metrics"] }
+nimiq-primitives = { workspace = true, features = ["coin"], optional = true }
 nimiq-utils = { workspace = true, features = ["spawn"] }
+
+[features]
+extended-staking = ["nimiq-primitives/coin"]
