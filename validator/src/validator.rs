@@ -355,6 +355,11 @@ where
             {
                 panic!("Invalid validator configuration: None of the voting keys match the one expected from this validator in the current epoch")
             }
+
+            // Compare configured validator signing key to the one in the current epoch to make sure it is the same.
+            if epoch_validator.signing_key != self.signing_key().public {
+                panic!("Invalid validator configuration: Configured signing key does not match signing key in this epoch");
+            }
         } else {
             log::info!(
                 validator_address = %self.validator_address(),
@@ -368,19 +373,6 @@ where
 
         // Set the elected validators of the current epoch in the network as well.
         self.network.set_validators(validators);
-
-        // Check validator configuration
-        if let Some(validator) = self.get_validator(&blockchain) {
-            // Compare configured validator voting key to the one in the contract to make sure it is the same.
-            if validator.voting_key != self.current_voting_key().public_key.compress() {
-                error!("Invalid validator configuration: Configured voting key does not match voting key in staking contract");
-            }
-
-            // Compare configured validator signing key to the one in the contract to make sure it is the same.
-            if validator.signing_key != self.signing_key().public {
-                error!("Invalid validator configuration: Configured signing key does not match signing key in staking contract");
-            }
-        }
     }
 
     fn init_block_producer(&mut self, head_hash: Option<&Blake2bHash>) {
