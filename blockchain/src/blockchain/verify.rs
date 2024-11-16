@@ -46,23 +46,24 @@ impl Blockchain {
 
         // Verify the interlink (or its absence)
         if let Block::Macro(macro_block) = &block {
-            if macro_block.is_election() {
-                if let Some(interlink) = &macro_block.header.interlink {
-                    let expected_interlink = self.election_head().get_next_interlink().unwrap();
-
-                    if interlink != &expected_interlink {
+            match (macro_block.is_election(), &macro_block.header.interlink) {
+                (true, Some(interlink)) => {
+                    let expected_interlink = self.election_head().get_next_interlink();
+                    if Some(interlink) != expected_interlink.ok().as_ref() {
                         warn!(reason = "Bad Interlink", "Rejecting block");
                         return Err(PushError::InvalidBlock(BlockError::InvalidInterlink));
                     }
-                } else {
+                }
+                (true, None) => {
                     warn!(reason = "Missing Interlink", "Rejecting block");
                     return Err(PushError::InvalidBlock(BlockError::InvalidInterlink));
                 }
-            }
-
-            if !macro_block.is_election() && macro_block.header.interlink.is_some() {
-                warn!(reason = "Superfluous Interlink", "Rejecting block");
-                return Err(PushError::InvalidBlock(BlockError::InvalidInterlink));
+                (false, Some(_)) => {
+                    warn!(reason = "Superfluous Interlink", "Rejecting block");
+                    return Err(PushError::InvalidBlock(BlockError::InvalidInterlink));
+                }
+                // Non-election blocks don't contain interlinks.
+                (false, None) => {}
             }
         }
 
