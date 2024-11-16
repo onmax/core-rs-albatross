@@ -714,7 +714,7 @@ mod test {
             signature: (signing_key.sign(&data), 0),
         };
 
-        // Send the proposal over gossipsup to get it correctly filled with a pubsup_id
+        // Send the proposal over gossipsup to get it correctly filled with a pubsub_id
         // First subscribe to the topic on network2. Note that nothing else subscribes to this.
         // Usually the validator does, but none is present.
         let mut proposals = nw2
