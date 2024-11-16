@@ -510,7 +510,7 @@ where
             while let Poll::Ready(Some(contribution)) =
                 self.pending_contributions.poll_next_unpin(cx)
             {
-                if !contribution.trusted() {
+                if contribution.trusted() {
                     // No need to verify the trusted contribution.
                     // Apply it and return the new best aggregate.
                     best_aggregate = Some(self.apply_contribution(contribution));
