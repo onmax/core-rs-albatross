@@ -1,13 +1,13 @@
+import glob
 import os
-import subprocess
-import signal
 import re
+import signal
+import subprocess
 import time
 from enum import Enum
-from typing import Optional
 from jinja2 import Environment
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from topology_settings import TopologySettings
 
@@ -276,7 +276,7 @@ class Node:
         """
         panics = subprocess.run(["grep", "ERROR.*panicked[[:blank:]]",
                                  self.get_log()], capture_output=True,
-                                shell=False, text=True).stdout
+                                 text=True).stdout
         return len(panics) != 0
 
     def check_long_lock_hold(self):
@@ -342,11 +342,9 @@ class Node:
         """
         # Open the log file
         log_file = open(self.get_log(), 'a+')
-        # We need to use shell to use the '*' wildcard such that the state
-        # dir doesn't get removed as well.
-        # Also the command needs to be a string
-        subprocess.run(f"rm -r {self.get_state_dir()}/*",
-                       shell=True, check=True, capture_output=True)
+        # The dir itself shouldn't get removed.
+        subprocess.run(["rm", "-r", *glob.glob(f"{glob.escape(self.get_state_dir())}/*")],
+                        check=True, capture_output=True)
         log_str = ("\n\n################################ NODE STATE DELETED ##"
                    "###########################\n\n")
         log_file.write(log_str)
