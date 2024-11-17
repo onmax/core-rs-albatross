@@ -3,6 +3,7 @@ use std::sync::Arc;
 use nimiq_blockchain::Blockchain;
 use nimiq_blockchain_interface::AbstractBlockchain;
 use nimiq_blockchain_proxy::BlockchainProxy;
+#[cfg(feature = "extended-staking")]
 use nimiq_primitives::coin::Coin;
 use parking_lot::RwLock;
 use prometheus_client::registry::Registry;
