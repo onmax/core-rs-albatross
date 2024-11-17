@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 
 # Install dependencies in a single layer to reduce the number of image layers.
 RUN apt-get update && \
-    apt-get --no-install-recommends -y install libssl3 tini && \
+    apt-get --no-install-recommends -y install libssl3 tini curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Run as an unprivileged user, combining commands to reduce layers.
