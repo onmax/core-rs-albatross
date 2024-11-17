@@ -166,12 +166,12 @@ fn network_impl(network_id: NetworkId) -> Option<&'static NetworkInfo> {
                 use std::sync::OnceLock;
                 static OVERRIDE: OnceLock<Option<NetworkInfo>> = OnceLock::new();
                 if let Some(info) = OVERRIDE.get_or_init(|| {
-                    let override_path = env::var_os("NIMIQ_OVERRIDE_MAINET_CONFIG");
+                    let override_path = env::var_os("NIMIQ_OVERRIDE_MAINNET_CONFIG");
                     override_path.map(|p| NetworkInfo {
                         network_id: NetworkId::MainAlbatross,
                         name: "main-albatross",
                         genesis: read_genesis_config(Path::new(&p))
-                            .expect("failure reading provided NIMIQ_OVERRIDE_MAINET_CONFIG"),
+                            .expect("failure reading provided NIMIQ_OVERRIDE_MAINNET_CONFIG"),
                     })
                 }) {
                     return Some(info);

@@ -243,7 +243,7 @@ async fn main() {
         // Check that we are doing the migration for a supported network ID and set the genesis environment variable name
         let genesis_env_var_name = match config.network_id {
             NetworkId::TestAlbatross => "NIMIQ_OVERRIDE_TESTNET_CONFIG",
-            NetworkId::MainAlbatross => "NIMIQ_OVERRIDE_MAINET_CONFIG",
+            NetworkId::MainAlbatross => "NIMIQ_OVERRIDE_MAINNET_CONFIG",
             _ => {
                 log::error!(%config.network_id, "Unsupported network ID as a target for the migration process");
                 exit(1);
