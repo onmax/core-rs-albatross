@@ -48,6 +48,8 @@ fn test_serialize_deserialize_level_update() {
 
     assert_eq!(data.len(), update.serialized_size());
     assert_eq!(update.serialized_size(), 99);
+
+    let update_2 = update_2.into_level_update(2);
     assert!(update_2.individual.is_none());
     assert_eq!(update_2.level, 2);
 }
