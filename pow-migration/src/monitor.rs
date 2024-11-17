@@ -56,12 +56,14 @@ pub fn generate_ready_tx(validator: String, hash: &Blake2bHash) -> OutgoingTrans
     }
 }
 
+const ONLINE_TX_DATA: &str = concat!("online ", env!("NIMIQ_POW_MIGRATION_VERSION"));
+
 /// Sends a transaction to the Nimiq PoW chain to indicate that we are online
 /// The transaction format is defined as follows:
 /// - Sender: Validator address
 /// - Recipient: Burn address
 /// - Value: 1 Luna
-/// - Data: "online" as hex representation
+/// - Data: "online" plus the version number as hex representation
 pub fn generate_online_tx(validator: String) -> OutgoingTransaction {
     log::debug!(
         validator_address = validator,
@@ -72,7 +74,7 @@ pub fn generate_online_tx(validator: String) -> OutgoingTransaction {
         to: Address::burn_address().to_user_friendly_address(),
         value: 1, //Lunas
         fee: 0,
-        data: Some(hex::encode("online")),
+        data: Some(hex::encode(String::from(ONLINE_TX_DATA))),
     }
 }
 
@@ -138,7 +140,9 @@ fn is_valid_online_txn(txn: &TransactionDetails, block_window: &Range<u32>) -> b
     let Some(block_number) = txn.block_number else {
         return false;
     };
-    Some(hex::encode("online")) == txn.data
+    // Check for the exact online transaction data so that we publish a new one
+    // if we run a different version of the tool.
+    Some(hex::encode(ONLINE_TX_DATA)) == txn.data
         && block_window.contains(&block_number)
         && txn.to_address == Address::burn_address().to_user_friendly_address()
 }
