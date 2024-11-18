@@ -13,7 +13,7 @@ use nimiq_network_mock::MockHub;
 use nimiq_primitives::{networks::NetworkId, policy::Policy};
 use nimiq_serde::{Deserialize, Serialize};
 use nimiq_utils::spawn;
-use nimiq_validator::validator::Validator;
+use nimiq_validator::{key_utils::VotingKeys, validator::Validator};
 use nimiq_validator_network::network_impl::ValidatorNetworkImpl;
 use rand::{rngs::StdRng, SeedableRng};
 use tokio_stream::wrappers::BroadcastStream;
@@ -53,7 +53,7 @@ where
             validator_address,
             automatic_reactivate,
             signing_key,
-            voting_key,
+            VotingKeys::new(vec![voting_key]),
             fee_key,
             MempoolConfig::default(),
         ),
@@ -166,7 +166,8 @@ where
     validators
         .iter()
         .find(|validator| {
-            &validator.voting_key().public_key.compress() == slot.validator.voting_key.compressed()
+            &validator.current_voting_key().public_key.compress()
+                == slot.validator.voting_key.compressed()
         })
         .unwrap()
 }
@@ -192,7 +193,8 @@ where
     let index = validators
         .iter()
         .position(|validator| {
-            &validator.voting_key().public_key.compress() == slot.validator.voting_key.compressed()
+            &validator.current_voting_key().public_key.compress()
+                == slot.validator.voting_key.compressed()
         })
         .unwrap();
     validators.remove(index)

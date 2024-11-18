@@ -36,6 +36,8 @@ use nimiq_primitives::policy::Policy;
 #[cfg(feature = "full-consensus")]
 use nimiq_utils::time::OffsetTime;
 #[cfg(feature = "validator")]
+use nimiq_validator::key_utils::VotingKeys;
+#[cfg(feature = "validator")]
 use nimiq_validator::validator::Validator as AbstractValidator;
 #[cfg(feature = "validator")]
 use nimiq_validator::validator::ValidatorProxy as AbstractValidatorProxy;
@@ -552,7 +554,7 @@ impl ClientInner {
                     let signing_key = config.storage.signing_keypair()?;
 
                     // Load validator key (before we give away ownership of the storage config)
-                    let voting_key = config.storage.voting_keypair()?;
+                    let voting_keys = VotingKeys::new(config.storage.voting_keypairs()?);
 
                     // Load fee key (before we give away ownership of the storage config)
                     let fee_key = config.storage.fee_keypair()?;
@@ -568,7 +570,7 @@ impl ClientInner {
                         validator_address,
                         automatic_reactivate,
                         signing_key,
-                        voting_key,
+                        voting_keys,
                         fee_key,
                         config.mempool.clone(),
                     );

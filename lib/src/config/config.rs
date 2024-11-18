@@ -217,6 +217,10 @@ pub struct FileStorageConfig {
     #[cfg(feature = "validator")]
     pub voting_key_path: Option<PathBuf>,
 
+    // Paths to voting keys.
+    #[cfg(feature = "validator")]
+    pub voting_key_paths: Option<Vec<PathBuf>>,
+
     /// The voting key used for the validator, if the file is not present.
     #[cfg(feature = "validator")]
     pub voting_key: Option<Sensitive<String>>,
@@ -247,6 +251,8 @@ impl FileStorageConfig {
             database_parent: path.to_path_buf(),
             peer_key_path: path.join("peer_key.dat"),
             peer_key: None,
+            #[cfg(feature = "validator")]
+            voting_key_paths: None,
             #[cfg(feature = "validator")]
             voting_key_path: Some(path.join("voting_key.dat")),
             #[cfg(feature = "validator")]
@@ -448,34 +454,48 @@ impl StorageConfig {
     }
 
     #[cfg(feature = "validator")]
-    pub(crate) fn voting_keypair(&self) -> Result<BlsKeyPair, Error> {
+    pub(crate) fn voting_keypairs(&self) -> Result<Vec<BlsKeyPair>, Error> {
         Ok(match self {
-            StorageConfig::Volatile => BlsKeyPair::generate_default_csprng(),
+            StorageConfig::Volatile => vec![BlsKeyPair::generate_default_csprng()],
             StorageConfig::Filesystem(file_storage) => {
-                let key_path = file_storage
-                    .voting_key_path
-                    .as_ref()
-                    .ok_or_else(|| Error::config_error("No path for validator key specified"))?;
-                let key_path = key_path
-                    .to_str()
-                    .ok_or_else(|| {
-                        Error::config_error(format!(
-                            "Failed to convert path of validator key to string: {}",
-                            key_path.display()
-                        ))
-                    })?
-                    .to_string();
-
-                FileStore::new(key_path).load_or_store(|| {
-                    if let Some(key) = file_storage.voting_key.as_ref() {
-                        // TODO: handle errors
-                        let secret_key =
-                            BlsSecretKey::deserialize_from_vec(&hex::decode(key).unwrap()).unwrap();
-                        secret_key.into()
-                    } else {
-                        BlsKeyPair::generate_default_csprng()
+                if let Some(voting_key_paths) = &file_storage.voting_key_paths {
+                    if file_storage.voting_key.is_some() {
+                        return Err(Error::config_error(
+                            "Option voting_key_paths can't be set at the same time as voting_key",
+                        ));
                     }
-                })?
+                    let mut keypairs = Vec::new();
+                    for key_path in voting_key_paths {
+                        let keypair = FileStore::new(key_path).load()?;
+                        keypairs.push(keypair);
+                    }
+                    keypairs
+                } else {
+                    let key_path = file_storage.voting_key_path.as_ref().ok_or_else(|| {
+                        Error::config_error("No path for validator key specified")
+                    })?;
+                    let key_path = key_path
+                        .to_str()
+                        .ok_or_else(|| {
+                            Error::config_error(format!(
+                                "Failed to convert path of validator key to string: {}",
+                                key_path.display()
+                            ))
+                        })?
+                        .to_string();
+
+                    vec![FileStore::new(key_path).load_or_store(|| {
+                        if let Some(key) = file_storage.voting_key.as_ref() {
+                            // TODO: handle errors
+                            let secret_key =
+                                BlsSecretKey::deserialize_from_vec(&hex::decode(key).unwrap())
+                                    .unwrap();
+                            secret_key.into()
+                        } else {
+                            BlsKeyPair::generate_default_csprng()
+                        }
+                    })?]
+                }
             }
         })
     }
@@ -882,6 +902,9 @@ impl ClientConfigBuilder {
                 automatic_reactivate: validator_config.automatic_reactivate,
             });
 
+            if let Some(key_paths) = &validator_config.voting_key_files {
+                file_storage.voting_key_paths = Some(key_paths.iter().map(PathBuf::from).collect())
+            }
             if let Some(key_path) = &validator_config.voting_key_file {
                 file_storage.voting_key_path = Some(PathBuf::from(key_path));
             }

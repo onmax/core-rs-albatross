@@ -495,6 +495,7 @@ pub struct ValidatorSettings {
     pub signing_key_file: Option<String>,
     pub signing_key: Option<Sensitive<String>>,
     pub voting_key_file: Option<String>,
+    pub voting_key_files: Option<Vec<String>>,
     pub voting_key: Option<Sensitive<String>>,
     pub fee_key_file: Option<String>,
     pub fee_key: Option<Sensitive<String>>,

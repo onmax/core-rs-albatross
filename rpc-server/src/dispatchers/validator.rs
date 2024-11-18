@@ -1,11 +1,12 @@
 use std::sync::atomic::Ordering;
 
 use async_trait::async_trait;
+use nimiq_bls::{KeyPair as BlsKeyPair, SecretKey as BlsSecretKey};
 use nimiq_consensus::ConsensusProxy;
 use nimiq_keys::Address;
 use nimiq_network_libp2p::Network;
 use nimiq_rpc_interface::{types::RPCResult, validator::ValidatorInterface};
-use nimiq_serde::Serialize;
+use nimiq_serde::{Deserialize, Serialize};
 use nimiq_validator::validator::ValidatorProxy;
 
 use crate::error::Error;
@@ -40,12 +41,32 @@ impl ValidatorInterface for ValidatorDispatcher {
     async fn get_voting_key(&mut self) -> RPCResult<String, (), Self::Error> {
         Ok(hex::encode(
             self.validator
-                .voting_key
+                .voting_keys
                 .read()
+                .get_current_key()
                 .secret_key
                 .serialize_to_vec(),
         )
         .into())
+    }
+
+    async fn get_voting_keys(&mut self) -> RPCResult<Vec<String>, (), Self::Error> {
+        Ok(self
+            .validator
+            .voting_keys
+            .read()
+            .get_keys()
+            .into_iter()
+            .map(|key| hex::encode(key.secret_key.serialize_to_vec()))
+            .collect::<Vec<String>>()
+            .into())
+    }
+
+    async fn add_voting_key(&mut self, secret_key: String) -> RPCResult<(), (), Self::Error> {
+        self.validator.voting_keys.write().add_key(BlsKeyPair::from(
+            BlsSecretKey::deserialize_from_vec(&hex::decode(secret_key)?)?,
+        ));
+        Ok(().into())
     }
 
     async fn set_automatic_reactivation(

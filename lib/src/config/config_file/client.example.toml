@@ -352,12 +352,12 @@ level = "debug"
 # Default: randomly generated
 #signing_key = ""
 
-# Where to store the validator voting key.
-# Default: "~/.nimiq/voting_key.dat"
-#voting_key_file = "voting_key.dat"
+# Locations of voting keys.
+# Multiple paths can be provided in case a key-rotation is planned.
+#voting_key_files = [ "voting_key.dat" ]
 
 # The validator voting key. This must be a BLS private key in hex format.
-# Only used when the `voting_key_file` does not exist.
+# Only used when `voting_key_files` does not exist.
 # Default: randomly generated
 #voting_key = ""
 

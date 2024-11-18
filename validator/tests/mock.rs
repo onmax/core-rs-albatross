@@ -296,7 +296,7 @@ async fn validator_can_catch_up() {
     // Manually construct a skip block for the validator
     let vc = create_skip_block_update(
         skip_block_info,
-        validator.voting_key(),
+        validator.current_voting_key(),
         validator.validator_slot_band(),
         &slots,
     );

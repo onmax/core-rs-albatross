@@ -45,6 +45,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use crate::{
     aggregation::tendermint::{proposal::RequestProposal, state::MacroState},
     jail::EquivocationProofPool,
+    key_utils::VotingKeys,
     micro::ProduceMicroBlock,
     proposal_buffer::{ProposalBuffer, ProposalReceiver},
     r#macro::{MappedReturn, ProduceMacroBlock, ProposalTopic},
@@ -70,7 +71,7 @@ struct InactivityState {
 pub struct ValidatorProxy {
     pub validator_address: Arc<RwLock<Address>>,
     pub signing_key: Arc<RwLock<SchnorrKeyPair>>,
-    pub voting_key: Arc<RwLock<BlsKeyPair>>,
+    pub voting_keys: Arc<RwLock<VotingKeys>>,
     pub fee_key: Arc<RwLock<SchnorrKeyPair>>,
     pub automatic_reactivate: Arc<AtomicBool>,
     pub slot_band: Arc<RwLock<Option<u16>>>,
@@ -82,7 +83,7 @@ impl Clone for ValidatorProxy {
         Self {
             validator_address: Arc::clone(&self.validator_address),
             signing_key: Arc::clone(&self.signing_key),
-            voting_key: Arc::clone(&self.voting_key),
+            voting_keys: Arc::clone(&self.voting_keys),
             fee_key: Arc::clone(&self.fee_key),
             automatic_reactivate: Arc::clone(&self.automatic_reactivate),
             slot_band: Arc::clone(&self.slot_band),
@@ -106,7 +107,7 @@ where
 
     validator_address: Arc<RwLock<Address>>,
     signing_key: Arc<RwLock<SchnorrKeyPair>>,
-    voting_key: Arc<RwLock<BlsKeyPair>>,
+    voting_keys: Arc<RwLock<VotingKeys>>,
     fee_key: Arc<RwLock<SchnorrKeyPair>>,
 
     proposal_receiver: ProposalReceiver<TValidatorNetwork>,
@@ -153,7 +154,7 @@ where
         validator_address: Address,
         automatic_reactivate: bool,
         signing_key: SchnorrKeyPair,
-        voting_key: BlsKeyPair,
+        voting_keys: VotingKeys,
         fee_key: SchnorrKeyPair,
         mempool_config: MempoolConfig,
     ) -> Self {
@@ -209,7 +210,7 @@ where
 
             validator_address: Arc::new(RwLock::new(validator_address)),
             signing_key: Arc::new(RwLock::new(signing_key)),
-            voting_key: Arc::new(RwLock::new(voting_key)),
+            voting_keys: Arc::new(RwLock::new(voting_keys)),
             fee_key: Arc::new(RwLock::new(fee_key)),
 
             proposal_receiver,
@@ -342,6 +343,17 @@ where
                 epoch_number = blockchain.epoch_number(),
                 "We are ACTIVE in this epoch"
             );
+
+            // Update the validator key to be the expected one (relevant in case of a key rotation).
+            let epoch_validator = validators.get_validator_by_slot_band(slot_band);
+            if self
+                .voting_keys
+                .write()
+                .update_current_key(epoch_validator.voting_key.compressed())
+                .is_err()
+            {
+                panic!("Invalid validator configuration: None of the voting keys match the one expected from this validator in the current epoch")
+            }
         } else {
             log::debug!(
                 validator_address = %self.validator_address(),
@@ -359,7 +371,7 @@ where
         // Check validator configuration
         if let Some(validator) = self.get_validator(&blockchain) {
             // Compare configured validator voting key to the one in the contract to make sure it is the same.
-            if validator.voting_key != self.voting_key().public_key.compress() {
+            if validator.voting_key != self.current_voting_key().public_key.compress() {
                 error!("Invalid validator configuration: Configured voting key does not match voting key in staking contract");
             }
 
@@ -390,7 +402,7 @@ where
         let head = blockchain.head();
         let next_block_number = head.block_number() + 1;
         let network_id = head.network();
-        let block_producer = BlockProducer::new(self.signing_key(), self.voting_key());
+        let block_producer = BlockProducer::new(self.signing_key(), self.current_voting_key());
 
         debug!(
             next_block_number = next_block_number,
@@ -703,8 +715,8 @@ where
         self.validator_address.read().clone()
     }
 
-    pub fn voting_key(&self) -> BlsKeyPair {
-        self.voting_key.read().clone()
+    pub fn current_voting_key(&self) -> BlsKeyPair {
+        self.voting_keys.read().get_current_key()
     }
 
     pub fn signing_key(&self) -> SchnorrKeyPair {
@@ -719,7 +731,7 @@ where
         ValidatorProxy {
             validator_address: Arc::clone(&self.validator_address),
             signing_key: Arc::clone(&self.signing_key),
-            voting_key: Arc::clone(&self.voting_key),
+            voting_keys: Arc::clone(&self.voting_keys),
             fee_key: Arc::clone(&self.fee_key),
             automatic_reactivate: Arc::clone(&self.automatic_reactivate),
             slot_band: Arc::clone(&self.slot_band),
