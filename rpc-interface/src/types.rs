@@ -806,13 +806,13 @@ pub enum AccountAdditionalFields {
     Vesting {
         /// User friendly address (NQ-address) of the owner of the vesting contract.
         owner: Address,
-        /// The block that the vesting contracted commenced.
-        vesting_start: u64,
-        /// The number of blocks after which some part of the vested funds is released.
-        vesting_step_blocks: u64,
-        /// The amount (in Luna) released every vestingStepBlocks blocks.
+        /// The timestamp in milliseconds at which the vesting contract commences.
+        vesting_start_time: u64,
+        /// The length of a step in milliseconds.
+        vesting_time_step: u64,
+        /// The amount (in Luna) released at every step.
         vesting_step_amount: Coin,
-        /// The total amount (in smallest unit) that was provided at the contract creation.
+        /// The total amount (in Luna) that was provided at contract creation.
         vesting_total_amount: Coin,
     },
 
@@ -851,8 +851,8 @@ impl Account {
                 balance: vesting.balance,
                 account_additional_fields: AccountAdditionalFields::Vesting {
                     owner: vesting.owner,
-                    vesting_start: vesting.start_time,
-                    vesting_step_blocks: vesting.time_step,
+                    vesting_start_time: vesting.start_time,
+                    vesting_time_step: vesting.time_step,
                     vesting_step_amount: vesting.step_amount,
                     vesting_total_amount: vesting.total_amount,
                 },
