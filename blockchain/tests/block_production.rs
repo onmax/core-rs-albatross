@@ -1,6 +1,6 @@
 use std::{convert::TryInto, sync::Arc};
 
-use nimiq_block::{Block, ForkProof, MicroJustification};
+use nimiq_block::{Block, EquivocationProof, ForkProof, MicroHeader, MicroJustification};
 use nimiq_blockchain::{interface::HistoryInterface, BlockProducer, Blockchain, BlockchainConfig};
 use nimiq_blockchain_interface::{AbstractBlockchain, PushResult};
 use nimiq_bls::KeyPair as BlsKeyPair;
@@ -164,6 +164,83 @@ fn it_can_produce_micro_blocks() {
         blockchain.read().block_number(),
         4 + blockchain.read().get_genesis_block_number()
     );
+}
+
+#[test]
+fn it_can_produce_micro_blocks_with_equivocation_proofs() {
+    let equivocation_proofs: Vec<EquivocationProof> = (0..2)
+        .map(|i| {
+            let header1 = MicroHeader {
+                network: NetworkId::UnitAlbatross,
+                block_number: Policy::genesis_block_number() + i,
+                timestamp: 0,
+                ..Default::default()
+            };
+            let header2 = MicroHeader {
+                network: NetworkId::UnitAlbatross,
+                block_number: Policy::genesis_block_number() + i,
+                timestamp: 1,
+                ..Default::default()
+            };
+            let hash1 = header1.hash();
+            let hash2 = header2.hash();
+            let justification1 = signing_key().sign(hash1.as_slice());
+            let justification2 = signing_key().sign(hash2.as_slice());
+            ForkProof::new(
+                validator_address(),
+                header1,
+                justification1,
+                header2,
+                justification2,
+            )
+            .into()
+        })
+        .collect();
+
+    for reverse in [false, true] {
+        let equivocation_proofs = if reverse {
+            equivocation_proofs.iter().cloned().rev().collect()
+        } else {
+            equivocation_proofs.iter().cloned().collect()
+        };
+
+        let time = Arc::new(OffsetTime::new());
+        let env = MdbxDatabase::new_volatile(Default::default()).unwrap();
+        let blockchain = Arc::new(RwLock::new(
+            Blockchain::new(
+                env,
+                BlockchainConfig::default(),
+                NetworkId::UnitAlbatross,
+                time,
+            )
+            .unwrap(),
+        ));
+        let producer = BlockProducer::new(signing_key(), voting_key());
+
+        let bc = blockchain.upgradable_read();
+
+        // #1.0: Empty standard micro block
+        let block = producer
+            .next_micro_block(
+                &bc,
+                bc.timestamp() + Policy::BLOCK_SEPARATION_TIME,
+                equivocation_proofs,
+                vec![],
+                vec![0x41],
+                None,
+            )
+            .unwrap();
+
+        assert_eq!(
+            Blockchain::push(bc, Block::Micro(block.clone())),
+            Ok(PushResult::Extended)
+        );
+
+        assert_eq!(
+            blockchain.read().block_number(),
+            1 + blockchain.read().get_genesis_block_number()
+        );
+    }
 }
 
 #[test]

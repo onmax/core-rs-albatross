@@ -106,7 +106,7 @@ impl BlockProducer {
         // Proofs of any misbehavior by malicious validators. An equivocation proof may be submitted
         // during the batch when it happened or until the end of the reporting window, but not after
         // that.
-        equivocation_proofs: Vec<EquivocationProof>,
+        mut equivocation_proofs: Vec<EquivocationProof>,
         // The transactions to be included in the block body.
         transactions: Vec<Transaction>,
         // Extra data for this block.
@@ -116,6 +116,8 @@ impl BlockProducer {
         // The rng seed. We need this parameterized in order to have determinism when running unit tests.
         rng: &mut R,
     ) -> Result<MicroBlock, BlockProducerError> {
+        equivocation_proofs.sort_by_key(|proof| proof.sort_key());
+
         // The network ID stays unchanged for the whole blockchain.
         let network = blockchain.head().network();
 
