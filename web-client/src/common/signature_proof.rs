@@ -28,12 +28,12 @@ pub struct SignatureProof {
 impl SignatureProof {
     #[wasm_bindgen(getter = SINGLE_SIG_SIZE)]
     pub fn single_sig_size() -> usize {
-        nimiq_keys::Ed25519PublicKey::SIZE + 1 + nimiq_keys::Ed25519Signature::SIZE
+        1 + nimiq_keys::Ed25519PublicKey::SIZE + 1 + nimiq_keys::Ed25519Signature::SIZE
     }
 
     #[wasm_bindgen(getter = ES256_SINGLE_SIG_SIZE)]
     pub fn es256_single_sig_size() -> usize {
-        nimiq_keys::ES256PublicKey::SIZE + 1 + nimiq_keys::ES256Signature::SIZE
+        1 + nimiq_keys::ES256PublicKey::SIZE + 1 + nimiq_keys::ES256Signature::SIZE
     }
 
     /// Creates a Ed25519/Schnorr signature proof for a single-sig signature.
