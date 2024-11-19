@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use directories::UserDirs;
+use directories::BaseDirs;
 
 pub fn home() -> PathBuf {
-    UserDirs::new()
+    BaseDirs::new()
         .expect("Failed to determine users home directory")
         .home_dir()
         .join(".nimiq")
