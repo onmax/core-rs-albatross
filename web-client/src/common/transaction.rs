@@ -770,13 +770,15 @@ pub struct PlainTransaction {
     pub format: TransactionFormat,
     /// The transaction's sender address in human-readable IBAN format.
     pub sender: String,
-    /// The account type of the transaction's sender. `0` are basic private-key controlled accounts,
-    /// `1` are vesting contracts, `2` are HTLCs, and `3` is the staking contract.
+    /// The type of the transaction's sender. "basic" are regular private-key controlled addresses,
+    /// "vesting" and "htlc" are those contract types respectively, and "staking" is the staking contract.
+    #[tsify(type = "PlainAccountType")]
     pub sender_type: AccountType,
     /// The transaction's recipient address in human-readable IBAN format.
     pub recipient: String,
-    /// The account type of the transaction's recipient. `0` are basic private-key controlled accounts,
-    /// `1` are vesting contracts, `2` are HTLCs, and `3` is the staking contract.
+    /// The type of the transaction's sender. "basic" are regular private-key controlled addresses,
+    /// "vesting" and "htlc" are those contract types respectively, and "staking" is the staking contract.
+    #[tsify(type = "PlainAccountType")]
     pub recipient_type: AccountType,
     // The transaction's value in luna (NIM's smallest unit).
     pub value: u64,

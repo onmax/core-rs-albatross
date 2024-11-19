@@ -16,7 +16,12 @@ use crate::{
     derive(nimiq_serde::Serialize, nimiq_serde::Deserialize)
 )]
 #[cfg_attr(feature = "serde-derive", serde(try_from = "u8", into = "u8"))]
-#[cfg_attr(feature = "ts-types", wasm_bindgen::prelude::wasm_bindgen)]
+#[cfg_attr(
+    feature = "ts-types",
+    derive(tsify::Tsify),
+    serde(rename = "PlainAccountType", rename_all = "lowercase"),
+    wasm_bindgen::prelude::wasm_bindgen
+)]
 pub enum AccountType {
     Basic = 0,
     Vesting = 1,
