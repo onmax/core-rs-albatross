@@ -507,14 +507,14 @@ impl Transaction {
     pub fn from_plain_transaction(plain: &PlainTransaction) -> Result<Transaction, JsError> {
         let mut tx = Transaction::new(
             &Address::from_string(&plain.sender)?,
-            Some(plain.sender_type.into()),
+            Some(plain.sender_type as u8),
             Some(hex::decode(match plain.sender_data {
                 PlainTransactionSenderData::Raw(ref data) => &data.raw,
                 PlainTransactionSenderData::RemoveStake(ref data) => &data.raw,
                 PlainTransactionSenderData::DeleteValidator(ref data) => &data.raw,
             })?),
             &Address::from_string(&plain.recipient)?,
-            Some(plain.recipient_type.into()),
+            Some(plain.recipient_type as u8),
             Some(hex::decode(match plain.data {
                 PlainTransactionRecipientData::Raw(ref data) => &data.raw,
                 PlainTransactionRecipientData::Vesting(ref data) => &data.raw,
@@ -770,14 +770,14 @@ pub struct PlainTransaction {
     pub format: TransactionFormat,
     /// The transaction's sender address in human-readable IBAN format.
     pub sender: String,
-    /// The type of the transaction's sender. "basic" are regular private-key controlled addresses,
-    /// "vesting" and "htlc" are those contract types respectively, and "staking" is the staking contract.
+    /// The account type of the transaction's sender. "basic" are regular private-key controlled accounts,
+    /// "vesting" and "htlc" are contracts, and "staking" is the staking contract.
     #[tsify(type = "PlainAccountType")]
     pub sender_type: AccountType,
     /// The transaction's recipient address in human-readable IBAN format.
     pub recipient: String,
-    /// The type of the transaction's sender. "basic" are regular private-key controlled addresses,
-    /// "vesting" and "htlc" are those contract types respectively, and "staking" is the staking contract.
+    /// The account type of the transaction's recipient. "basic" are regular private-key controlled accounts,
+    /// "vesting" and "htlc" are contracts, and "staking" is the staking contract.
     #[tsify(type = "PlainAccountType")]
     pub recipient_type: AccountType,
     // The transaction's value in luna (NIM's smallest unit).

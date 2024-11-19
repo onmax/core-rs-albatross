@@ -1,6 +1,7 @@
 use std::{convert::TryFrom, fmt};
 
 use nimiq_keys::Address;
+use nimiq_serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
@@ -9,13 +10,8 @@ use crate::{
     trie::error::MerkleRadixTrieError,
 };
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Serialize, Deserialize)]
 #[repr(u8)]
-#[cfg_attr(
-    any(feature = "serde-derive", feature = "ts-types"),
-    derive(nimiq_serde::Serialize, nimiq_serde::Deserialize)
-)]
-#[cfg_attr(feature = "serde-derive", serde(try_from = "u8", into = "u8"))]
 #[cfg_attr(
     feature = "ts-types",
     derive(tsify::Tsify),
@@ -53,6 +49,7 @@ impl TryFrom<u8> for AccountType {
     }
 }
 
+#[cfg(not(feature = "ts-types"))]
 impl From<AccountType> for u8 {
     fn from(ty: AccountType) -> Self {
         match ty {
