@@ -1726,16 +1726,12 @@ fn jail_and_revert() {
         vec![
             Log::JailValidator {
                 validator_address: validator_address.clone(),
-                jailed_from: block_state.number
+                event_block: block_state.number,
+                newly_jailed: true
             },
             Log::DeactivateValidator {
                 validator_address: validator_address.clone(),
                 inactive_from: Policy::election_block_after(block_state.number)
-            },
-            Log::Jail {
-                validator_address: validator_address.clone(),
-                event_block: 1,
-                newly_jailed: true
             },
         ]
     );
@@ -1844,17 +1840,11 @@ fn jail_inactive_and_revert() {
     );
     assert_eq!(
         logs,
-        vec![
-            Log::JailValidator {
-                validator_address: validator_address.clone(),
-                jailed_from: block_state.number
-            },
-            Log::Jail {
-                validator_address: validator_address.clone(),
-                event_block: 1,
-                newly_jailed: true
-            },
-        ]
+        vec![Log::JailValidator {
+            validator_address: validator_address.clone(),
+            event_block: block_state.number,
+            newly_jailed: true
+        },]
     );
     let validator = staking_contract
         .get_validator(&data_store.read(&db_txn), &validator_address)
@@ -1946,17 +1936,11 @@ fn can_jail_twice() {
 
     assert_eq!(
         logs,
-        vec![
-            Log::JailValidator {
-                validator_address: jailed_setup.validator_address.clone(),
-                jailed_from: second_jail_block_state.number,
-            },
-            Log::Jail {
-                validator_address: jailed_setup.validator_address.clone(),
-                event_block: second_jail_block_state.number,
-                newly_jailed: false
-            },
-        ]
+        vec![Log::JailValidator {
+            validator_address: jailed_setup.validator_address.clone(),
+            event_block: second_jail_block_state.number,
+            newly_jailed: false
+        },]
     );
 
     // Make sure that the jail release is replaced to the new jail release block height.
@@ -2468,17 +2452,11 @@ fn penalize_and_jail_and_revert_twice() {
     );
     assert_eq!(
         logs,
-        vec![
-            Log::JailValidator {
-                validator_address: validator_address.clone(),
-                jailed_from: block_state.number,
-            },
-            Log::Jail {
-                validator_address: validator_address.clone(),
-                event_block: 2,
-                newly_jailed: true
-            },
-        ]
+        vec![Log::JailValidator {
+            validator_address: validator_address.clone(),
+            event_block: block_state.number,
+            newly_jailed: true
+        },]
     );
 
     let validator = staking_contract

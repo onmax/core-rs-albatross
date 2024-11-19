@@ -90,14 +90,6 @@ pub enum Log {
         inactive_from: u32,
     },
 
-    /// The validator with the given address has been jailed.
-    /// It is jailed from the given block number.
-    #[serde(rename_all = "camelCase")]
-    JailValidator {
-        validator_address: Address,
-        jailed_from: u32,
-    },
-
     #[serde(rename_all = "camelCase")]
     ReactivateValidator { validator_address: Address },
 
@@ -179,7 +171,7 @@ pub enum Log {
     },
 
     #[serde(rename_all = "camelCase")]
-    Jail {
+    JailValidator {
         validator_address: Address,
         event_block: u32,
         newly_jailed: bool,
@@ -258,11 +250,8 @@ impl Log {
             Log::DeactivateValidator {
                 validator_address, ..
             }
-            | Log::JailValidator {
-                validator_address, ..
-            } => validator_address == address,
-            Log::ReactivateValidator { validator_address } => validator_address == address,
-            Log::RetireValidator { validator_address } => validator_address == address,
+            | Log::ReactivateValidator { validator_address }
+            | Log::RetireValidator { validator_address } => validator_address == address,
             Log::DeleteValidator {
                 validator_address,
                 reward_address,
@@ -334,7 +323,7 @@ impl Log {
             Log::Penalize {
                 validator_address, ..
             }
-            | Log::Jail {
+            | Log::JailValidator {
                 validator_address, ..
             } => validator_address == address,
             Log::RevertContract { contract_address } => contract_address == address,

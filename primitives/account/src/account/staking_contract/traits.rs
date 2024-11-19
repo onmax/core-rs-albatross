@@ -726,7 +726,6 @@ impl AccountInherentInteraction for StakingContract {
                 inherent_logger.push_tx_logger(tx_logger);
 
                 let newly_deactivated = receipt.newly_deactivated;
-                let newly_jailed = receipt.old_jailed_from.is_none();
 
                 // Register the validator slots as punished
                 let (old_previous_batch_punished_slots, old_current_batch_punished_slots) =
@@ -735,12 +734,6 @@ impl AccountInherentInteraction for StakingContract {
                         block_state.number,
                         new_epoch_slot_range.clone(),
                     );
-
-                inherent_logger.push_log(Log::Jail {
-                    validator_address: jailed_validator.validator_address.clone(),
-                    event_block: jailed_validator.offense_event_block,
-                    newly_jailed,
-                });
 
                 Ok(Some(
                     JailReceipt {
@@ -822,7 +815,6 @@ impl AccountInherentInteraction for StakingContract {
             } => {
                 let receipt: JailReceipt =
                     receipt.ok_or(AccountError::InvalidReceipt)?.try_into()?;
-                let newly_jailed = receipt.old_jailed_from.is_none();
                 let jail_receipt = JailValidatorReceipt::from(&receipt);
 
                 self.punished_slots.revert_register_jail(
@@ -830,12 +822,6 @@ impl AccountInherentInteraction for StakingContract {
                     receipt.old_previous_batch_punished_slots,
                     receipt.old_current_batch_punished_slots,
                 );
-
-                inherent_logger.push_log(Log::Jail {
-                    validator_address: jailed_validator.validator_address.clone(),
-                    event_block: jailed_validator.offense_event_block,
-                    newly_jailed,
-                });
 
                 let mut tx_logger = TransactionLog::empty();
                 self.revert_jail_validator(

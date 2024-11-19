@@ -458,7 +458,8 @@ impl StakingContract {
 
         tx_logger.push_log(Log::JailValidator {
             validator_address: validator_address.clone(),
-            jailed_from: block_number,
+            event_block: block_number,
+            newly_jailed: old_jailed_from.is_none(),
         });
         if newly_deactivated {
             tx_logger.push_log(Log::DeactivateValidator {
@@ -508,7 +509,8 @@ impl StakingContract {
         });
         tx_logger.push_log(Log::JailValidator {
             validator_address: validator_address.clone(),
-            jailed_from,
+            event_block: jailed_from,
+            newly_jailed: receipt.old_jailed_from.is_none(),
         });
 
         Ok(())

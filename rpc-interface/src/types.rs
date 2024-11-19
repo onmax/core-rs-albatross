@@ -1064,7 +1064,7 @@ pub enum LogType {
     ValidatorFeeDeduction,
     DeactivateValidator,
     ReactivateValidator,
-    JailValidator,
+
     RetireValidator,
     DeleteValidator,
     CreateStaker,
@@ -1077,7 +1077,7 @@ pub enum LogType {
     StakerFeeDeduction,
     PayoutReward,
     Penalize,
-    Jail,
+    JailValidator,
     RevertContract,
     FailedTransaction,
 }
@@ -1117,7 +1117,7 @@ impl LogType {
             Log::UpdateValidator { .. } => Self::UpdateValidator,
             Log::DeactivateValidator { .. } => Self::DeactivateValidator,
             Log::ReactivateValidator { .. } => Self::ReactivateValidator,
-            Log::JailValidator { .. } => Self::JailValidator,
+
             Log::CreateStaker { .. } => Self::CreateStaker,
             Log::Stake { .. } => Self::Stake,
             Log::UpdateStaker { .. } => Self::UpdateStaker,
@@ -1129,7 +1129,7 @@ impl LogType {
             Log::DeleteStaker { .. } => Self::DeleteStaker,
             Log::PayoutReward { .. } => Self::PayoutReward,
             Log::Penalize { .. } => Self::Penalize,
-            Log::Jail { .. } => Self::Jail,
+            Log::JailValidator { .. } => Self::JailValidator,
             Log::RevertContract { .. } => Self::RevertContract,
             Log::FailedTransaction { .. } => Self::FailedTransaction,
             Log::ValidatorFeeDeduction { .. } => Self::ValidatorFeeDeduction,
