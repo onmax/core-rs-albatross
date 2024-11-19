@@ -123,7 +123,7 @@ impl IncomingStakingTransactionData {
                 verify_proof_of_knowledge(voting_key, proof_of_knowledge)?;
 
                 // Check that the signature is correct.
-                verify_transaction_signature(transaction, proof, true)?
+                verify_transaction_signature(transaction, proof)?
             }
             IncomingStakingTransactionData::UpdateValidator {
                 new_signing_key,
@@ -151,19 +151,19 @@ impl IncomingStakingTransactionData {
                 }
 
                 // Check that the signature is correct.
-                verify_transaction_signature(transaction, proof, true)?
+                verify_transaction_signature(transaction, proof)?
             }
             IncomingStakingTransactionData::DeactivateValidator { proof, .. } => {
                 // Check that the signature is correct.
-                verify_transaction_signature(transaction, proof, true)?
+                verify_transaction_signature(transaction, proof)?
             }
             IncomingStakingTransactionData::ReactivateValidator { proof, .. } => {
                 // Check that the signature is correct.
-                verify_transaction_signature(transaction, proof, true)?
+                verify_transaction_signature(transaction, proof)?
             }
             IncomingStakingTransactionData::RetireValidator { proof, .. } => {
                 // Check that the signature is correct.
-                verify_transaction_signature(transaction, proof, true)?
+                verify_transaction_signature(transaction, proof)?
             }
             IncomingStakingTransactionData::CreateStaker { proof, .. } => {
                 // Check that stake is at least minimum stake.
@@ -173,7 +173,7 @@ impl IncomingStakingTransactionData {
                 }
 
                 // Check that the signature is correct.
-                verify_transaction_signature(transaction, proof, true)?
+                verify_transaction_signature(transaction, proof)?
             }
             IncomingStakingTransactionData::AddStake { .. } => {
                 // Adding stake should be at least greater than 0.
@@ -186,11 +186,11 @@ impl IncomingStakingTransactionData {
             }
             IncomingStakingTransactionData::UpdateStaker { proof, .. } => {
                 // Check that the signature is correct.
-                verify_transaction_signature(transaction, proof, true)?
+                verify_transaction_signature(transaction, proof)?
             }
             IncomingStakingTransactionData::SetActiveStake { proof, .. } => {
                 // Check that the signature is correct.
-                verify_transaction_signature(transaction, proof, true)?
+                verify_transaction_signature(transaction, proof)?
             }
             IncomingStakingTransactionData::RetireStake {
                 proof,
@@ -203,7 +203,7 @@ impl IncomingStakingTransactionData {
                 }
 
                 // Check that the signature is correct.
-                verify_transaction_signature(transaction, proof, true)?
+                verify_transaction_signature(transaction, proof)?
             }
         }
 
@@ -253,11 +253,10 @@ impl OutgoingStakingTransactionData {
 pub fn verify_transaction_signature(
     transaction: &Transaction,
     sig_proof: &SignatureProof,
-    incoming: bool,
 ) -> Result<(), TransactionError> {
     // If we are verifying the signature on an incoming transaction, then we need to reset the
     // signature field first.
-    let tx = if incoming {
+    let tx = {
         let mut tx_without_sig = transaction.clone();
 
         tx_without_sig.recipient_data = IncomingStakingTransactionData::set_signature_on_data(
@@ -266,8 +265,6 @@ pub fn verify_transaction_signature(
         )?;
 
         tx_without_sig.serialize_content()
-    } else {
-        transaction.serialize_content()
     };
 
     if !sig_proof.verify(&tx) {
