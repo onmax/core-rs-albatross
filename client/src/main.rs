@@ -46,7 +46,7 @@ async fn main_inner() -> Result<(), Error> {
     // Early return in case of a proving process.
     if command_line.prove {
         info!("Starting proof generation. Waiting for input.");
-        return Ok(prover_main().await?);
+        return Ok(prover_main()?);
     }
 
     // Create config builder and apply command line and config file.

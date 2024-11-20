@@ -9,11 +9,10 @@ use nimiq_zkp_component::prover_binary::prover_main;
 use tracing_subscriber::{filter::Targets, prelude::*};
 
 /// This binary is only used in tests.
-#[tokio::main]
-async fn main() {
+fn main() {
     initialize();
     log::info!("Starting proof generation");
-    prover_main().await.unwrap();
+    prover_main().unwrap();
 }
 
 fn initialize() {

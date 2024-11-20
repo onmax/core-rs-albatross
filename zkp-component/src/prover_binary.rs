@@ -8,7 +8,7 @@ use crate::{
     types::{ProofInput, ZKProofGenerationError, PROOF_GENERATION_OUTPUT_DELIMITER},
 };
 
-pub async fn prover_main() -> Result<(), Error> {
+pub fn prover_main() -> Result<(), Error> {
     // Read proof input from stdin.
     let mut stdin_buf = vec![];
     let mut stdin = BufReader::new(io::stdin());
