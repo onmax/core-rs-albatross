@@ -53,9 +53,10 @@ pub enum BlockchainError {
     #[error(
         "A full genesis config is required for initializing a history node on \
         the mainnet for the first time. Obtain the full genesis config (it's \
-        not in the repository) and set the `NIMIQ_OVERRIDE_MAINNET_CONFIG` \
-        environment variable to point to the full genesis config for the \
-        first start"
+        not in the repository and can be obtained from \
+        https://ipfs.nimiq.io/ipfs/QmWcRRRw4FaKRrznMFt6KemAM35uo9QknMkDaeBzTod33R) \
+        and set the `NIMIQ_OVERRIDE_MAINNET_CONFIG` environment variable to \
+        point to the full genesis config for the first start"
     )]
     GenesisAccountsRequiredMainnet,
     #[error(
