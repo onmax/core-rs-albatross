@@ -337,15 +337,16 @@ where
         *self.slot_band.write() = validators.get_slot_band_by_address(&self.validator_address());
 
         if let Some(slot_band) = *self.slot_band.read() {
+            let epoch_validator = validators.get_validator_by_slot_band(slot_band);
             log::info!(
                 validator_address = %self.validator_address(),
                 validator_slot_band = slot_band,
                 epoch_number = blockchain.epoch_number(),
-                "We are ACTIVE in this epoch"
+                slots = ?epoch_validator.slots,
+                "We are ELECTED in this epoch"
             );
 
             // Update the validator key to be the expected one (relevant in case of a key rotation).
-            let epoch_validator = validators.get_validator_by_slot_band(slot_band);
             if self
                 .voting_keys
                 .write()
@@ -355,10 +356,10 @@ where
                 panic!("Invalid validator configuration: None of the voting keys match the one expected from this validator in the current epoch")
             }
         } else {
-            log::debug!(
+            log::info!(
                 validator_address = %self.validator_address(),
                 epoch_number = blockchain.epoch_number(),
-                "We are INACTIVE in this epoch"
+                "We are NOT ELECTED in this epoch"
             );
         }
 
