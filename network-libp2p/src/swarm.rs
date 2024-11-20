@@ -575,7 +575,8 @@ fn handle_dht_get(
             // and push the best result to the cache candidates
 
             let Some(results) = event_info.state.dht_get_results.remove(&id) else {
-                panic!("DHT inconsistent state, query_id: {:?}", id);
+                log::error!(query_id = ?id, "DHT inconsistent state");
+                return;
             };
 
             let signed_best_record = results.best_value.clone().get_signed_record();
