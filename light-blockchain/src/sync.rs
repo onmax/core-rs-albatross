@@ -75,7 +75,8 @@ impl LightBlockchain {
 
         // Since it's a macro block, we have to clear the ChainStore. If we are syncing for the first
         // time, this should be empty. But we clear it just in case it's not our first time.
-        this.chain_store.clear();
+        this.chain_store
+            .clear_old_blocks(chain_info.head.block_number());
 
         // Store the block chain info.
         this.chain_store.put_chain_info(chain_info);
@@ -151,8 +152,9 @@ impl LightBlockchain {
         // Create the chain info for the new block.
         let chain_info = ChainInfo::new(block.clone(), true);
 
-        // Since it's a macro block, we have to clear the ChainStore.
-        this.chain_store.clear();
+        // Remove old blocks from the ChainStore.
+        this.chain_store
+            .clear_old_blocks(chain_info.head.block_number());
 
         // Store the block chain info.
         this.chain_store.put_chain_info(chain_info);

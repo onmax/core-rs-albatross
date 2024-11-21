@@ -351,11 +351,25 @@ impl ChainStore {
             .insert(Policy::epoch_at(header.block_number), header);
     }
 
-    /// Clears the ChainStore of all blocks (except the election blocks). This can be used at the
-    /// end of each batch, so that we don't keep unnecessary micro blocks.
-    pub fn clear(&mut self) {
-        self.chain_db.clear();
-        self.height_idx.clear();
+    /// Removes old blocks. It retains the latest election block, and removes all other blocks if
+    /// they are older than BLOCKS_PER_BATCH. The light blockchain would only need micro blocks of
+    /// the current epoch, but the store retains some more blocks to give users of light clients
+    /// time to request recent blocks.
+    pub fn clear_old_blocks(&mut self, current_block: u32) {
+        let should_retain_block = |block_number| {
+            if Policy::is_election_block_at(block_number) {
+                current_block - block_number <= Policy::blocks_per_epoch()
+            } else {
+                current_block - block_number <= Policy::blocks_per_batch()
+            }
+        };
+
+        self.height_idx
+            .retain(|&block_number, _| should_retain_block(block_number));
+        self.chain_db
+            .retain(|_, block| should_retain_block(block.head.block_number()));
+        self.election_db
+            .retain(|&block_number, _| should_retain_block(block_number));
     }
 }
 
@@ -438,7 +452,7 @@ mod tests {
             }
         }
 
-        store.clear();
+        store.clear_old_blocks(block_1.block_number());
 
         // Second case.
         store.put_chain_info(ChainInfo::new(block_1.clone(), true));

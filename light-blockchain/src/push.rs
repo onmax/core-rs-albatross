@@ -166,12 +166,11 @@ impl LightBlockchain {
         chain_info.on_main_chain = true;
         prev_info.main_chain_successor = Some(block_hash.clone());
 
-        // If it's a macro block then we need to clear the ChainStore (since we only want to keep
-        // the current batch in memory). Otherwise, we need to update the previous ChainInfo.
+        // Update the chain store: Update previous ChainInfo and clear old blocks on macro blocks
+        this.chain_store.put_chain_info(prev_info);
         if chain_info.head.is_macro() {
-            this.chain_store.clear();
-        } else {
-            this.chain_store.put_chain_info(prev_info);
+            this.chain_store
+                .clear_old_blocks(chain_info.head.block_number());
         }
 
         // Update the head of the blockchain.
