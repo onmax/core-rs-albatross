@@ -559,8 +559,8 @@ impl RequestTransactionsProof {
             let block_number = hist_txn.block_number;
 
             let proving_block_number = if block_number <= election_head {
-                // If the txn is in a finalized epoch, we use the last election block
-                election_head
+                // If the txn is in a finalized epoch, we use the election block of that epoch
+                Policy::election_block_after(block_number)
             } else if block_number <= macro_head {
                 // If the txn is in a finalized batch in the current epoch, we use the last checkpoint block
                 macro_head
