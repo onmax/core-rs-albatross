@@ -270,19 +270,19 @@ impl Blockchain {
             let max_epochs_stored =
                 cmp::max(this.config.max_epochs_stored, Policy::MIN_EPOCHS_STORED);
 
-            // Calculate the epoch to be pruned. Saturate at zero.
-            let pruned_epoch = Policy::epoch_at(block_number).saturating_sub(max_epochs_stored);
+            // Calculate the epoch to be pruned.
+            let pruned_epoch = Policy::epoch_at(block_number).checked_sub(max_epochs_stored);
 
-            // Prune the Chain Store.
-            this.chain_store.prune_epoch(pruned_epoch, &mut txn);
+            if let Some(pruned_epoch) = pruned_epoch {
+                // Prune the Chain Store.
+                this.chain_store.prune_epoch(pruned_epoch, &mut txn);
 
-            if !this.config.keep_history {
-                // Prune the History Store.
-                // We will never prune pre-genesis data here.
-                let pruned_history_epoch = Policy::epoch_at(block_number).saturating_sub(1);
-                if pruned_history_epoch > 0 {
-                    this.history_store
-                        .remove_history(&mut txn, pruned_history_epoch);
+                if !this.config.keep_history {
+                    // Prune the History Store.
+                    // We will never prune pre-genesis data here.
+                    if pruned_epoch > 0 {
+                        this.history_store.remove_history(&mut txn, pruned_epoch);
+                    }
                 }
             }
         }
