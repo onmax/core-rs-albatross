@@ -34,7 +34,7 @@ impl LightBlockchain {
         }
 
         // Check if we already know this block.
-        if this.get_chain_info(&block.hash(), false).is_ok() {
+        if this.get_chain_info(&block.hash_cached(), false).is_ok() {
             return Ok(PushResult::Known);
         }
 

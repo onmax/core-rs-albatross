@@ -25,7 +25,7 @@ impl LightBlockchain {
         // Must be an election block.
         assert!(block.is_election());
 
-        let block_hash_blake2b = block.hash();
+        let block_hash_blake2b = block.hash_cached();
         let block_hash_blake2s = block.unwrap_macro_ref().hash_blake2s();
 
         // Check if we already know this block.
@@ -116,7 +116,7 @@ impl LightBlockchain {
         // Must be a macro block.
         assert!(block.is_macro());
 
-        let block_hash = block.hash();
+        let block_hash = block.hash_cached();
 
         // Check if we already know this block.
         if this.chain_store.get_chain_info(&block_hash, false).is_ok() {

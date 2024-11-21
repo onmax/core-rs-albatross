@@ -53,7 +53,10 @@ impl LightBlockchain {
     }
 
     /// Creates a new blockchain with a given network ID and genesis block.
-    pub fn with_genesis(network_id: NetworkId, genesis_block: Block) -> Self {
+    pub fn with_genesis(network_id: NetworkId, mut genesis_block: Block) -> Self {
+        // Make sure genesis block has hash populated.
+        genesis_block.hash_cached();
+
         let time = Arc::new(OffsetTime::new());
 
         let chain_info = ChainInfo::new(genesis_block.clone(), true);

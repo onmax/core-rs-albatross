@@ -68,8 +68,8 @@ impl ChainStore {
 
     /// Adds a chain info to the ChainStore.
     pub fn put_chain_info(&mut self, mut chain_info: ChainInfo) {
-        // Get the block hash.
-        let hash = chain_info.head.hash();
+        // Get the block hash and make sure it is saved.
+        let hash = chain_info.head.hash_cached();
 
         // We only store in the ChainStore:
         // - Micro blocks: Headers and Justifications
