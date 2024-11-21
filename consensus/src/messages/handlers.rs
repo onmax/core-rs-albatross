@@ -546,6 +546,7 @@ impl RequestTransactionsProof {
         let mut verifier_state = None;
         let election_head = blockchain.election_head().block_number();
         let macro_head = blockchain.macro_head().block_number();
+        let current_head = blockchain.head().block_number();
 
         // Get the historic transaction from the history store
         let historic_transaction = blockchain
@@ -578,10 +579,8 @@ impl RequestTransactionsProof {
                 return Err(ResponseTransactionProofError::BlockNotFound);
             };
 
-            // If it is a checkpoint block, we have some extra work to do
-            if Policy::is_macro_block_at(proving_block_number)
-                && !Policy::is_election_block_at(proving_block_number)
-            {
+            // We have some extra work in the current epoch, if the block we are proving is not our current head
+            if proving_block_number > election_head && proving_block_number < current_head {
                 let chain_info = blockchain.get_chain_info(&block.hash(), false, None);
                 let history_tree_len = chain_info.unwrap().history_tree_len;
                 verifier_state = Some(history_tree_len as usize);
