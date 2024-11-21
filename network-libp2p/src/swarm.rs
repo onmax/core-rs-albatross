@@ -261,8 +261,7 @@ fn new_transport(
         }
 
         #[cfg(all(target_family = "wasm", not(feature = "tokio-websocket")))]
-        let transport =
-            crate::only_secure_ws_transport::Transport::new(websocket_websys::Transport::default());
+        let transport = websocket_websys::Transport::default();
 
         #[cfg(all(not(feature = "tokio-websocket"), not(target_family = "wasm")))]
         let transport = MemoryTransport::default();
