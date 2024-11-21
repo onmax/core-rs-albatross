@@ -22,7 +22,7 @@ pub fn merkle_tree_construct<H: HashOutput>(inputs: Vec<Vec<u8>>) -> H {
     // Checking that the number of leaves is a power of two.
     assert!(inputs.len().is_power_of_two());
 
-    // Calculate the Pedersen hashes for the leaves.
+    // Calculate the hashes for the leaves.
     #[cfg(not(feature = "parallel"))]
     let iter = inputs.into_iter();
     #[cfg(feature = "parallel")]
