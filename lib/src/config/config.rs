@@ -867,6 +867,7 @@ impl ClientConfigBuilder {
                 config_file.consensus.index_history,
                 config_file.consensus.sync_mode.into(),
             )
+            .max_epochs_stored(config_file.consensus.max_epochs_stored as u32)
             .build()
             .unwrap();
         if let Some(min_peers) = config_file.consensus.min_peers {
