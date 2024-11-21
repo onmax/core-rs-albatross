@@ -124,7 +124,7 @@ cargo run --release --bin nimiq-client -- -c path/to/client.toml
 Now your client is launched and running.
 
 **Port Configuration**
-Ensure that your system allows network traffic through port **8443/tcp**. Open this port in your firewall to allow the node to connect to the network.
+Assuming you didn't change the default listening port, ensure that your system allows network traffic through port **8443/tcp**. Open this port in your firewall to allow the node to connect to the network.
 
 ### History Nodes
 For the first start of your history node, you must set the environment variable `NIMIQ_OVERRIDE_MAINNET_CONFIG` to point to a configuration file. This file can be downloaded from one of the following sources:
