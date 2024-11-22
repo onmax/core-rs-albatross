@@ -7,9 +7,8 @@ set -e
 # Defaults
 CARGO_PROFILE="release-wasm"
 CARGO_TARGET="wasm32-unknown-unknown"
-TARGETS="bundler,web,nodejs"
+TARGETS="bundler,web,nodejs,types"
 RUN_WASM_OPT=true
-BUILD_TYPES=true
 BUILD_LAUNCHER=true
 BUILD_LIB=true
 
@@ -21,7 +20,6 @@ while [[ "$#" -gt 0 ]]; do
         --cargo-dir) CARGO_OUTPUT="$2/nimiq_web_client.wasm"; shift ;;
         -o|--only) TARGETS="$2"; shift ;;
         --skip-wasm-opt) RUN_WASM_OPT=false ;;
-        --skip-types) BUILD_TYPES=false ;;
         --skip-launcher) BUILD_LAUNCHER=false ;;
         --skip-lib) BUILD_LIB=false ;;
         *) echo "Unknown argument: $1"; exit 1 ;;
@@ -118,7 +116,7 @@ if contains "nodejs" "$TARGETS"; then
 fi
 
 # Types
-if [ "$BUILD_TYPES" = "true" ]; then
+if contains "types" "$TARGETS"; then
     echo "Building types..."
     compile "client,crypto,primitives"
     wasm-bindgen --weak-refs --target web --out-name web --out-dir dist/types/wasm "$CARGO_OUTPUT"

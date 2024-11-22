@@ -133,7 +133,7 @@ jobs:
     - uses: Swatinem/rust-cache@v2
     - name: Compile to wasm and generate bindings
       working-directory: ./web-client
-      run: ./scripts/build.sh --only nodejs
+      run: ./scripts/build.sh --only nodejs,types
     - name: Install dependencies in the web-client/dist folder
       working-directory: ./web-client/dist
       run: yarn install
