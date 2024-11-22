@@ -105,14 +105,19 @@ impl<N: Network> ConsensusProxy<N> {
         min_peers: usize,
         max: Option<u16>,
         start_at: Option<Blake2bHash>,
+        include_pre_genesis: bool,
     ) -> Result<Vec<(Blake2bHash, u32)>, RequestError> {
         let mut obtained_receipts = HashSet::new();
 
+        // If we need to include pre-genesis data, we set the appropiate services flag
+        let services = if include_pre_genesis {
+            Services::PRE_GENESIS_TRANSACTIONS | Services::TRANSACTION_INDEX
+        } else {
+            Services::TRANSACTION_INDEX
+        };
+
         // We obtain a list of connected peers that could satisfy our request and perform the request to each one:
-        for peer_id in self
-            .get_peers_for_service(Services::TRANSACTION_INDEX, min_peers)
-            .await?
-        {
+        for peer_id in self.get_peers_for_service(services, min_peers).await? {
             log::debug!(
                 peer_id = %peer_id,
                 "Performing txn receipts by address request to peer",

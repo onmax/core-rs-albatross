@@ -700,6 +700,7 @@ impl Client {
                 min_peers.unwrap_or(1),
                 limit,
                 start_at,
+                true,
             )
             .await?;
 
@@ -772,11 +773,19 @@ impl Client {
             }
         }
 
+        let include_pre_genesis = since_block_height < Policy::genesis_block_number();
+
         // Fetch transaction receipts.
         let receipts: HashMap<_, _> = self
             .inner
             .consensus_proxy()
-            .request_transaction_receipts_by_address(address, min_peers, limit, start_at)
+            .request_transaction_receipts_by_address(
+                address,
+                min_peers,
+                limit,
+                start_at,
+                include_pre_genesis,
+            )
             .await?
             .into_iter()
             .collect();
