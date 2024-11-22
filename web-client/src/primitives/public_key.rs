@@ -39,6 +39,25 @@ impl PublicKey {
         PublicKey::from(nimiq_keys::Ed25519PublicKey::from(private_key.native_ref()))
     }
 
+    /// Parses a public key from a {@link PublicKey} instance, a hex string representation, or a byte array.
+    ///
+    /// Throws when an PublicKey cannot be parsed from the argument.
+    #[cfg(feature = "primitives")]
+    #[wasm_bindgen(js_name = fromAny)]
+    pub fn from_any(addr: &PublicKeyAnyType) -> Result<PublicKey, JsError> {
+        let js_value: &JsValue = addr.unchecked_ref();
+
+        if let Ok(string) = serde_wasm_bindgen::from_value::<String>(js_value.to_owned()) {
+            Ok(PublicKey::from_hex(&string)?)
+        } else if let Ok(bytes) = serde_wasm_bindgen::from_value::<Vec<u8>>(js_value.to_owned()) {
+            Ok(PublicKey::from(
+                nimiq_keys::Ed25519PublicKey::deserialize_from_vec(&bytes)?,
+            ))
+        } else {
+            Err(JsError::new("Could not parse public key"))
+        }
+    }
+
     /// Verifies that a signature is valid for this public key and the provided data.
     pub fn verify(&self, signature: &Signature, data: &[u8]) -> bool {
         self.inner.verify(signature.native_ref(), data)
@@ -136,4 +155,11 @@ impl PublicKey {
     pub fn native_ref(&self) -> &nimiq_keys::Ed25519PublicKey {
         &self.inner
     }
+}
+
+#[cfg(feature = "primitives")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "PublicKey | string | Uint8Array")]
+    pub type PublicKeyAnyType;
 }
