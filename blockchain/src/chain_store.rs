@@ -200,18 +200,18 @@ impl ChainStore {
 
         let mut chain_info = txn
             .get(&self.chain_table, hash)
-            .ok_or(BlockchainError::BlockNotFound)?;
+            .ok_or(BlockchainError::BlockNotFoundByHash(hash.clone()))?;
 
         if include_body {
             if chain_info.on_main_chain {
                 let pushed_block = txn
                     .get(&self.pushed_block_table, hash)
-                    .ok_or(BlockchainError::BlockNotFound)?;
+                    .ok_or(BlockchainError::BlockNotFoundByHash(hash.clone()))?;
                 pushed_block.populate_body(&mut chain_info.head, &self.history_store, &txn);
             } else {
                 chain_info.head = txn
                     .get(&self.stored_block_table, hash)
-                    .ok_or(BlockchainError::BlockNotFound)?;
+                    .ok_or(BlockchainError::BlockNotFoundByHash(hash.clone()))?;
             }
         }
 
@@ -249,7 +249,7 @@ impl ChainStore {
                 break;
             }
         }
-        let mut chain_info = chain_info.ok_or(BlockchainError::BlockNotFound)?;
+        let mut chain_info = chain_info.ok_or(BlockchainError::BlockNotFound(block_height))?;
         let block_hash = block_hash.unwrap();
 
         if include_body {
@@ -592,7 +592,7 @@ impl ChainStore {
                     // Expected a macro block and received a micro block
                     return Err(BlockchainError::InconsistentState);
                 }
-                Err(BlockchainError::BlockNotFound) => break,
+                Err(BlockchainError::BlockNotFound(..)) => break,
                 Err(e) => return Err(e),
             }
         }

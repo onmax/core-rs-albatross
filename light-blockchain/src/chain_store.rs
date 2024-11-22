@@ -26,7 +26,7 @@ impl ChainStore {
         let chain_info = self
             .chain_db
             .get(hash)
-            .ok_or(BlockchainError::BlockNotFound)?;
+            .ok_or(BlockchainError::BlockNotFoundByHash(hash.clone()))?;
         if include_body && !chain_info.head.has_body() {
             return Err(BlockchainError::BlockBodyNotFound);
         }
@@ -51,7 +51,7 @@ impl ChainStore {
         // Get block hashes at the given height.
         let block_hashes = self
             .get_block_hashes(&block_height)
-            .ok_or(BlockchainError::BlockNotFound)?;
+            .ok_or(BlockchainError::BlockNotFound(block_height))?;
 
         // Iterate until we find the main chain block.
         for hash in block_hashes {
@@ -63,7 +63,7 @@ impl ChainStore {
             }
         }
 
-        Err(BlockchainError::BlockNotFound)
+        Err(BlockchainError::BlockNotFound(block_height))
     }
 
     /// Adds a chain info to the ChainStore.
@@ -148,7 +148,11 @@ impl ChainStore {
                 // Expected a macro block and received a micro block
                 return Err(BlockchainError::BlockIsNotMacro);
             }
-            None => return Err(BlockchainError::BlockNotFound),
+            None => {
+                return Err(BlockchainError::BlockNotFoundByHash(
+                    start_block_hash.clone(),
+                ))
+            }
         };
 
         let mut hash = if election_blocks_only {
@@ -198,7 +202,11 @@ impl ChainStore {
                 // Expected a macro block and received a micro block
                 return Err(BlockchainError::BlockIsNotMacro);
             }
-            None => return Err(BlockchainError::BlockNotFound),
+            None => {
+                return Err(BlockchainError::BlockNotFoundByHash(
+                    start_block_hash.clone(),
+                ))
+            }
         };
 
         let mut next_macro_block = if election_blocks_only {
@@ -226,7 +234,7 @@ impl ChainStore {
                 Err(BlockchainError::BlockBodyNotFound) => {
                     return Err(BlockchainError::BlockBodyNotFound)
                 }
-                Err(BlockchainError::BlockNotFound) => break,
+                Err(BlockchainError::BlockNotFound(..)) => break,
                 Err(e) => return Err(e),
             }
         }
@@ -278,7 +286,9 @@ impl ChainStore {
             .chain_db
             .get(start_block_hash)
             .map(|chain_info| chain_info.head.clone())
-            .ok_or(BlockchainError::BlockNotFound)?;
+            .ok_or(BlockchainError::BlockNotFoundByHash(
+                start_block_hash.clone(),
+            ))?;
 
         let mut hash = start_block.parent_hash().clone();
         while (blocks.len() as u32) < count {
@@ -307,10 +317,12 @@ impl ChainStore {
         include_body: bool,
     ) -> Result<Vec<Block>, BlockchainError> {
         let mut blocks = Vec::new();
-        let mut chain_info = self
-            .chain_db
-            .get(start_block_hash)
-            .ok_or(BlockchainError::BlockNotFound)?;
+        let mut chain_info =
+            self.chain_db
+                .get(start_block_hash)
+                .ok_or(BlockchainError::BlockNotFoundByHash(
+                    start_block_hash.clone(),
+                ))?;
 
         while (blocks.len() as u32) < count {
             if let Some(ref successor) = chain_info.main_chain_successor {

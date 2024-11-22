@@ -38,8 +38,10 @@ pub enum BlockchainError {
     InconsistentState,
     #[error("No network for: {:?}", _0)]
     NoNetwork(NetworkId),
-    #[error("Block not found")]
-    BlockNotFound,
+    #[error("Block not found: {0}")]
+    BlockNotFound(u32),
+    #[error("Block not found: {0}")]
+    BlockNotFoundByHash(Blake2bHash),
     #[error("Block body not found")]
     BlockBodyNotFound,
     #[error("Block is not a macro block")]

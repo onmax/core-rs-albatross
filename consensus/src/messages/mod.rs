@@ -499,8 +499,8 @@ pub enum ResponseTransactionProofError {
     RequestedTxnProofFromFinalizedEpoch(u32),
     #[error("requested txn proof from finalized batch (block number {0}), should use a checkpoint block instead")]
     RequestedTxnProofFromFinalizedBatch(u32),
-    #[error("block not found")]
-    BlockNotFound,
+    #[error("Block not found: {0}")]
+    BlockNotFound(u32),
     #[error("couldn't prove inclusion")]
     CouldntProveInclusion,
     #[error("transaction not found")]

@@ -400,7 +400,7 @@ impl<N: Network> Handle<N, Arc<RwLock<Blockchain>>> for RequestTrieDiff {
             .get_accounts_diff(&self.block_hash, Some(&txn))
         {
             Ok(diff) => ResponseTrieDiff::PartialDiff(diff),
-            Err(BlockchainError::BlockNotFound) => ResponseTrieDiff::UnknownBlockHash,
+            Err(BlockchainError::BlockNotFound(..)) => ResponseTrieDiff::UnknownBlockHash,
             Err(BlockchainError::AccountsDiffNotFound) => ResponseTrieDiff::IncompleteState,
             Err(e) => {
                 error!("unexpected error while querying accounts diff: {}", e);
@@ -517,7 +517,9 @@ impl RequestTransactionsProof {
             block
         } else {
             log::info!("Could not find the desired block to create the txn proof");
-            return Err(ResponseTransactionProofError::BlockNotFound);
+            return Err(ResponseTransactionProofError::BlockNotFound(
+                proving_block_number,
+            ));
         };
 
         let proof = match blockchain.history_store.history_index().unwrap().prove(
@@ -576,7 +578,9 @@ impl RequestTransactionsProof {
             {
                 block
             } else {
-                return Err(ResponseTransactionProofError::BlockNotFound);
+                return Err(ResponseTransactionProofError::BlockNotFound(
+                    proving_block_number,
+                ));
             };
 
             // We have some extra work in the current epoch, if the block we are proving is not our current head
