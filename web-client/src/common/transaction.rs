@@ -10,7 +10,7 @@ use nimiq_transaction::{
         staking_contract::OutgoingStakingTransactionData,
         vesting_contract::CreationTransactionData as VestingCreationTransactionData,
     },
-    TransactionFlags, TransactionFormat,
+    TransactionFormat,
 };
 #[cfg(feature = "client")]
 use nimiq_transaction::{
@@ -94,7 +94,7 @@ impl Transaction {
         validity_start_height: u32,
         network_id: u8,
     ) -> Result<Transaction, JsError> {
-        let flags = TransactionFlags::try_from(flags.unwrap_or(0b0))?;
+        let flags: nimiq_transaction::TransactionFlags = flags.unwrap_or(0b0).try_into()?;
 
         let tx = if flags.is_empty() {
             // This also creates basic transactions
@@ -110,7 +110,7 @@ impl Transaction {
                 validity_start_height,
                 to_network_id(network_id)?,
             )
-        } else if flags.contains(TransactionFlags::CONTRACT_CREATION) {
+        } else if flags.contains(nimiq_transaction::TransactionFlags::CONTRACT_CREATION) {
             nimiq_transaction::Transaction::new_contract_creation(
                 sender.native_ref().clone(),
                 AccountType::try_from(sender_type.unwrap_or(0))?,
@@ -122,7 +122,7 @@ impl Transaction {
                 validity_start_height,
                 to_network_id(network_id)?,
             )
-        } else if flags.contains(TransactionFlags::SIGNALING) {
+        } else if flags.contains(nimiq_transaction::TransactionFlags::SIGNALING) {
             nimiq_transaction::Transaction::new_signaling(
                 sender.native_ref().clone(),
                 AccountType::try_from(sender_type.unwrap_or(0))?,
@@ -316,8 +316,8 @@ impl Transaction {
 
     /// The transaction's flags: `0b1` = contract creation, `0b10` = signaling.
     #[wasm_bindgen(getter)]
-    pub fn flags(&self) -> u8 {
-        self.inner.flags.into()
+    pub fn flags(&self) -> TransactionFlag {
+        u8::from(self.inner.flags).try_into().unwrap()
     }
 
     /// The transaction's data as a byte array.
@@ -454,7 +454,7 @@ impl Transaction {
                 .unwrap()
                 .to_string()
                 .to_lowercase(),
-            flags: self.flags(),
+            flags: self.flags() as u8,
             sender_data: {
                 let raw_data = PlainRawData {
                     raw: hex::encode(self.sender_data()),
@@ -551,6 +551,30 @@ impl Transaction {
         })?);
 
         Ok(tx)
+    }
+}
+
+/// A transaction flag signals a special purpose of the transaction. `ContractCreation` must be set
+/// to create new vesting contracts or HTLCs. `Signaling` must be set to interact with the staking
+/// contract for non-value transactions. All other transactions' flag is set to `None`.
+#[repr(u8)]
+#[wasm_bindgen]
+pub enum TransactionFlag {
+    None,
+    ContractCreation,
+    Signaling,
+}
+
+impl TryFrom<u8> for TransactionFlag {
+    type Error = JsError;
+
+    fn try_from(value: u8) -> Result<Self, JsError> {
+        match value {
+            0 => Ok(TransactionFlag::None),
+            1 => Ok(TransactionFlag::ContractCreation),
+            2 => Ok(TransactionFlag::Signaling),
+            _ => Err(JsError::new("Invalid transaction flag")),
+        }
     }
 }
 
