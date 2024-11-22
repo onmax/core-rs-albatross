@@ -41,8 +41,10 @@ impl NetworkInfo {
 
     #[inline]
     pub fn genesis_block(&self) -> Block {
-        Block::deserialize_from_vec(self.genesis.block)
-            .expect("Failed to deserialize genesis block.")
+        let mut block = Block::deserialize_from_vec(self.genesis.block)
+            .expect("Failed to deserialize genesis block.");
+        block.populate_cached_hash(self.genesis.hash.clone());
+        block
     }
 
     #[inline]
