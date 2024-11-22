@@ -369,6 +369,12 @@ impl Transaction {
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 
+    /// Deserializes a transaction from a byte array.
+    pub fn deserialize(bytes: &[u8]) -> Result<Transaction, JsError> {
+        let tx = nimiq_transaction::Transaction::deserialize_from_vec(bytes)?;
+        Ok(Transaction::from(tx))
+    }
+
     /// Parses a transaction from a {@link Transaction} instance, a plain object, a hex string
     /// representation, or a byte array.
     ///
