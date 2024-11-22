@@ -491,7 +491,7 @@ impl Transaction {
             },
             proof: {
                 if self.inner.proof.is_empty() {
-                    PlainTransactionProof::Empty(PlainEmptyProof::default())
+                    PlainTransactionProof::Raw(PlainRawProof::default())
                 } else if self.inner.sender_type == AccountType::HTLC {
                     HashedTimeLockedContract::parse_proof(&self.inner.proof).unwrap()
                 } else {
@@ -537,7 +537,7 @@ impl Transaction {
             from_network_id(NetworkId::from_str(&plain.network)?),
         )?;
         tx.set_proof(hex::decode(match plain.proof {
-            PlainTransactionProof::Empty(_) => "",
+            PlainTransactionProof::Raw(_) => "",
             PlainTransactionProof::Standard(ref data) => &data.raw,
             PlainTransactionProof::RegularTransfer(ref data) => &data.raw,
             PlainTransactionProof::TimeoutResolve(ref data) => &data.raw,
@@ -557,8 +557,14 @@ pub enum PlainTransactionSenderData {
     RemoveStake(PlainRawData),
 }
 
+impl Default for PlainTransactionSenderData {
+    fn default() -> Self {
+        PlainTransactionSenderData::Raw(PlainRawData::default())
+    }
+}
+
 /// Enum over all possible meanings of a transaction's recipient data.
-#[derive(Clone, serde::Serialize, serde::Deserialize, Tsify)]
+#[derive(Clone, serde::Serialize, Tsify)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum PlainTransactionRecipientData {
     Raw(PlainRawData),
@@ -576,8 +582,18 @@ pub enum PlainTransactionRecipientData {
     RetireStake(PlainRetireStakeData),
 }
 
+impl<'a> serde::Deserialize<'a> for PlainTransactionRecipientData {
+    fn deserialize<D>(deserializer: D) -> Result<PlainTransactionRecipientData, D::Error>
+    where
+        D: serde::Deserializer<'a>,
+    {
+        // When deserializing, just deserialize the raw data
+        PlainRawData::deserialize(deserializer).map(PlainTransactionRecipientData::Raw)
+    }
+}
+
 /// Placeholder struct to serialize data of transactions as hex strings in the style of the Nimiq 1.0 library.
-#[derive(Clone, serde::Serialize, serde::Deserialize, Tsify)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Tsify, Default)]
 pub struct PlainRawData {
     pub raw: String,
 }
@@ -681,19 +697,29 @@ pub struct PlainRetireStakeData {
 }
 
 /// Enum over all possible meanings of a transaction's proof.
-#[derive(Clone, serde::Serialize, serde::Deserialize, Tsify)]
+#[derive(Clone, serde::Serialize, Tsify)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum PlainTransactionProof {
-    Empty(PlainEmptyProof),
+    Raw(PlainRawProof),
     Standard(PlainStandardProof),
     RegularTransfer(PlainHtlcRegularTransferProof),
     TimeoutResolve(PlainHtlcTimeoutResolveProof),
     EarlyResolve(PlainHtlcEarlyResolveProof),
 }
 
-/// Placeholder struct to serialize an empty proof of transactions
+impl<'a> serde::Deserialize<'a> for PlainTransactionProof {
+    fn deserialize<D>(deserializer: D) -> Result<PlainTransactionProof, D::Error>
+    where
+        D: serde::Deserializer<'a>,
+    {
+        // When deserializing, just deserialize the raw proof
+        PlainRawProof::deserialize(deserializer).map(PlainTransactionProof::Raw)
+    }
+}
+
+/// Placeholder struct to serialize a raw proof of transactions, also works for empty/unset proofs
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize, Tsify)]
-pub struct PlainEmptyProof {
+pub struct PlainRawProof {
     pub raw: String,
 }
 
@@ -795,6 +821,7 @@ pub struct PlainTransaction {
     pub flags: u8,
     /// The `sender_data` field serves a purpose based on the transaction's sender type.
     /// It is currently only used for extra information in transactions from the staking contract.
+    #[serde(default)]
     pub sender_data: PlainTransactionSenderData,
     /// The `data` field of a transaction serves different purposes based on the transaction's recipient type.
     /// For transactions to "basic" address types, this field can contain up to 64 bytes of unstructured data.
@@ -842,7 +869,7 @@ impl PlainTransaction {
             data: PlainTransactionRecipientData::Raw(PlainRawData {
                 raw: String::from(""),
             }),
-            proof: PlainTransactionProof::Empty(PlainEmptyProof::default()),
+            proof: PlainTransactionProof::Raw(PlainRawProof::default()),
             size,
             valid: true,
         }
