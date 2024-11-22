@@ -25,6 +25,12 @@ impl Address {
         )))
     }
 
+    /// Deserializes an address from a byte array.
+    pub fn deserialize(bytes: &[u8]) -> Result<Address, JsError> {
+        let address = nimiq_keys::Address::deserialize_from_vec(bytes)?;
+        Ok(Address::from(address))
+    }
+
     /// Parses an address from an {@link Address} instance, a hex string representation, or a byte array.
     ///
     /// Throws when an address cannot be parsed from the argument.
