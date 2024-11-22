@@ -244,11 +244,17 @@ impl<N: Network> ConsensusProxy<N> {
         let can_query_full_nodes = receipts
             .iter()
             .all(|(_, block_number)| block_number.unwrap_or(0) > full_node_cutoff);
-        let peer_required_service = if can_query_full_nodes {
+        let mut peer_required_service = if can_query_full_nodes {
             Services::FULL_BLOCKS
         } else {
             Services::TRANSACTION_INDEX
         };
+        let include_pregenesis = receipts
+            .iter()
+            .any(|(_, block_number)| block_number.unwrap_or(0) < Policy::genesis_block_number());
+        if include_pregenesis {
+            peer_required_service |= Services::PRE_GENESIS_TRANSACTIONS;
+        }
 
         // We obtain a list of connected peers that could satisfy our request and perform the request to each one:
         for peer_id in self
