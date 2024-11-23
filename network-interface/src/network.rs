@@ -85,11 +85,6 @@ pub enum SendError {
     AlreadyClosed,
 }
 
-pub trait RequestResponse {
-    type Request: Serialize + Deserialize + Sync;
-    type Response: Serialize + Deserialize + Sync;
-}
-
 #[async_trait]
 pub trait Network: Send + Sync + Unpin + 'static {
     type PeerId: Copy + Debug + Display + Ord + Hash + Send + Sync + Unpin + 'static;
