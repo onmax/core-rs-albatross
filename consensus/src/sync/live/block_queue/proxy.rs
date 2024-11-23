@@ -9,7 +9,6 @@ use std::{
 use futures::{future::BoxFuture, Stream, StreamExt};
 use nimiq_block::Block;
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
 use nimiq_hash::Blake2bHash;
 use nimiq_network_interface::network::Network;
 use nimiq_utils::spawn;
@@ -32,6 +31,7 @@ use crate::{
         },
         syncer::LiveSyncEvent,
     },
+    BlsCache,
 };
 
 pub struct BlockQueueProxy<N: Network> {
@@ -109,7 +109,7 @@ impl<N: Network> LiveSyncQueue<N> for BlockQueueProxy<N> {
     fn push_queue_result(
         network: Arc<N>,
         blockchain: BlockchainProxy,
-        bls_cache: Arc<Mutex<PublicKeyCache>>,
+        bls_cache: Arc<Mutex<BlsCache>>,
         result: Self::QueueResult,
     ) -> VecDeque<BoxFuture<'static, Self::PushResult>> {
         BlockQueue::push_queue_result(network, blockchain, bls_cache, result)

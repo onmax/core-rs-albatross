@@ -27,7 +27,7 @@ serde = "1.0"
 serde_repr = "0.1"
 thiserror = "2.0"
 
-nimiq-bls = { workspace = true, features = ["cache", "serde-derive"]}
+nimiq-bls = { workspace = true, features = ["serde-derive"] }
 nimiq-collections = { workspace = true }
 nimiq-database-value = { workspace = true }
 nimiq-database-value-derive = { workspace = true }

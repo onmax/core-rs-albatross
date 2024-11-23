@@ -2,6 +2,7 @@
 pub mod crc;
 #[cfg(feature = "key-store")]
 pub mod file_store;
+pub mod interner;
 #[cfg(feature = "key-rng")]
 pub mod key_rng;
 pub mod math;

@@ -6,7 +6,6 @@ use nimiq_block::Block;
 use nimiq_blockchain::{BlockProducer, Blockchain, BlockchainConfig};
 use nimiq_blockchain_interface::{AbstractBlockchain, PushResult};
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
 use nimiq_consensus::{
     messages::RequestMissingBlocks,
     sync::{
@@ -19,6 +18,7 @@ use nimiq_consensus::{
         },
         syncer::{LiveSync, LiveSyncEvent, LiveSyncPeerEvent, LiveSyncPushEvent},
     },
+    BlsCache,
 };
 use nimiq_database::{
     mdbx::MdbxDatabase,
@@ -40,7 +40,6 @@ use nimiq_test_utils::{
     block_production::TemporaryBlockProducer,
     blockchain::{produce_macro_blocks, push_micro_block, signing_key, voting_key},
     mock_node::MockNode,
-    node::TESTING_BLS_CACHE_MAX_CAPACITY,
 };
 use nimiq_transaction::ExecutedTransaction;
 use nimiq_transaction_builder::TransactionBuilder;
@@ -73,12 +72,6 @@ fn blockchain(complete: bool) -> Blockchain {
     }
 
     blockchain
-}
-
-fn bls_cache() -> Arc<Mutex<PublicKeyCache>> {
-    Arc::new(Mutex::new(PublicKeyCache::new(
-        TESTING_BLS_CACHE_MAX_CAPACITY,
-    )))
 }
 
 fn get_incomplete_live_sync(
@@ -115,7 +108,7 @@ fn get_incomplete_live_sync(
         incomplete_blockchain_proxy,
         Arc::clone(&network),
         state_queue,
-        bls_cache(),
+        Arc::new(Mutex::new(BlsCache::new_test())),
     );
 
     (incomplete_blockchain, live_sync, network, block_tx)

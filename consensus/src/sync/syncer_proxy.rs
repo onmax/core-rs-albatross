@@ -9,7 +9,6 @@ use std::{
 use futures::{Stream, StreamExt};
 use nimiq_block::Block;
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
 use nimiq_network_interface::network::{Network, SubscribeEvents};
 #[cfg(feature = "full")]
 use nimiq_primitives::policy::Policy;
@@ -33,6 +32,7 @@ use crate::{
         },
         syncer::{LiveSyncPushEvent, Syncer},
     },
+    BlsCache,
 };
 
 macro_rules! gen_syncer_match {
@@ -66,7 +66,7 @@ impl<N: Network> SyncerProxy<N> {
     pub async fn new_history(
         blockchain_proxy: BlockchainProxy,
         network: Arc<N>,
-        bls_cache: Arc<Mutex<PublicKeyCache>>,
+        bls_cache: Arc<Mutex<BlsCache>>,
         network_event_rx: SubscribeEvents<N::PeerId>,
     ) -> Self {
         assert!(
@@ -108,7 +108,7 @@ impl<N: Network> SyncerProxy<N> {
     pub async fn new_full(
         blockchain_proxy: BlockchainProxy,
         network: Arc<N>,
-        bls_cache: Arc<Mutex<PublicKeyCache>>,
+        bls_cache: Arc<Mutex<BlsCache>>,
         zkp_component_proxy: ZKPComponentProxy<N>,
         network_event_rx: SubscribeEvents<N::PeerId>,
         full_sync_threshold: u32,
@@ -168,7 +168,7 @@ impl<N: Network> SyncerProxy<N> {
     pub async fn new_light(
         blockchain_proxy: BlockchainProxy,
         network: Arc<N>,
-        bls_cache: Arc<Mutex<PublicKeyCache>>,
+        bls_cache: Arc<Mutex<BlsCache>>,
         zkp_component_proxy: ZKPComponentProxy<N>,
         network_event_rx: SubscribeEvents<N::PeerId>,
     ) -> Self {

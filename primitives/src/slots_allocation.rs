@@ -18,7 +18,7 @@ use std::{cmp::max, collections::BTreeMap, ops::Range, slice::Iter};
 
 use ark_ec::CurveGroup;
 use ark_serialize::CanonicalSerialize;
-use nimiq_bls::{lazy::LazyPublicKey as LazyBlsPublicKey, G2Projective, PublicKey as BlsPublicKey};
+use nimiq_bls::{G2Projective, LazyPublicKey as LazyBlsPublicKey, PublicKey as BlsPublicKey};
 use nimiq_hash::{Hash, HashOutput};
 use nimiq_keys::{Address, Ed25519PublicKey as SchnorrPublicKey};
 #[cfg(feature = "parallel")]

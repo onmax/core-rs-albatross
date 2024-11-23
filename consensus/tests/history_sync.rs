@@ -4,7 +4,6 @@ use futures::StreamExt;
 use nimiq_blockchain::{BlockProducer, Blockchain, BlockchainConfig};
 use nimiq_blockchain_interface::AbstractBlockchain;
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
 use nimiq_consensus::{
     consensus::Consensus,
     sync::{
@@ -14,6 +13,7 @@ use nimiq_consensus::{
         },
         syncer_proxy::SyncerProxy,
     },
+    BlsCache,
 };
 use nimiq_database::mdbx::MdbxDatabase;
 use nimiq_genesis::NetworkId;
@@ -24,7 +24,6 @@ use nimiq_primitives::policy::Policy;
 use nimiq_test_log::test;
 use nimiq_test_utils::{
     blockchain::{produce_macro_blocks, signing_key, voting_key},
-    node::TESTING_BLS_CACHE_MAX_CAPACITY,
     test_network::TestNetwork,
 };
 use nimiq_time::sleep;
@@ -205,9 +204,7 @@ async fn sync_ingredients() {
     let syncer1 = SyncerProxy::new_history(
         blockchain1_proxy.clone(),
         Arc::clone(&net1),
-        Arc::new(Mutex::new(PublicKeyCache::new(
-            TESTING_BLS_CACHE_MAX_CAPACITY,
-        ))),
+        Arc::new(Mutex::new(BlsCache::new_test())),
         net1.subscribe_events(),
     )
     .await;
@@ -244,9 +241,7 @@ async fn sync_ingredients() {
     let syncer2 = SyncerProxy::new_history(
         blockchain2_proxy.clone(),
         Arc::clone(&net2),
-        Arc::new(Mutex::new(PublicKeyCache::new(
-            TESTING_BLS_CACHE_MAX_CAPACITY,
-        ))),
+        Arc::new(Mutex::new(BlsCache::new_test())),
         net2.subscribe_events(),
     )
     .await;

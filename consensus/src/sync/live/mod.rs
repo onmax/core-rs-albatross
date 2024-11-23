@@ -8,7 +8,6 @@ use std::{
 use futures::{future::BoxFuture, Stream, StreamExt};
 use nimiq_block::Block;
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
 use nimiq_network_interface::network::Network;
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
@@ -21,6 +20,7 @@ use super::syncer::{LiveSync, LiveSyncEvent};
 use crate::{
     consensus::ResolveBlockRequest,
     sync::live::block_queue::{BlockAndSource, BlockSource},
+    BlsCache,
 };
 
 pub mod block_queue;
@@ -48,7 +48,7 @@ pub struct LiveSyncer<N: Network, Q: LiveSyncQueue<N>> {
     pending: VecDeque<BoxFuture<'static, Q::PushResult>>,
 
     /// Cache for BLS public keys to avoid repetitive uncompressing.
-    bls_cache: Arc<Mutex<PublicKeyCache>>,
+    bls_cache: Arc<Mutex<BlsCache>>,
 
     /// Channel used to communicate additional blocks to the queue.
     /// We use this to wake up the queue and pass in new, unknown blocks
@@ -61,7 +61,7 @@ impl<N: Network, Q: LiveSyncQueue<N>> LiveSyncer<N, Q> {
         blockchain: BlockchainProxy,
         network: Arc<N>,
         mut queue: Q,
-        bls_cache: Arc<Mutex<PublicKeyCache>>,
+        bls_cache: Arc<Mutex<BlsCache>>,
     ) -> Self {
         let (tx, rx) = mpsc::channel(MAX_BLOCK_STREAM_BUFFER);
         queue.add_block_stream(ReceiverStream::new(rx));

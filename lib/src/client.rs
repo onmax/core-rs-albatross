@@ -6,11 +6,10 @@ use nimiq_block::Block;
 use nimiq_blockchain::{Blockchain, BlockchainConfig};
 use nimiq_blockchain_interface::AbstractBlockchain;
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
 #[cfg(feature = "full-consensus")]
 use nimiq_consensus::Error::BlockchainError;
 use nimiq_consensus::{
-    sync::syncer_proxy::SyncerProxy, Consensus as AbstractConsensus,
+    sync::syncer_proxy::SyncerProxy, BlsCache, Consensus as AbstractConsensus,
     ConsensusProxy as AbstractConsensusProxy,
 };
 #[cfg(feature = "full-consensus")]
@@ -377,9 +376,7 @@ impl ClientInner {
             config.database,
         )?;
 
-        let bls_cache = Arc::new(Mutex::new(PublicKeyCache::new(
-            Policy::BLS_CACHE_MAX_CAPACITY,
-        )));
+        let bls_cache = Arc::new(Mutex::new(BlsCache::default()));
 
         #[cfg(feature = "full-consensus")]
         let mut blockchain_config = BlockchainConfig {

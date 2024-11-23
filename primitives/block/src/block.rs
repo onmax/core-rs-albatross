@@ -1,6 +1,5 @@
 use std::fmt;
 
-use nimiq_bls::cache::PublicKeyCache;
 use nimiq_database_value_derive::DbSerializable;
 use nimiq_hash::{Blake2bHash, Blake2sHash, Hash};
 use nimiq_keys::Ed25519PublicKey;
@@ -11,9 +10,7 @@ use nimiq_serde::{Deserialize, Serialize, SerializedMaxSize};
 use nimiq_transaction::ExecutedTransaction;
 use nimiq_vrf::VrfSeed;
 
-use crate::{
-    macro_block::MacroBlock, micro_block::MicroBlock, BlockError, MacroBody, MacroHeader, MicroBody,
-};
+use crate::{macro_block::MacroBlock, micro_block::MicroBlock, BlockError, MacroBody, MicroBody};
 
 /// Defines the type of the block, either Micro or Macro (which includes both checkpoint and
 /// election blocks).
@@ -335,25 +332,6 @@ impl Block {
         match self {
             Block::Macro(block) => block.is_election(),
             Block::Micro(_) => false,
-        }
-    }
-
-    /// Updates validator keys from a public key cache.
-    // TODO remove this function
-    pub fn update_validator_keys(&self, cache: &mut PublicKeyCache) {
-        // Prepare validator keys from BLS cache.
-        if let Block::Macro(MacroBlock {
-            header:
-                MacroHeader {
-                    validators: Some(validators),
-                    ..
-                },
-            ..
-        }) = self
-        {
-            for validator in validators.iter() {
-                cache.get_or_uncompress_lazy_public_key(&validator.voting_key);
-            }
         }
     }
 

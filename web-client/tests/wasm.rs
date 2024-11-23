@@ -2,8 +2,7 @@ use std::{sync::Arc, task::Poll};
 
 use futures::{poll, Stream, StreamExt};
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
-use nimiq_consensus::{sync::syncer_proxy::SyncerProxy, Consensus};
+use nimiq_consensus::{sync::syncer_proxy::SyncerProxy, BlsCache, Consensus};
 use nimiq_genesis::NetworkId;
 use nimiq_light_blockchain::LightBlockchain;
 use nimiq_network_interface::network::{Network, Topic};
@@ -30,9 +29,7 @@ pub async fn it_can_initialize_with_mock_network() {
     let zkp_component =
         ZKPComponent::new(blockchain_proxy.clone(), Arc::clone(&mock_network), None).await;
 
-    let bls_cache = Arc::new(Mutex::new(PublicKeyCache::new(
-        Policy::BLS_CACHE_MAX_CAPACITY,
-    )));
+    let bls_cache = Arc::new(Mutex::new(BlsCache::default()));
 
     let network_events = mock_network.subscribe_events();
 

@@ -9,13 +9,13 @@ use nimiq_block::Block;
 use nimiq_blockchain::{BlockProducer, Blockchain, BlockchainConfig};
 use nimiq_blockchain_interface::{AbstractBlockchain, Direction};
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
 use nimiq_consensus::{
     messages::{RequestMissingBlocks, ResponseBlocks},
     sync::{
         live::{block_queue::BlockQueue, queue::QueueConfig, BlockLiveSync},
         syncer::{LiveSync, MacroSync, MacroSyncReturn, Syncer},
     },
+    BlsCache,
 };
 use nimiq_database::mdbx::MdbxDatabase;
 use nimiq_network_interface::{network::Network, request::RequestCommon};
@@ -27,7 +27,6 @@ use nimiq_test_utils::{
         next_micro_block, produce_macro_blocks, push_micro_block, signing_key, voting_key,
     },
     mock_node::MockNode,
-    node::TESTING_BLS_CACHE_MAX_CAPACITY,
     test_rng::test_rng,
 };
 use nimiq_utils::time::OffsetTime;
@@ -77,12 +76,6 @@ fn blockchain() -> Arc<RwLock<Blockchain>> {
     ))
 }
 
-fn bls_cache() -> Arc<Mutex<PublicKeyCache>> {
-    Arc::new(Mutex::new(PublicKeyCache::new(
-        TESTING_BLS_CACHE_MAX_CAPACITY,
-    )))
-}
-
 #[test(tokio::test)]
 async fn send_single_micro_block_to_block_queue() {
     let blockchain2 = blockchain();
@@ -103,7 +96,7 @@ async fn send_single_micro_block_to_block_queue() {
         blockchain_proxy.clone(),
         Arc::clone(&network),
         block_queue,
-        bls_cache(),
+        Arc::new(Mutex::new(BlsCache::new_test())),
     );
 
     let mut syncer = Syncer::new(
@@ -165,7 +158,7 @@ async fn send_two_micro_blocks_out_of_order() {
         blockchain_proxy_1.clone(),
         Arc::clone(&network),
         block_queue,
-        bls_cache(),
+        Arc::new(Mutex::new(BlsCache::new_test())),
     );
 
     let mut syncer = Syncer::new(
@@ -269,7 +262,7 @@ async fn send_micro_blocks_out_of_order() {
         blockchain_proxy_1.clone(),
         Arc::clone(&network),
         block_queue,
-        bls_cache(),
+        Arc::new(Mutex::new(BlsCache::new_test())),
     );
 
     let mut syncer = Syncer::new(
@@ -369,7 +362,7 @@ async fn send_invalid_block() {
         blockchain_proxy_1.clone(),
         Arc::clone(&network),
         block_queue,
-        bls_cache(),
+        Arc::new(Mutex::new(BlsCache::new_test())),
     );
 
     let mut syncer = Syncer::new(
@@ -479,7 +472,7 @@ async fn send_block_with_gap_and_respond_to_missing_request() {
         blockchain_proxy_1.clone(),
         Arc::clone(&network),
         block_queue,
-        bls_cache(),
+        Arc::new(Mutex::new(BlsCache::new_test())),
     );
 
     let mut syncer = Syncer::new(
@@ -569,7 +562,7 @@ async fn request_missing_blocks_across_macro_block() {
         blockchain_proxy_1.clone(),
         Arc::clone(&network),
         block_queue,
-        bls_cache(),
+        Arc::new(Mutex::new(BlsCache::new_test())),
     );
 
     let mut syncer = Syncer::new(
@@ -713,7 +706,7 @@ async fn put_peer_back_into_sync_mode() {
         blockchain_proxy_1.clone(),
         Arc::clone(&network),
         block_queue,
-        bls_cache(),
+        Arc::new(Mutex::new(BlsCache::new_test())),
     );
 
     let mut syncer = Syncer::new(

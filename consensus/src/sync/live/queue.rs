@@ -12,7 +12,6 @@ use nimiq_blockchain::{Blockchain, PostValidationHook};
 use nimiq_blockchain_interface::AbstractBlockchain;
 use nimiq_blockchain_interface::{ChunksPushError, ChunksPushResult, PushError, PushResult};
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
 use nimiq_hash::Blake2bHash;
 use nimiq_light_blockchain::LightBlockchain;
 use nimiq_network_interface::network::{MsgAcceptance, Network};
@@ -32,6 +31,7 @@ use crate::{
         live::block_queue::{BlockAndSource, BlockSource},
         syncer::LiveSyncEvent,
     },
+    BlsCache,
 };
 
 async fn spawn_blocking<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(f: F) -> R {
@@ -89,7 +89,7 @@ pub trait LiveSyncQueue<N: Network>: Stream<Item = Self::QueueResult> + Send + U
     fn push_queue_result(
         network: Arc<N>,
         blockchain: BlockchainProxy,
-        bls_cache: Arc<Mutex<PublicKeyCache>>,
+        bls_cache: Arc<Mutex<BlsCache>>,
         result: Self::QueueResult,
     ) -> VecDeque<BoxFuture<'static, Self::PushResult>>;
 
@@ -218,7 +218,7 @@ impl<N: Network> BlockchainPushResult<N> {
 pub async fn push_block_and_chunks<N: Network>(
     network: Arc<N>,
     blockchain: BlockchainProxy,
-    bls_cache: Arc<Mutex<PublicKeyCache>>,
+    bls_cache: Arc<Mutex<BlsCache>>,
     block: Block,
     block_source: BlockSource<N>,
     diff: Option<TrieDiff>,
@@ -256,7 +256,7 @@ pub async fn push_block_and_chunks<N: Network>(
 pub async fn push_block_only<N: Network>(
     network: Arc<N>,
     blockchain: BlockchainProxy,
-    bls_cache: Arc<Mutex<PublicKeyCache>>,
+    bls_cache: Arc<Mutex<BlsCache>>,
     block: Block,
     block_source: BlockSource<N>,
 ) -> (Result<PushResult, PushError>, Blake2bHash) {
@@ -286,7 +286,7 @@ pub async fn push_block_only<N: Network>(
 /// because an invalid block automatically invalidates the remainder of the sequence.
 pub async fn push_multiple_blocks_impl<N: Network>(
     blockchain: BlockchainProxy,
-    bls_cache: Arc<Mutex<PublicKeyCache>>,
+    bls_cache: Arc<Mutex<BlsCache>>,
     blocks: Vec<(BlockAndSource<N>, Option<TrieDiff>, Vec<ChunkAndSource<N>>)>,
 ) -> (
     Result<PushResult, PushError>,
@@ -366,7 +366,7 @@ pub async fn push_multiple_blocks_impl<N: Network>(
 
 pub async fn push_multiple_blocks_with_chunks<N: Network>(
     blockchain: BlockchainProxy,
-    bls_cache: Arc<Mutex<PublicKeyCache>>,
+    bls_cache: Arc<Mutex<BlsCache>>,
     blocks: Vec<(BlockAndSource<N>, Option<TrieDiff>, Vec<ChunkAndSource<N>>)>,
 ) -> (
     Result<PushResult, PushError>,
@@ -382,7 +382,7 @@ pub async fn push_multiple_blocks_with_chunks<N: Network>(
 /// because an invalid block automatically invalidates the remainder of the sequence.
 pub async fn push_multiple_blocks<N: Network>(
     blockchain: BlockchainProxy,
-    bls_cache: Arc<Mutex<PublicKeyCache>>,
+    bls_cache: Arc<Mutex<BlsCache>>,
     blocks: Vec<BlockAndSource<N>>,
 ) -> (
     Result<PushResult, PushError>,
@@ -404,7 +404,7 @@ pub async fn push_multiple_blocks<N: Network>(
 #[cfg(feature = "full")]
 pub async fn push_chunks_only<N: Network>(
     blockchain: BlockchainProxy,
-    bls_cache: Arc<Mutex<PublicKeyCache>>,
+    bls_cache: Arc<Mutex<BlsCache>>,
     chunks: Vec<ChunkAndSource<N>>,
 ) -> (Result<ChunksPushResult, ChunksPushError>, Blake2bHash) {
     let push_results =
@@ -441,6 +441,18 @@ impl<N: Network> PostValidationHook for MessageValidator<N> {
     }
 }
 
+fn update_cache(block: &Block, bls_cache: &mut BlsCache) {
+    let Block::Macro(block) = block else {
+        return;
+    };
+    let Some(validators) = &block.header.validators else {
+        return;
+    };
+    for validator in validators.iter() {
+        bls_cache.cache(&validator.voting_key);
+    }
+}
+
 /// Pushes the a single block and the respective chunks into the blockchain. If a light
 /// blockchain was supplied, no chunks are committed.
 /// The return value consists of the result of pushing the block, the error of pushing
@@ -449,7 +461,7 @@ impl<N: Network> PostValidationHook for MessageValidator<N> {
 /// Note: this function doesn't prevent a new block from being committed before applying the chunks.
 fn blockchain_push<N: Network>(
     blockchain: BlockchainProxy,
-    bls_cache: Arc<Mutex<PublicKeyCache>>,
+    bls_cache: Arc<Mutex<BlsCache>>,
     block: Option<Block>,
     diff: Option<TrieDiff>,
     chunks: Vec<ChunkAndSource<N>>,
@@ -463,8 +475,7 @@ fn blockchain_push<N: Network>(
     let blockchain_push_result;
     if let Some(block) = block {
         let block_hash = block.hash();
-        // Update validator keys from BLS public key cache.
-        block.update_validator_keys(&mut bls_cache.lock());
+        update_cache(&block, &mut bls_cache.lock());
         match blockchain {
             #[cfg(feature = "full")]
             BlockchainProxy::Full(ref blockchain) => {

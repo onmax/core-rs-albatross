@@ -1,117 +1,94 @@
-use std::{cmp::Ordering, fmt};
+use std::{cmp::Ordering, fmt, hash::Hasher, sync::OnceLock};
 
 use nimiq_hash::Hash;
-use parking_lot::{
-    MappedRwLockReadGuard, RwLock, RwLockReadGuard, RwLockUpgradableReadGuard, RwLockWriteGuard,
-};
+use nimiq_utils::interner::{Interned, Interner};
 
 use crate::{CompressedPublicKey, PublicKey, SigHash, Signature};
 
-pub struct LazyPublicKey {
-    pub(crate) compressed: CompressedPublicKey,
-    pub(crate) cache: RwLock<Option<PublicKey>>,
+fn cache() -> &'static Interner<CompressedPublicKey, OnceLock<Option<PublicKey>>> {
+    static CACHE: OnceLock<Interner<CompressedPublicKey, OnceLock<Option<PublicKey>>>> =
+        OnceLock::new();
+    CACHE.get_or_init(Default::default)
 }
 
+/// A reference to an interned, lazily uncompressed BLS public key.
+///
+/// Since this is just a reference, it's small and cloning is cheap. The
+/// interning makes sure that each compressed public key is uncompressed at most
+/// once as long as at least one reference to it remains.
+#[derive(Clone)]
+pub struct LazyPublicKey(Interned<CompressedPublicKey, OnceLock<Option<PublicKey>>>);
+
 impl fmt::Debug for LazyPublicKey {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "LazyPublicKey({})", self.compressed)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("LazyPublicKey")
+            .field(self.compressed())
+            .finish()
     }
 }
 
 impl fmt::Display for LazyPublicKey {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        fmt::Display::fmt(&self.compressed, f)
-    }
-}
-
-impl Clone for LazyPublicKey {
-    fn clone(&self) -> Self {
-        LazyPublicKey {
-            compressed: self.compressed.clone(),
-            cache: RwLock::new(*self.cache.read()),
-        }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self.compressed(), f)
     }
 }
 
 impl PartialEq for LazyPublicKey {
-    fn eq(&self, other: &LazyPublicKey) -> bool {
-        self.compressed.eq(&other.compressed)
+    fn eq(&self, other: &Self) -> bool {
+        self.compressed().eq(other.compressed())
     }
 }
 
 impl Eq for LazyPublicKey {}
 
-impl PartialOrd<LazyPublicKey> for LazyPublicKey {
-    fn partial_cmp(&self, other: &LazyPublicKey) -> Option<Ordering> {
-        Some(self.cmp(other))
+impl std::hash::Hash for LazyPublicKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(self.compressed(), state)
+    }
+}
+
+#[allow(clippy::non_canonical_partial_ord_impl)]
+impl PartialOrd for LazyPublicKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.compressed().partial_cmp(other.compressed())
     }
 }
 
 impl Ord for LazyPublicKey {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.compressed.cmp(&other.compressed)
-    }
-}
-
-impl AsRef<[u8]> for LazyPublicKey {
-    fn as_ref(&self) -> &[u8] {
-        self.compressed.as_ref()
+        self.compressed().cmp(other.compressed())
     }
 }
 
 impl LazyPublicKey {
-    pub fn from_compressed(compressed: &CompressedPublicKey) -> Self {
-        LazyPublicKey {
-            compressed: compressed.clone(),
-            cache: RwLock::new(None),
-        }
+    pub fn from_compressed(compressed: &CompressedPublicKey) -> LazyPublicKey {
+        LazyPublicKey(cache().intern_with(compressed, OnceLock::new))
     }
 
-    pub fn uncompress(&self) -> Option<MappedRwLockReadGuard<PublicKey>> {
-        let read_guard: RwLockReadGuard<Option<PublicKey>>;
-
-        let upgradable = self.cache.upgradable_read();
-        if upgradable.is_some() {
-            // Fast path, downgrade and return
-            read_guard = RwLockUpgradableReadGuard::downgrade(upgradable);
-        } else {
-            // Slow path, upgrade, write, downgrade and return
-            let mut upgraded = RwLockUpgradableReadGuard::upgrade(upgradable);
-            *upgraded = Some(match self.compressed.uncompress() {
-                Ok(p) => p,
-                _ => return None,
-            });
-            read_guard = RwLockWriteGuard::downgrade(upgraded);
-        }
-
-        Some(RwLockReadGuard::map(read_guard, |opt| {
-            opt.as_ref().unwrap()
-        }))
-    }
-
-    pub fn uncompress_unchecked(&self) -> MappedRwLockReadGuard<PublicKey> {
-        self.uncompress().expect("Invalid public key")
+    pub fn uncompress(&self) -> Option<&PublicKey> {
+        self.0
+            .value()
+            .get_or_init(|| self.compressed().uncompress().ok())
+            .as_ref()
     }
 
     pub fn compressed(&self) -> &CompressedPublicKey {
-        &self.compressed
+        self.0.key()
     }
 
     pub fn has_uncompressed(&self) -> bool {
-        self.cache.read().is_some()
+        self.0.value().get().is_some()
     }
 
     pub fn verify<M: Hash>(&self, msg: &M, signature: &Signature) -> bool {
-        let cached = self.uncompress();
-        if let Some(public_key) = cached.as_ref() {
+        if let Some(public_key) = self.uncompress() {
             return public_key.verify(msg, signature);
         }
         false
     }
 
     pub fn verify_hash(&self, hash: SigHash, signature: &Signature) -> bool {
-        let cached = self.uncompress();
-        if let Some(public_key) = cached.as_ref() {
+        if let Some(public_key) = self.uncompress() {
             return public_key.verify_hash(hash, signature);
         }
         false
@@ -119,23 +96,20 @@ impl LazyPublicKey {
 }
 
 impl From<PublicKey> for LazyPublicKey {
-    fn from(key: PublicKey) -> Self {
-        LazyPublicKey {
-            compressed: key.compress(),
-            cache: RwLock::new(Some(key)),
-        }
+    fn from(key: PublicKey) -> LazyPublicKey {
+        LazyPublicKey(cache().intern(&key.compress(), OnceLock::from(Some(key))))
     }
 }
 
 impl From<CompressedPublicKey> for LazyPublicKey {
-    fn from(key: CompressedPublicKey) -> Self {
-        LazyPublicKey::from_compressed(&key)
+    fn from(compressed: CompressedPublicKey) -> Self {
+        LazyPublicKey::from_compressed(&compressed)
     }
 }
 
 impl From<LazyPublicKey> for CompressedPublicKey {
     fn from(key: LazyPublicKey) -> Self {
-        key.compressed
+        key.compressed().clone()
     }
 }
 
@@ -155,7 +129,7 @@ mod serialization {
         where
             S: serde::Serializer,
         {
-            Serialize::serialize(&self.compressed, serializer)
+            Serialize::serialize(&self.compressed(), serializer)
         }
     }
 

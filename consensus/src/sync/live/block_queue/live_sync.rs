@@ -11,19 +11,21 @@ use futures::{
 };
 use nimiq_blockchain_interface::{PushError, PushResult};
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
 use nimiq_hash::Blake2bHash;
 use nimiq_network_interface::network::Network;
 use nimiq_utils::WakerExt;
 use parking_lot::Mutex;
 
 use super::{BlockAndSource, QueuedBlock};
-use crate::sync::{
-    live::{
-        block_queue::queue::BlockQueue,
-        queue::{self, LiveSyncQueue},
+use crate::{
+    sync::{
+        live::{
+            block_queue::queue::BlockQueue,
+            queue::{self, LiveSyncQueue},
+        },
+        syncer::{LiveSyncEvent, LiveSyncPeerEvent, LiveSyncPushEvent},
     },
-    syncer::{LiveSyncEvent, LiveSyncPeerEvent, LiveSyncPushEvent},
+    BlsCache,
 };
 
 pub enum PushOpResult<N: Network> {
@@ -44,7 +46,7 @@ impl<N: Network> LiveSyncQueue<N> for BlockQueue<N> {
     fn push_queue_result(
         network: Arc<N>,
         blockchain: BlockchainProxy,
-        bls_cache: Arc<Mutex<PublicKeyCache>>,
+        bls_cache: Arc<Mutex<BlsCache>>,
         result: Self::QueueResult,
     ) -> VecDeque<BoxFuture<'static, Self::PushResult>> {
         let mut future_results = VecDeque::new();

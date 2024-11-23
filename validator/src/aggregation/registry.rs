@@ -34,7 +34,7 @@ impl IdentityRegistry for ValidatorRegistry {
             .voting_key
             // and uncompress it
             .uncompress()
-            .map(|c| *c) // necessary?
+            .copied()
     }
 
     fn signers_identity(&self, slots: &BitSet) -> Identity {

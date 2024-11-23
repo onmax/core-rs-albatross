@@ -79,7 +79,7 @@ impl SkipBlockProof {
                         .voting_key
                         .uncompress()
                         .expect("Failed to uncompress CompressedPublicKey");
-                    aggregate.aggregate(&pk);
+                    aggregate.aggregate(pk);
                     aggregate
                 });
 

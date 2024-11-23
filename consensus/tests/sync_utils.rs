@@ -4,11 +4,11 @@ use futures::{future, StreamExt};
 use nimiq_blockchain::{BlockProducer, Blockchain, BlockchainConfig};
 use nimiq_blockchain_interface::{AbstractBlockchain, BlockchainEvent, Direction};
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
 use nimiq_consensus::{
     consensus::Consensus,
     messages::{BlockBodyTopic, BlockHeaderMessage, BlockHeaderTopic},
     sync::{syncer::MacroSyncReturn, syncer_proxy::SyncerProxy},
+    BlsCache,
 };
 use nimiq_database::mdbx::MdbxDatabase;
 use nimiq_genesis::NetworkId;
@@ -19,7 +19,6 @@ use nimiq_network_mock::MockHub;
 use nimiq_primitives::policy::Policy;
 use nimiq_test_utils::{
     blockchain::{produce_macro_blocks_with_txns, signing_key, voting_key},
-    node::TESTING_BLS_CACHE_MAX_CAPACITY,
     test_network::TestNetwork,
 };
 use nimiq_utils::{spawn, time::OffsetTime};
@@ -45,9 +44,7 @@ async fn syncer(
             SyncerProxy::new_history(
                 blockchain.clone(),
                 Arc::clone(network),
-                Arc::new(Mutex::new(PublicKeyCache::new(
-                    TESTING_BLS_CACHE_MAX_CAPACITY,
-                ))),
+                Arc::new(Mutex::new(BlsCache::new_test())),
                 network.subscribe_events(),
             )
             .await
@@ -56,9 +53,7 @@ async fn syncer(
             SyncerProxy::new_full(
                 blockchain.clone(),
                 Arc::clone(network),
-                Arc::new(Mutex::new(PublicKeyCache::new(
-                    TESTING_BLS_CACHE_MAX_CAPACITY,
-                ))),
+                Arc::new(Mutex::new(BlsCache::new_test())),
                 zkp_prover.proxy(),
                 network.subscribe_events(),
                 0,
@@ -69,9 +64,7 @@ async fn syncer(
             SyncerProxy::new_light(
                 blockchain.clone(),
                 Arc::clone(network),
-                Arc::new(Mutex::new(PublicKeyCache::new(
-                    TESTING_BLS_CACHE_MAX_CAPACITY,
-                ))),
+                Arc::new(Mutex::new(BlsCache::new_test())),
                 zkp_prover.proxy(),
                 network.subscribe_events(),
             )
@@ -116,9 +109,7 @@ pub async fn sync_two_peers(
     let syncer1 = SyncerProxy::new_history(
         blockchain1_proxy.clone(),
         Arc::clone(&net1),
-        Arc::new(Mutex::new(PublicKeyCache::new(
-            TESTING_BLS_CACHE_MAX_CAPACITY,
-        ))),
+        Arc::new(Mutex::new(BlsCache::new_test())),
         net1.subscribe_events(),
     )
     .await;

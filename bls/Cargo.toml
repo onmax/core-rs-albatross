@@ -39,7 +39,5 @@ nimiq-test-log = { workspace = true }
 nimiq-test-utils = { workspace = true }
 
 [features]
-cache = ["lazy"]
-default = ["lazy", "serde-derive"]
-lazy = ["parking_lot"]
+default = ["serde-derive"]
 serde-derive = ["nimiq-serde", "serde"]

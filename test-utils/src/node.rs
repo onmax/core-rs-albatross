@@ -3,8 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use nimiq_block::Block;
 use nimiq_blockchain::{Blockchain, BlockchainConfig};
 use nimiq_blockchain_proxy::BlockchainProxy;
-use nimiq_bls::cache::PublicKeyCache;
-use nimiq_consensus::{sync::syncer_proxy::SyncerProxy, Consensus};
+use nimiq_consensus::{sync::syncer_proxy::SyncerProxy, BlsCache, Consensus};
 use nimiq_database::mdbx::MdbxDatabase;
 use nimiq_genesis_builder::GenesisInfo;
 use nimiq_network_interface::network::Network as NetworkInterface;
@@ -21,8 +20,6 @@ use crate::{
     test_network::TestNetwork,
     zkp_test_data::{zkp_test_exe, ZKP_TEST_KEYS_PATH},
 };
-
-pub const TESTING_BLS_CACHE_MAX_CAPACITY: usize = 100;
 
 pub struct Node<N: NetworkInterface + TestNetwork> {
     pub network: Arc<N>,
@@ -93,9 +90,7 @@ impl<N: NetworkInterface + TestNetwork> Node<N> {
         let syncer = SyncerProxy::new_history(
             blockchain_proxy.clone(),
             Arc::clone(&network),
-            Arc::new(Mutex::new(PublicKeyCache::new(
-                TESTING_BLS_CACHE_MAX_CAPACITY,
-            ))),
+            Arc::new(Mutex::new(BlsCache::new_test())),
             network.subscribe_events(),
         )
         .await;

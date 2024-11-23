@@ -5000,6 +5000,7 @@ dependencies = [
  "nimiq-serde",
  "nimiq-test-log",
  "nimiq-test-utils",
+ "parking_lot",
  "pin-project",
  "rand",
  "rand_core",

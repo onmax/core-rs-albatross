@@ -40,10 +40,7 @@ tsify = { git = "https://github.com/sisou/tsify", branch = "sisou/comments", def
 ], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 
-nimiq-bls = { workspace = true, features = [
-    "lazy",
-    "serde-derive",
-], optional = true }
+nimiq-bls = { workspace = true, features = ["serde-derive"], optional = true }
 nimiq-database-value = { workspace = true, optional = true }
 nimiq-database-value-derive = { workspace = true, optional = true }
 nimiq-hash = { workspace = true }

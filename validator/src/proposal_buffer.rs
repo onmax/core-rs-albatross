@@ -565,9 +565,8 @@ mod test {
     use nimiq_block::MacroHeader;
     use nimiq_blockchain::Blockchain;
     use nimiq_blockchain_proxy::BlockchainProxy;
-    use nimiq_bls::cache::PublicKeyCache;
     use nimiq_consensus::{
-        sync::syncer_proxy::SyncerProxy, Consensus, ConsensusEvent, ConsensusProxy,
+        sync::syncer_proxy::SyncerProxy, BlsCache, Consensus, ConsensusEvent, ConsensusProxy,
     };
     use nimiq_keys::{KeyPair as SchnorrKeyPair, PrivateKey as SchnorrPrivateKey};
     use nimiq_network_interface::network::Network as NetworkInterface;
@@ -604,7 +603,7 @@ mod test {
         let syncer = SyncerProxy::new_history(
             blockchain_proxy.clone(),
             Arc::clone(&net),
-            Arc::new(Mutex::new(PublicKeyCache::new(10))),
+            Arc::new(Mutex::new(BlsCache::new_test())),
             net.subscribe_events(),
         )
         .await;

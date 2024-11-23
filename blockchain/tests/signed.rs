@@ -5,7 +5,7 @@ use nimiq_block::{
 };
 use nimiq_blockchain::{Blockchain, BlockchainConfig};
 use nimiq_blockchain_interface::AbstractBlockchain;
-use nimiq_bls::{lazy::LazyPublicKey, AggregateSignature, KeyPair};
+use nimiq_bls::{AggregateSignature, KeyPair, LazyPublicKey as BlsLazyPublicKey};
 use nimiq_collections::bitset::BitSet;
 use nimiq_database::mdbx::MdbxDatabase;
 use nimiq_keys::{Address, Ed25519PublicKey};
@@ -56,7 +56,7 @@ fn test_skip_block_single_signature() {
     // verify skip block proof
     let validators = Validators::new(vec![Validator::new(
         Address::default(),
-        LazyPublicKey::from(key_pair.public_key),
+        BlsLazyPublicKey::from(key_pair.public_key),
         Ed25519PublicKey::from([0u8; 32]),
         0..Policy::SLOTS,
     )]);
