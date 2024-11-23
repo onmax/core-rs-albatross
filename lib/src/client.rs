@@ -265,6 +265,13 @@ impl ClientInner {
                 _ => true,
             }
         });
+
+        // Set pre-genesis flag.
+        #[cfg(feature = "database-storage")]
+        if config.storage.has_pre_genesis_database(config.network_id) {
+            provided_services |= Services::PRE_GENESIS_TRANSACTIONS;
+        }
+
         let peer_contact = PeerContact::new(
             peer_contact_addresses,
             identity_keypair.public(),
@@ -353,7 +360,6 @@ impl ClientInner {
         #[cfg(feature = "database-storage")]
         let pre_genesis_environment = if config.storage.has_pre_genesis_database(config.network_id)
         {
-            provided_services |= Services::PRE_GENESIS_TRANSACTIONS;
             Some(
                 config
                     .storage
