@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 #[derive(serde::Serialize, Tsify)]
 #[serde(rename_all = "camelCase")]
 pub struct PlainPeerInfo {
+    /// A libp2p peer ID
     pub peer_id: String,
     /// Address of the peer in `Multiaddr` format
     address: String,
@@ -13,6 +14,41 @@ pub struct PlainPeerInfo {
     #[tsify(type = "'full' | 'history' | 'light'")]
     #[serde(rename = "type")]
     node_type: String,
+    /// List of services the peer is providing
+    services: Vec<PlainService>,
+}
+
+/// Available peer service flags
+#[derive(serde::Serialize, Tsify)]
+#[serde(rename_all = "kebab-case")]
+pub enum PlainService {
+    FullBlocks,
+    History,
+    AccountsProof,
+    AccountsChunk,
+    Mempool,
+    TransactionIndex,
+    Validator,
+    PreGenesisTransactions,
+
+    // Catch-all to not have to panic when new services are added
+    Unknown,
+}
+
+impl From<Services> for PlainService {
+    fn from(services: Services) -> Self {
+        match services {
+            Services::FULL_BLOCKS => Self::FullBlocks,
+            Services::HISTORY => Self::History,
+            Services::ACCOUNTS_PROOF => Self::AccountsProof,
+            Services::ACCOUNTS_CHUNKS => Self::AccountsChunk,
+            Services::MEMPOOL => Self::Mempool,
+            Services::TRANSACTION_INDEX => Self::TransactionIndex,
+            Services::VALIDATOR => Self::Validator,
+            Services::PRE_GENESIS_TRANSACTIONS => Self::PreGenesisTransactions,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 impl PlainPeerInfo {
@@ -35,6 +71,11 @@ impl PlainPeerInfo {
             peer_id,
             address: peer_info.get_address().to_string(),
             node_type: node_type.to_string(),
+            services: peer_info
+                .get_services()
+                .into_iter()
+                .map(|s| s.into())
+                .collect(),
         }
     }
 }

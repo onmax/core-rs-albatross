@@ -5,6 +5,13 @@ window.Nimiq = Nimiq;
 init().then(async () => {
     const config = new Nimiq.ClientConfiguration();
     config.logLevel('debug');
+    // config.network('testalbatross');
+    // config.seedNodes([
+    //     "/dns4/seed1.pos.nimiq-testnet.com/tcp/8443/wss",
+    //     "/dns4/seed2.pos.nimiq-testnet.com/tcp/8443/wss",
+    //     "/dns4/seed3.pos.nimiq-testnet.com/tcp/8443/wss",
+    //     "/dns4/seed4.pos.nimiq-testnet.com/tcp/8443/wss",
+    // ]);
 
     const client = await Nimiq.Client.create(config.build());
     window.client = client; // Prevent garbage collection and for playing around
@@ -46,7 +53,17 @@ init().then(async () => {
 
     document.querySelector('#address-book').addEventListener("click", async () => {
         let contacts = await client.getAddressBook();
-        console.table(contacts);
+        console.log(contacts
+            .sort((a, b) => {
+                // Sort seeds first
+                const aIsSeed = a.address.includes('seed');
+                const bIsSeed = b.address.includes('seed');
+                if (aIsSeed && !bIsSeed) return -1;
+                if (!aIsSeed && bIsSeed) return 1;
+
+                // Sort alphabetically
+                return a.address.localeCompare(b.address);
+            }));
     });
 
     document.querySelector('#query-staking-contract').addEventListener("click", async () => {
