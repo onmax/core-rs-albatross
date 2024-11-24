@@ -158,13 +158,13 @@ impl Client {
             })
             .collect::<Result<Vec<Seed>, JsError>>()?;
 
-        config.network.seeds = seed_nodes;
-        config.network.only_secure_ws_connections = true;
         config.network_id = web_config.network_id;
-        config.network.desired_peer_count = 12;
-        config.network.peer_count_max = 50;
-        config.network.peer_count_per_ip_max = 10;
-        config.network.peer_count_per_subnet_max = 10;
+        config.network.seeds = seed_nodes;
+        config.network.only_secure_ws_connections = web_config.only_secure_ws_connections;
+        config.network.desired_peer_count = web_config.desired_peer_count;
+        config.network.peer_count_max = web_config.peer_count_max;
+        config.network.peer_count_per_ip_max = web_config.peer_count_per_ip_max;
+        config.network.peer_count_per_subnet_max = web_config.peer_count_per_subnet_max;
 
         log::info!(?config, "Final configuration");
 

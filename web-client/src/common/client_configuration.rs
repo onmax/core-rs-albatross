@@ -21,6 +21,16 @@ pub struct ClientConfiguration {
     pub seed_nodes: Vec<String>,
     #[wasm_bindgen(skip)]
     pub log_level: String,
+    #[wasm_bindgen(skip)]
+    pub only_secure_ws_connections: bool,
+    #[wasm_bindgen(skip)]
+    pub desired_peer_count: usize,
+    #[wasm_bindgen(skip)]
+    pub peer_count_max: usize,
+    #[wasm_bindgen(skip)]
+    pub peer_count_per_ip_max: usize,
+    #[wasm_bindgen(skip)]
+    pub peer_count_per_subnet_max: usize,
 }
 
 #[cfg(any(feature = "client", feature = "primitives"))]
@@ -38,6 +48,16 @@ pub struct PlainClientConfiguration {
     pub seed_nodes: Option<Vec<String>>,
     #[cfg_attr(feature = "client", serde(skip_serializing_if = "Option::is_none"))]
     pub log_level: Option<String>,
+    #[cfg_attr(feature = "client", serde(skip_serializing_if = "Option::is_none"))]
+    pub only_secure_ws_connections: Option<bool>,
+    #[cfg_attr(feature = "client", serde(skip_serializing_if = "Option::is_none"))]
+    pub desired_peer_count: Option<usize>,
+    #[cfg_attr(feature = "client", serde(skip_serializing_if = "Option::is_none"))]
+    pub peer_count_max: Option<usize>,
+    #[cfg_attr(feature = "client", serde(skip_serializing_if = "Option::is_none"))]
+    pub peer_count_per_ip_max: Option<usize>,
+    #[cfg_attr(feature = "client", serde(skip_serializing_if = "Option::is_none"))]
+    pub peer_count_per_subnet_max: Option<usize>,
 }
 
 impl Default for ClientConfiguration {
@@ -61,6 +81,11 @@ impl Default for ClientConfiguration {
                 "/dns4/zenith.seed.nimiq.systems/tcp/443/wss".to_string(),
             ],
             log_level: "info".to_string(),
+            only_secure_ws_connections: true,
+            desired_peer_count: 12,
+            peer_count_max: 50,
+            peer_count_per_ip_max: 10,
+            peer_count_per_subnet_max: 10,
         }
     }
 }
@@ -106,6 +131,41 @@ impl ClientConfiguration {
         self.log_level = log_level.to_lowercase();
     }
 
+    /// Sets whether the client should only connect to secure WebSocket connections.
+    /// Default is `true`.
+    #[wasm_bindgen(js_name = onlySecureWsConnections)]
+    pub fn only_secure_ws_connections(&mut self, only_secure_ws_connections: bool) {
+        self.only_secure_ws_connections = only_secure_ws_connections;
+    }
+
+    /// Sets the desired number of peers the client should try to connect to.
+    /// Default is `12`.
+    #[wasm_bindgen(js_name = desiredPeerCount)]
+    pub fn desired_peer_count(&mut self, desired_peer_count: usize) {
+        self.desired_peer_count = desired_peer_count;
+    }
+
+    /// Sets the maximum number of peers the client should connect to.
+    /// Default is `50`.
+    #[wasm_bindgen(js_name = peerCountMax)]
+    pub fn peer_count_max(&mut self, peer_count_max: usize) {
+        self.peer_count_max = peer_count_max;
+    }
+
+    /// Sets the maximum number of peers the client should connect to per IP address.
+    /// Default is `10`.
+    #[wasm_bindgen(js_name = peerCountPerIpMax)]
+    pub fn peer_count_per_ip_max(&mut self, peer_count_per_ip_max: usize) {
+        self.peer_count_per_ip_max = peer_count_per_ip_max;
+    }
+
+    /// Sets the maximum number of peers the client should connect to per subnet.
+    /// Default is `10`.
+    #[wasm_bindgen(js_name = peerCountPerSubnetMax)]
+    pub fn peer_count_per_subnet_max(&mut self, peer_count_per_subnet_max: usize) {
+        self.peer_count_per_subnet_max = peer_count_per_subnet_max;
+    }
+
     // TODO: Find a way to make this method work, maybe by using the synthetic Client from the main thread as an import?
     // /// Instantiates a client from this configuration builder.
     // #[wasm_bindgen(js_name = instantiateClient)]
@@ -122,6 +182,11 @@ impl ClientConfiguration {
             network_id: Some(self.network_id.to_string()),
             seed_nodes: Some(self.seed_nodes.clone()),
             log_level: Some(self.log_level.clone()),
+            only_secure_ws_connections: Some(self.only_secure_ws_connections),
+            desired_peer_count: Some(self.desired_peer_count),
+            peer_count_max: Some(self.peer_count_max),
+            peer_count_per_ip_max: Some(self.peer_count_per_ip_max),
+            peer_count_per_subnet_max: Some(self.peer_count_per_subnet_max),
         })
         .unwrap()
         .into()
@@ -146,6 +211,26 @@ impl TryFrom<PlainClientConfiguration> for ClientConfiguration {
 
         if let Some(log_level) = config.log_level {
             client_config.log_level = log_level;
+        }
+
+        if let Some(only_secure_ws_connections) = config.only_secure_ws_connections {
+            client_config.only_secure_ws_connections = only_secure_ws_connections;
+        }
+
+        if let Some(desired_peer_count) = config.desired_peer_count {
+            client_config.desired_peer_count = desired_peer_count;
+        }
+
+        if let Some(peer_count_max) = config.peer_count_max {
+            client_config.peer_count_max = peer_count_max;
+        }
+
+        if let Some(peer_count_per_ip_max) = config.peer_count_per_ip_max {
+            client_config.peer_count_per_ip_max = peer_count_per_ip_max;
+        }
+
+        if let Some(peer_count_per_subnet_max) = config.peer_count_per_subnet_max {
+            client_config.peer_count_per_subnet_max = peer_count_per_subnet_max;
         }
 
         Ok(client_config)
