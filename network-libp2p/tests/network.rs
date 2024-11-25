@@ -488,7 +488,7 @@ async fn dht_put_and_get() {
     let net2 = &networks[1];
 
     // FIXME: Add delay while networks share their addresses
-    sleep(Duration::from_secs(2)).await;
+    sleep(Duration::from_secs(10)).await;
 
     // Generate a key
     let mut rng = test_rng(false);
