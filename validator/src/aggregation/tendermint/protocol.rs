@@ -42,9 +42,14 @@ impl TendermintAggregationProtocol {
             Arc::clone(&registry),
             Arc::clone(&partitioner),
             |aggregate: &TendermintContribution, _, _| {
-                aggregate.proposals().iter().any(|(_, contributor_count)| {
-                    *contributor_count >= Policy::TWO_F_PLUS_ONE as usize
-                })
+                // We accept full aggregations and aggregations that collected 2f+1 signatures for a single proposal/None.
+                aggregate.all_contributors().len() == Policy::SLOTS as usize
+                    || aggregate
+                        .contributions
+                        .iter()
+                        .any(|(_hash_option, contributor_count)| {
+                            contributor_count.signers.len() >= Policy::TWO_F_PLUS_ONE as usize
+                        })
             },
         ));
 
