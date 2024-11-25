@@ -34,3 +34,7 @@ nimiq-network-interface = { workspace = true }
 nimiq-primitives = { workspace = true, features = ["slots"] }
 nimiq-serde = { workspace = true }
 nimiq-utils = { workspace = true, features = ["futures", "spawn", "tagged-signing"] }
+url = "2.5.3"
+
+[dev-dependencies]
+tokio = { version = "1.41", features = ["macros"] }

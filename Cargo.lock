@@ -2355,6 +2355,7 @@ dependencies = [
  "hyper-util",
  "log",
  "rustls",
+ "rustls-native-certs",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls",
@@ -4243,7 +4244,13 @@ dependencies = [
  "console-subscriber",
  "derive_builder",
  "directories",
+ "futures-util",
  "hex",
+ "http 1.1.0",
+ "http-body-util",
+ "hyper 1.5.1",
+ "hyper-rustls",
+ "hyper-util",
  "instant",
  "log-panics",
  "nimiq-block",
@@ -4281,6 +4288,7 @@ dependencies = [
  "parking_lot",
  "rand",
  "rand_chacha",
+ "rustls",
  "rustls-pemfile",
  "serde",
  "serde_json",
@@ -5073,6 +5081,7 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]

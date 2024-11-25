@@ -26,13 +26,20 @@ console-subscriber = { version = "0.4", features = [
 ], optional = true }
 derive_builder = "0.20"
 directories = "5.0"
+futures = { workspace = true }
 hex = "0.4"
+http = { version = "1", optional = true }
+http-body-util = { version = "0.1", optional = true }
+hyper = { version = "1", default-features = false, optional = true }
+hyper-rustls = { version = "0.27", features = ["native-tokio", "http1", "tls12", "logging", "ring"], default-features = false, optional = true }
+hyper-util = { version = "0.1", default-features = false, features = ["client-legacy", "tokio"], optional = true }
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 log = { workspace = true }
 log-panics = { version = "2.1", features = ["with-backtrace"], optional = true }
 parking_lot = "0.12"
 rand = "0.8"
 rand_chacha = "0.3.1"
+rustls = { version = "0.23", default-features = false, optional = true }
 rustls-pemfile = "2.2"
 serde = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"], optional = true }
@@ -85,15 +92,26 @@ nimiq-zkp-component = { workspace = true }
 nimiq-zkp-primitives = { workspace = true }
 
 [dev-dependencies]
+tokio = { version = "1.41", features = ["macros"] }
 nimiq-test-log = { workspace = true }
 
 [features]
 database-storage = ["nimiq-database", "nimiq-zkp-component/database-storage"]
 deadlock = ["parking_lot/deadlock_detection"]
 default = ["full-consensus"]
+dht-fallback = [
+    "http",
+    "http-body-util",
+    "hyper",
+    "hyper-rustls",
+    "hyper-util",
+    "rustls",
+    "serde_json",
+]
 extended-metrics = ["nimiq-metrics-server/extended-staking"]
 full-consensus = [
     "database-storage",
+    "dht-fallback",
     "nimiq-blockchain",
     "nimiq-consensus/full",
     "nimiq-dht",

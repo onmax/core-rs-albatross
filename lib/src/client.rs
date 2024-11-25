@@ -556,6 +556,37 @@ impl ClientInner {
                     // Load validator address
                     let automatic_reactivate = validator_config.automatic_reactivate;
 
+                    let dht_fallback_url = validator_config.dht_fallback_url;
+
+                    let dht_fallback = {
+                        #[cfg(feature = "dht-fallback")]
+                        {
+                            use futures::future::FutureExt as _;
+
+                            use crate::extras::dht_fallback::DhtFallback;
+                            let fallback = Arc::new(dht_fallback_url.and_then(DhtFallback::new));
+                            move |address| {
+                                let fallback = fallback.clone();
+                                async move {
+                                    if let Some(fallback) = &*fallback {
+                                        fallback.resolve(address).await
+                                    } else {
+                                        None
+                                    }
+                                }
+                                .boxed()
+                            }
+                        }
+                        #[cfg(not(feature = "dht-fallback"))]
+                        {
+                            assert!(
+                                dht_fallback_url.is_none(),
+                                "DHT fallback support not compiled in"
+                            );
+                            |_| future::ready(None).boxed()
+                        }
+                    };
+
                     // Load signing key (before we give away ownership of the storage config)
                     let signing_key = config.storage.signing_keypair()?;
 
@@ -565,8 +596,10 @@ impl ClientInner {
                     // Load fee key (before we give away ownership of the storage config)
                     let fee_key = config.storage.fee_keypair()?;
 
-                    let validator_network =
-                        Arc::new(ValidatorNetworkImpl::new(Arc::clone(&network)));
+                    let validator_network = Arc::new(ValidatorNetworkImpl::new_with_fallback(
+                        Arc::clone(&network),
+                        Arc::new(dht_fallback),
+                    ));
 
                     let validator = Validator::new(
                         environment.clone(),
