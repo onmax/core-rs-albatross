@@ -49,6 +49,11 @@ init().then(async () => {
         console.table(contacts);
     });
 
+    document.querySelector('#query-staking-contract').addEventListener("click", async () => {
+        let account = await client.getAccount('NQ07 0000 0000 0000 0000 0000 0000 0000 0000');
+        console.log(account);
+    });
+
     /**
      * @param {string} privateKey
      * @param {string} recipient
