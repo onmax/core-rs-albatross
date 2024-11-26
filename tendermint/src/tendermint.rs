@@ -9,11 +9,11 @@ use std::{
 
 use futures::{
     future::{BoxFuture, FutureExt},
-    stream::{BoxStream, SelectAll, Stream, StreamExt},
+    stream::{BoxStream, Stream, StreamExt},
 };
 use nimiq_collections::BitSet;
 use nimiq_time::sleep;
-use nimiq_utils::stream::FuturesUnordered;
+use nimiq_utils::stream::{FuturesUnordered, SelectAll};
 use rand::{thread_rng, Rng};
 use tokio::{sync::mpsc, time::Duration};
 use tokio_stream::wrappers::ReceiverStream;

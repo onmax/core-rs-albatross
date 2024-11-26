@@ -8,7 +8,7 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use futures::{stream as inner, Stream};
+use futures::{stream as inner, Stream, StreamExt};
 use pin_project::pin_project;
 
 use crate::WakerExt as _;
@@ -144,5 +144,69 @@ impl<F: Future> Stream for FuturesUnordered<F> {
         let this = self.project();
         this.waker.store_waker(cx);
         this.inner.poll_next(cx)
+    }
+}
+
+/// An unbounded set of streams.
+///
+/// This is a wrapper around [`futures::stream::SelectAll`] that takes care of
+/// waking when a future is pushed. See its documentation for more details.
+#[must_use = "streams do nothing unless polled"]
+pub struct SelectAll<St: Stream + Unpin> {
+    inner: inner::SelectAll<St>,
+    waker: Option<Waker>,
+}
+
+impl<St: Stream + Unpin> Default for SelectAll<St> {
+    fn default() -> SelectAll<St> {
+        SelectAll {
+            inner: Default::default(),
+            waker: None,
+        }
+    }
+}
+
+impl<St: Stream + Unpin> SelectAll<St> {
+    /// Constructs a new, empty `SelectAll`
+    ///
+    /// See also [`futures::stream::SelectAll::new`].
+    pub fn new() -> SelectAll<St> {
+        Default::default()
+    }
+    /// Returns `true` if the set contains no streams
+    ///
+    /// See also [`futures::stream::SelectAll::is_empty`].
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+    /// Returns the number of streams contained in the set.
+    ///
+    /// See also [`futures::stream::SelectAll::len`].
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+    /// Push a stream into the set.
+    ///
+    /// See also [`futures::stream::SelectAll::push`].
+    pub fn push(&mut self, stream: St) {
+        self.inner.push(stream);
+        self.waker.wake();
+    }
+}
+
+impl<St: Stream + Unpin> FromIterator<St> for SelectAll<St> {
+    fn from_iter<T: IntoIterator<Item = St>>(iter: T) -> SelectAll<St> {
+        SelectAll {
+            inner: inner::SelectAll::from_iter(iter),
+            waker: None,
+        }
+    }
+}
+
+impl<St: Stream + Unpin> Stream for SelectAll<St> {
+    type Item = St::Item;
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St::Item>> {
+        self.waker.store_waker(cx);
+        self.inner.poll_next_unpin(cx)
     }
 }

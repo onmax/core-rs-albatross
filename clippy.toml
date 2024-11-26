@@ -17,3 +17,7 @@ reason = "use `nimiq_utils::stream::FuturesUnordered` instead, it does not need 
 [[disallowed-types]]
 path = "futures_util::stream::FuturesOrdered"
 reason = "use `nimiq_utils::stream::FuturesOrdered` instead, it does not need manual `Waker`s"
+
+[[disallowed-types]]
+path = "futures_util::stream::SelectAll"
+reason = "use `nimiq_utils::stream::SelectAll` instead, it does not need manual `Waker`s"
