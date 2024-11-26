@@ -1,4 +1,12 @@
 [[disallowed-methods]]
+path = "futures::executor::block_on"
+reason = "calling asynchronous code from synchronous code is almost always an error, use `tokio::runtime::Handle::current().block_on` if it's not an error"
+
+[[disallowed-methods]]
+path = "futures_executor::block_on"
+reason = "calling asynchronous code from synchronous code is almost always an error, use `tokio::runtime::Handle::current().block_on` if it's not an error"
+
+[[disallowed-methods]]
 path = "tokio::task::spawn"
 reason = "use `nimiq_utils::spawn` instead, it is also supported in WASM environments"
 
