@@ -366,22 +366,8 @@ impl<N: Network> RemoteDataStore<N> {
 
 impl<N: Network> DataStoreReadOps for RemoteDataStore<N> {
     fn get<T: Deserialize>(&self, key: &KeyNibbles) -> Option<T> {
-        let proof = futures_executor::block_on(Self::get_trie(
-            Arc::clone(&self.network),
-            self.blockchain.clone(),
-            &[key.clone()],
-            self.min_peers,
-        ))
-        .ok();
-        if let Some(mut proof) = proof {
-            if proof.len() != 1 {
-                log::error!(len = proof.len(), "Unexpected amount of proved items");
-                None
-            } else {
-                proof.remove(key).flatten()
-            }
-        } else {
-            None
-        }
+        unimplemented!(
+            "this function is not implementable: a sync function cannot call an async one",
+        );
     }
 }
