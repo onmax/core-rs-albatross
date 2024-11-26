@@ -28,6 +28,23 @@ pub enum BlockchainEvent {
     EpochFinalized(Blake2bHash),
 }
 
+impl BlockchainEvent {
+    /// Returns all added block hashes by this event
+    pub fn added_hashes(&self) -> Vec<Blake2bHash> {
+        match self {
+            BlockchainEvent::EpochFinalized(_) => vec![],
+            BlockchainEvent::Extended(hash) => vec![hash.clone()],
+            BlockchainEvent::Finalized(_) => vec![],
+            BlockchainEvent::HistoryAdopted(hash) => vec![hash.clone()],
+            BlockchainEvent::Rebranched(adopted_blocks, _reverted_blocks) => adopted_blocks
+                .iter()
+                .map(|(hash, _block)| hash.clone())
+                .collect(),
+            BlockchainEvent::Stored(block) => vec![block.hash()],
+        }
+    }
+}
+
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum BlockchainError {
     #[error("Invalid genesis block stored. Verify you are on the correct network or reset your consensus database.")]
