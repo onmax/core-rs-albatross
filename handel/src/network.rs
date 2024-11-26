@@ -11,8 +11,8 @@ use futures::{
     future::{BoxFuture, FutureExt},
     stream::StreamExt,
 };
+use hashlink::{linked_hash_map, LinkedHashMap};
 use instant::Instant;
-use linked_hash_map::{Entry, LinkedHashMap};
 use nimiq_collections::BitSet;
 use nimiq_utils::{stream::FuturesUnordered, WakerExt as _};
 
@@ -49,9 +49,7 @@ pub struct NetworkHelper<TNetwork: Network> {
     /// and `last_messages` are bound in their size by this value.
     num_nodes: usize,
 
-    /// Buffer for one message per recipient. Second value of the pair is the index of the next
-    /// message which needs to be sent after this one. If there is no message buffered, it will
-    /// point to `message_buffer.len()` which is the first OOB index.
+    /// Buffer for one message per recipient.
     message_buffer: LinkedHashMap<usize, LevelUpdate<TNetwork::Contribution>>,
 
     /// Information about the last message sent to each recipient, used to deduplicate messages.
@@ -115,10 +113,10 @@ impl<TNetwork: Network> NetworkHelper<TNetwork> {
 
         // Insert the message into the message buffer for the recipient.
         match self.message_buffer.entry(node_id) {
-            Entry::Occupied(mut entry) => {
+            linked_hash_map::Entry::Occupied(mut entry) => {
                 *entry.get_mut() = msg;
             }
-            Entry::Vacant(entry) => {
+            linked_hash_map::Entry::Vacant(entry) => {
                 entry.insert(msg);
             }
         };

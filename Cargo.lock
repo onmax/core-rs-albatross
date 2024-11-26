@@ -4088,8 +4088,8 @@ version = "1.0.4"
 dependencies = [
  "async-trait",
  "futures-util",
+ "hashlink",
  "instant",
- "linked-hash-map",
  "nimiq-bls",
  "nimiq-collections",
  "nimiq-hash",
@@ -4366,9 +4366,9 @@ name = "nimiq-mempool"
 version = "1.0.4"
 dependencies = [
  "futures-util",
+ "hashlink",
  "hex",
  "keyed_priority_queue",
- "linked-hash-map",
  "nimiq-account",
  "nimiq-block",
  "nimiq-blockchain",
@@ -5028,9 +5028,9 @@ dependencies = [
  "async-trait",
  "byteorder",
  "futures-util",
+ "hashlink",
  "hex",
  "instant",
- "linked-hash-map",
  "nimiq-account",
  "nimiq-block",
  "nimiq-blockchain",

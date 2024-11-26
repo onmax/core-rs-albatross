@@ -9,7 +9,7 @@ use futures::{
     future::{BoxFuture, FutureExt},
     stream::{Stream, StreamExt},
 };
-use linked_hash_map::LinkedHashMap;
+use hashlink::LinkedHashMap;
 use nimiq_block::Block;
 use nimiq_blockchain::Blockchain;
 use nimiq_blockchain_interface::AbstractBlockchain;
