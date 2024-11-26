@@ -98,7 +98,7 @@ nimiq-test-log = { workspace = true }
 [features]
 database-storage = ["nimiq-database", "nimiq-zkp-component/database-storage"]
 deadlock = ["parking_lot/deadlock_detection"]
-default = ["full-consensus"]
+default = ["full-consensus", "extended-metrics"]
 dht-fallback = [
     "http",
     "http-body-util",
