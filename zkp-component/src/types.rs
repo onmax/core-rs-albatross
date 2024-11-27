@@ -152,8 +152,14 @@ pub enum Error {
     #[error("Nano Zkp Error: {0}")]
     NanoZKP(#[from] NanoZKPError),
 
-    #[error("Proof's blocks are not valid")]
-    InvalidBlock,
+    #[error("Proof's blocks is not an election block")]
+    NotElectionBlock,
+
+    #[error("Proof's block is not known: {0}")]
+    UnknownBlock(u32),
+
+    #[error("Response was invalid: requested_block: {0}")]
+    InvalidResponse(bool),
 
     #[error("Outdated proof")]
     OutdatedProof,

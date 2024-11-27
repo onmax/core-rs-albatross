@@ -119,18 +119,18 @@ impl<N: Network + 'static> Stream for ZKPRequests<N> {
         while let Poll::Ready(result) = self.zkp_request_results.poll_next_unpin(cx) {
             match result {
                 Some((peer_id, request_election_block, response_channel, result)) => match result {
-                    Ok(RequestZKPResponse::Proof(proof, mut election_block)) => {
+                    Ok(RequestZKPResponse::Proof(proof, election_block)) => {
                         // Check that the response is in-line with whether we asked for the election block or not.
-                        if request_election_block {
-                            if election_block.is_none() {
-                                if let Some(tx) = response_channel {
-                                    let _ = tx.send(Err(Error::InvalidBlock));
-                                }
-                                continue;
+                        if (request_election_block && election_block.is_none())
+                            || (!request_election_block && election_block.is_some())
+                        {
+                            if let Some(tx) = response_channel {
+                                let _ =
+                                    tx.send(Err(Error::InvalidResponse(request_election_block)));
                             }
-                        } else {
-                            election_block = None;
+                            continue;
                         }
+
                         return Poll::Ready(Some(ZKPRequestsItem {
                             peer_id,
                             proof,
