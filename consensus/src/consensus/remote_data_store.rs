@@ -4,9 +4,7 @@ use std::{
 };
 
 use futures::StreamExt;
-use nimiq_account::{
-    Account, DataStoreReadOps, Staker, StakingContract, StakingContractStore, Tombstone, Validator,
-};
+use nimiq_account::{Staker, StakingContractStore, Tombstone, Validator};
 use nimiq_block::Block;
 use nimiq_blockchain_interface::AbstractBlockchain;
 use nimiq_blockchain_proxy::BlockchainProxy;
@@ -39,8 +37,7 @@ pub(crate) struct RemoteDataStore<N: Network> {
     pub(crate) min_peers: usize,
 }
 
-/// Internal Remote operations the Remote Data Store can perform over addresses on
-/// wasm
+/// Internal Remote operations the Remote Data Store can perform over addresses
 enum RemoteDataStoreOps {
     /// Gets a set of validators by their addresses
     Validator(Vec<Address>),
@@ -195,53 +192,6 @@ impl<N: Network> RemoteDataStore<N> {
         ))
     }
 
-    async fn get_staking_contract(&self) -> Result<StakingContract, RequestError> {
-        let key = KeyNibbles::from(&Policy::STAKING_CONTRACT_ADDRESS);
-        let accounts = Self::get_trie(
-            Arc::clone(&self.network),
-            self.blockchain.clone(),
-            &[key.clone()],
-            self.min_peers,
-        )
-        .await?;
-
-        if accounts.len() != 1 {
-            log::error!(
-                len = accounts.len(),
-                "Expected only one account for the staking contract"
-            );
-            return Err(RequestError::OutboundRequest(
-                OutboundRequestError::SendError,
-            ));
-        }
-
-        if let Some(account) = accounts.get(&key) {
-            if let Some(account) = account {
-                match account {
-                    Account::Staking(account) => Ok(account.clone()),
-                    _ => {
-                        log::error!(
-                            "Requested a staking contract account and received another account type"
-                        );
-                        Err(RequestError::OutboundRequest(
-                            OutboundRequestError::SendError,
-                        ))
-                    }
-                }
-            } else {
-                log::error!("No proof was provided for the staking contract");
-                Err(RequestError::OutboundRequest(
-                    OutboundRequestError::SendError,
-                ))
-            }
-        } else {
-            log::error!("Returned accounts do not include staking contract");
-            Err(RequestError::OutboundRequest(
-                OutboundRequestError::SendError,
-            ))
-        }
-    }
-
     /// Gets a set of validators given their addresses. The returned type is a
     /// BTreeMap of addresses to an optional `Validator`. If a validator was not
     /// found, then `None` is returned in its corresponding entry.
@@ -249,20 +199,7 @@ impl<N: Network> RemoteDataStore<N> {
         &self,
         addresses: Vec<Address>,
     ) -> Result<BTreeMap<Address, Option<Validator>>, RequestError> {
-        if cfg!(target_family = "wasm") {
-            self.wasm_exec(RemoteDataStoreOps::Validator(addresses))
-                .await
-        } else {
-            let staking_contract = self.get_staking_contract().await?;
-            let mut validators = BTreeMap::new();
-            for address in addresses {
-                validators.insert(
-                    address.clone(),
-                    staking_contract.get_validator(self, &address),
-                );
-            }
-            Ok(validators)
-        }
+        self.exec(RemoteDataStoreOps::Validator(addresses)).await
     }
 
     /// Gets a set of stakers given their addresses. The returned type is a
@@ -272,16 +209,7 @@ impl<N: Network> RemoteDataStore<N> {
         &self,
         addresses: Vec<Address>,
     ) -> Result<BTreeMap<Address, Option<Staker>>, RequestError> {
-        if cfg!(target_family = "wasm") {
-            self.wasm_exec(RemoteDataStoreOps::Staker(addresses)).await
-        } else {
-            let staking_contract = self.get_staking_contract().await?;
-            let mut stakers = BTreeMap::new();
-            for address in addresses {
-                stakers.insert(address.clone(), staking_contract.get_staker(self, &address));
-            }
-            Ok(stakers)
-        }
+        self.exec(RemoteDataStoreOps::Staker(addresses)).await
     }
 
     /// Gets a set of tombstones given their addresses. The returned type is a
@@ -292,23 +220,10 @@ impl<N: Network> RemoteDataStore<N> {
         &self,
         addresses: Vec<Address>,
     ) -> Result<BTreeMap<Address, Option<Tombstone>>, RequestError> {
-        if cfg!(target_family = "wasm") {
-            self.wasm_exec(RemoteDataStoreOps::Tombstone(addresses))
-                .await
-        } else {
-            let staking_contract = self.get_staking_contract().await?;
-            let mut tombstones = BTreeMap::new();
-            for address in addresses {
-                tombstones.insert(
-                    address.clone(),
-                    staking_contract.get_tombstone(self, &address),
-                );
-            }
-            Ok(tombstones)
-        }
+        self.exec(RemoteDataStoreOps::Tombstone(addresses)).await
     }
 
-    async fn wasm_exec<T: Deserialize + Clone>(
+    async fn exec<T: Deserialize + Clone>(
         &self,
         op: RemoteDataStoreOps,
     ) -> Result<BTreeMap<Address, Option<T>>, RequestError> {
@@ -361,13 +276,5 @@ impl<N: Network> RemoteDataStore<N> {
                 )
             })
             .collect())
-    }
-}
-
-impl<N: Network> DataStoreReadOps for RemoteDataStore<N> {
-    fn get<T: Deserialize>(&self, key: &KeyNibbles) -> Option<T> {
-        unimplemented!(
-            "this function is not implementable: a sync function cannot call an async one",
-        );
     }
 }
