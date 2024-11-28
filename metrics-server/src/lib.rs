@@ -141,16 +141,15 @@ pub fn start_metrics_server<TNetwork: Network>(
     spawn(async move { metrics_server(addr, registry).await.unwrap() });
 
     // Spawn Tokio task monitor updaters
-    for i in 0..task_monitors.len() {
-        let task_monitors = task_monitors.to_vec();
+    for task_monitor in task_monitors {
         spawn({
             let task_metrics = Arc::clone(&task_metrics);
-            let task_monitors = task_monitors;
+            let task_monitor = task_monitor.clone();
             async move {
                 TokioTaskMetrics::update_metric_values(
                     task_metrics,
-                    &task_monitors[i].name,
-                    task_monitors[i].monitor.clone(),
+                    &task_monitor.name,
+                    task_monitor.monitor.clone(),
                 )
                 .await;
             }
