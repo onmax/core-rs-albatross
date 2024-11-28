@@ -28,6 +28,7 @@ pub struct Interval {
 // TODO: decide on first tick. right now or after one period?
 pub fn interval(period: Duration) -> Interval {
     limit_duration(period);
+    #[allow(clippy::disallowed_methods)]
     Interval {
         sys: sys::interval(period),
     }
@@ -54,6 +55,7 @@ pin_project! {
 
 pub fn sleep(duration: Duration) -> Sleep {
     limit_duration(duration);
+    #[allow(clippy::disallowed_methods)]
     Sleep {
         sys: sys::sleep(duration),
     }
@@ -95,6 +97,7 @@ pin_project! {
 
 pub fn timeout<F: Future>(timeout: Duration, future: F) -> Timeout<F> {
     limit_duration(timeout);
+    #[allow(clippy::disallowed_methods)]
     Timeout {
         sys: sys::timeout(timeout, future),
     }

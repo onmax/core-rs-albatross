@@ -80,6 +80,7 @@ nimiq-network-interface = { workspace = true }
 nimiq-primitives = { workspace = true, features = ["networks"] }
 nimiq-rpc-server = { workspace = true, optional = true }
 nimiq-serde = { workspace = true }
+nimiq-time = { workspace = true }
 nimiq-utils = { workspace = true, features = ["time", "key-store"] }
 nimiq-validator = { workspace = true, optional = true, features = [
     "trusted_push",

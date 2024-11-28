@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use futures::StreamExt as _;
 use log::info;
 use nimiq::prover::prover_main;
 pub use nimiq::{
@@ -13,6 +14,7 @@ pub use nimiq::{
         signal_handling::initialize_signal_handler,
     },
 };
+use nimiq_time::interval;
 use nimiq_utils::spawn;
 
 async fn main_inner() -> Result<(), Error> {
@@ -161,9 +163,9 @@ async fn main_inner() -> Result<(), Error> {
     }
 
     // Run periodically
-    let mut interval = tokio::time::interval(Duration::from_secs(statistics_interval));
+    let mut interval = interval(Duration::from_secs(statistics_interval));
     loop {
-        interval.tick().await;
+        interval.next().await;
 
         if show_statistics {
             match client.network().network_info().await {

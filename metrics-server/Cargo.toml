@@ -21,7 +21,7 @@ workspace = true
 
 [dependencies]
 bytes = "1.8"
-futures = "0.3"
+futures = { workspace = true }
 http-body-util = { version = "0.1" }
 hyper = { version = "1.5" }
 hyper-util = { version = "0.1", features = ["server-auto", "tokio"] }
@@ -44,6 +44,7 @@ nimiq-mempool = { workspace = true, features = ["metrics"] }
 nimiq-network-interface = { workspace = true }
 nimiq-network-libp2p = { workspace = true, features = ["metrics"] }
 nimiq-primitives = { workspace = true, features = ["coin"], optional = true }
+nimiq-time = { workspace = true }
 nimiq-utils = { workspace = true, features = ["spawn"] }
 
 [features]

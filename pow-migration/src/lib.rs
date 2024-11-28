@@ -20,7 +20,7 @@ use nimiq_keys::Address;
 use nimiq_primitives::networks::NetworkId;
 use nimiq_rpc::Client;
 use nimiq_serde::Serialize;
-use tokio::time::sleep;
+use nimiq_time::sleep;
 use types::GenesisValidator;
 
 use crate::{

@@ -16,13 +16,11 @@ use nimiq_rpc::{
     },
     Client,
 };
+use nimiq_time::sleep;
 use nimiq_transaction::{
     historic_transaction::HistoricTransaction, ExecutedTransaction, Transaction, TransactionFlags,
 };
-use tokio::{
-    sync::{mpsc, watch},
-    time::sleep,
-};
+use tokio::sync::{mpsc, watch};
 
 use crate::{async_retryer, types::HistoryError};
 

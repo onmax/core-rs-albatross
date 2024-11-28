@@ -7,6 +7,10 @@ path = "futures_executor::block_on"
 reason = "calling asynchronous code from synchronous code is almost always an error, use `tokio::runtime::Handle::current().block_on` if it's not an error"
 
 [[disallowed-methods]]
+path = "gloo_timers::future::sleep"
+reason = "use `nimiq_time::sleep` instead, it is also supported in non-WASM environments"
+
+[[disallowed-methods]]
 path = "tokio::task::spawn"
 reason = "use `nimiq_utils::spawn` instead, it is also supported in WASM environments"
 
@@ -17,6 +21,26 @@ reason = "use `nimiq_utils::spawn_local` instead, it is also supported in WASM e
 [[disallowed-methods]]
 path = "wasm_bindgen_futures::spawn_local"
 reason = "use `nimiq_utils::spawn` or `nimq_utils::spawn_local` instead, it is also supported in non-WASM environments"
+
+[[disallowed-methods]]
+path = "tokio::time::interval"
+reason = "use `nimiq_time::interval` instead, it is also supported in WASM environments"
+
+[[disallowed-methods]]
+path = "tokio::time::interval_at"
+reason = "use `nimiq_time::interval` instead, it is also supported in WASM environments"
+
+[[disallowed-methods]]
+path = "tokio::time::sleep"
+reason = "use `nimiq_time::sleep` instead, it is also supported in WASM environments"
+
+[[disallowed-methods]]
+path = "tokio::time::sleep_until"
+reason = "use `nimiq_time::sleep_until` instead, it is also supported in WASM environments"
+
+[[disallowed-methods]]
+path = "tokio::time::timeout"
+reason = "use `nimiq_time::timeout` instead, it is also supported in WASM environments"
 
 [[disallowed-types]]
 path = "futures_util::stream::FuturesUnordered"
@@ -29,3 +53,15 @@ reason = "use `nimiq_utils::stream::FuturesOrdered` instead, it does not need ma
 [[disallowed-types]]
 path = "futures_util::stream::SelectAll"
 reason = "use `nimiq_utils::stream::SelectAll` instead, it does not need manual `Waker`s"
+
+[[disallowed-types]]
+path = "futures_timer::Delay"
+reason = "use `nimiq_time::sleep` instead"
+
+[[disallowed-types]]
+path = "gloo_timers::future::IntervalStream"
+reason = "use `nimiq_time::interval` instead, it is also supported in non-WASM environments"
+
+[[disallowed-types]]
+path = "gloo_timers::future::TimeoutFuture"
+reason = "use `nimiq_time::timeout` instead, it is also supported in non-WASM environments"

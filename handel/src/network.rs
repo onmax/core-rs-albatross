@@ -200,6 +200,7 @@ mod test {
     use futures::FutureExt;
     use nimiq_collections::BitSet;
     use nimiq_test_log::test;
+    use nimiq_time::sleep;
     use parking_lot::Mutex;
     use serde::{Deserialize, Serialize};
 
@@ -239,7 +240,7 @@ mod test {
             self.0.lock().push((update, node_id));
 
             async move {
-                nimiq_time::sleep(Duration::from_millis(100)).await;
+                sleep(Duration::from_millis(100)).await;
                 Ok(())
             }
         }
@@ -296,7 +297,7 @@ mod test {
         // Clear the buffer so test starts from scratch
         t.lock().clear();
         // Needed because the send also sleeps
-        nimiq_time::sleep(Duration::from_millis(110)).await;
+        sleep(Duration::from_millis(110)).await;
 
         assert_eq!(0, t.lock().len());
         send(&mut sender, 0);
@@ -320,7 +321,7 @@ mod test {
         assert_eq!(10, t.lock().len());
 
         // Wait for the futures to resolve, imitating a delay
-        nimiq_time::sleep(Duration::from_millis(150)).await;
+        sleep(Duration::from_millis(150)).await;
         // Send some more
         send(&mut sender, 9); // Not a Duplicate, this should be accepted
         send(&mut sender, 8); // Not a Duplicate, this should be accepted

@@ -1,6 +1,8 @@
+use std::time::Duration;
+
+use nimiq_time::sleep;
 use nimiq_utils::spawn;
 use signal_hook::{consts::SIGINT, iterator::Signals};
-use tokio::time::{sleep, Duration};
 
 pub fn initialize_signal_handler() {
     let signals = Signals::new([SIGINT]);

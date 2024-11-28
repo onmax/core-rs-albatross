@@ -6,12 +6,10 @@ use std::{
     },
     rc::Rc,
     str::FromStr,
+    time::Duration,
 };
 
-use futures::{
-    future::{select, Either},
-    StreamExt,
-};
+use futures::StreamExt;
 use js_sys::{global, Array, Function, JsString};
 use log::level_filters::LevelFilter;
 use nimiq::client::ConsensusProxy;
@@ -30,6 +28,7 @@ use nimiq_network_interface::{
     Multiaddr,
 };
 use nimiq_primitives::policy::Policy;
+use nimiq_time::timeout;
 use nimiq_utils::spawn_local;
 use tokio::sync::oneshot;
 use tsify::Tsify;
@@ -609,18 +608,16 @@ impl Client {
         // Actually send the transaction
         consensus.send_transaction(tx.native()).await?;
 
-        let timeout = gloo_timers::future::TimeoutFuture::new(10_000);
+        // Wait for the transaction (will be Err(_) if the timeout is reached first)
+        let res = timeout(Duration::from_millis(10_000), receiver).await;
 
-        // Wait for the transaction (will be None if the timeout is reached first)
-        let res = select(receiver, timeout).await;
-
-        let maybe_details = if let Either::Left((res, _)) = res {
-            res.ok()
-        } else {
+        if res.is_err() {
             // If the timeout triggered, delete our oneshot sender
             self.transaction_oneshots.borrow_mut().remove(hash);
-            None
-        };
+        }
+
+        // Throw away the error.
+        let maybe_details = res.ok().and_then(|res| res.ok());
 
         drop(address_subscription);
 

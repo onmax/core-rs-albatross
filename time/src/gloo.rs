@@ -20,6 +20,7 @@ pub fn interval(period: Duration) -> Interval {
 pub type Sleep = SendWrapper<TimeoutFuture>;
 
 pub fn sleep(duration: Duration) -> Sleep {
+    #[allow(clippy::disallowed_types)]
     SendWrapper::new(TimeoutFuture::new(millis(duration)))
 }
 

@@ -21,11 +21,9 @@ use nimiq_pow_migration::{
 };
 use nimiq_primitives::networks::NetworkId;
 use nimiq_rpc::Client;
+use nimiq_time::sleep;
 use nimiq_utils::spawn;
-use tokio::{
-    sync::{mpsc, watch},
-    time::sleep,
-};
+use tokio::sync::{mpsc, watch};
 use url::Url;
 
 /// We check for online transactions every this amount of blocks

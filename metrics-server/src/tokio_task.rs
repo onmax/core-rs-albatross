@@ -1,5 +1,7 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use futures::StreamExt as _;
+use nimiq_time::interval;
 use parking_lot::RwLock;
 use prometheus_client::{metrics::gauge::Gauge, registry::Registry};
 use tokio_metrics::{TaskMetrics, TaskMonitor};
@@ -83,11 +85,11 @@ impl TokioTaskMetrics {
         runtime_monitor: TaskMonitor,
     ) {
         let tokio_task_metrics = tokio_task_metrics.clone();
-        let mut interval = tokio::time::interval(Duration::from_secs(TOKIO_METRICS_FREQ_SECS));
+        let mut interval = interval(Duration::from_secs(TOKIO_METRICS_FREQ_SECS));
         let mut runtime_intervals = runtime_monitor.intervals();
 
         loop {
-            interval.tick().await;
+            interval.next().await;
             if let Some(interval) = runtime_intervals.next() {
                 tokio_task_metrics
                     .write()

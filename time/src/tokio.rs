@@ -8,9 +8,11 @@ pub use self::tokio::{sleep, timeout, Sleep, Timeout};
 use crate::Instant;
 
 pub fn interval(period: Duration) -> Interval {
+    #[allow(clippy::disallowed_methods)]
     Interval::new(interval_at(tokio::Instant::now() + period, period))
 }
 
 pub fn sleep_until(deadline: Instant) -> Sleep {
+    #[allow(clippy::disallowed_methods)]
     tokio::sleep_until(tokio::Instant::from_std(deadline))
 }

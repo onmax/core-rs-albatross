@@ -1,5 +1,6 @@
 use std::{
     collections::{hash_map::Entry, BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
+    future::Future,
     net::IpAddr,
     pin::Pin,
     sync::Arc,
@@ -7,8 +8,7 @@ use std::{
     time::Duration,
 };
 
-use futures::{future::BoxFuture, Future, FutureExt, StreamExt};
-use instant::Instant;
+use futures::{FutureExt, StreamExt};
 use ip_network::IpNetwork;
 use libp2p::{
     core::{multiaddr::Protocol, transport::PortUse, ConnectedPoint, Endpoint},
@@ -21,7 +21,7 @@ use libp2p::{
     Multiaddr, PeerId, TransportError,
 };
 use nimiq_network_interface::{network::CloseReason, peer_info::Services};
-use nimiq_time::{interval, sleep_until, Interval};
+use nimiq_time::{interval, sleep_until, Instant, Interval, Sleep};
 use nimiq_utils::WakerExt as _;
 use parking_lot::RwLock;
 use rand::{seq::IteratorRandom, thread_rng};
@@ -102,7 +102,7 @@ struct ConnectionState<T> {
     /// List of subsequent banned peers with their unban deadlines in ascending order.
     unban_deadlines: VecDeque<(T, Instant)>,
     /// Deadline for first peer that can be unbanned.
-    unban_timeout: Option<(T, BoxFuture<'static, ()>)>,
+    unban_timeout: Option<(T, Pin<Box<Sleep>>)>,
     /// The time that needs to pass to unban a banned peer.
     ban_time: Duration,
     /// Set of connection IDs mark as failed.

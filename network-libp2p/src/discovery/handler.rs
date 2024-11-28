@@ -1,13 +1,13 @@
 use std::{
     collections::{HashSet, VecDeque},
+    future::Future as _,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker},
     time::Duration,
 };
 
-use futures::{FutureExt, Sink, SinkExt, StreamExt};
-use futures_timer::Delay;
+use futures::{Sink, SinkExt, StreamExt};
 use instant::Instant;
 use libp2p::{
     identity::Keypair,
@@ -24,7 +24,7 @@ use libp2p::{
 use nimiq_hash::Blake2bHash;
 use nimiq_network_interface::peer_info::Services;
 use nimiq_serde::DeserializeError;
-use nimiq_time::{interval, Interval};
+use nimiq_time::{interval, sleep, Interval, Sleep};
 use nimiq_utils::tagged_signing::TaggedKeyPair;
 use parking_lot::RwLock;
 use rand::{seq::IteratorRandom, thread_rng};
@@ -144,7 +144,7 @@ pub struct Handler {
     state: HandlerState,
 
     /// Future that fires on a state change timeout
-    state_timeout: Option<Delay>,
+    state_timeout: Option<Pin<Box<Sleep>>>,
 
     /// Services filter sent to us by this peer.
     services_filter: Services,
@@ -248,7 +248,7 @@ impl Handler {
     fn check_initialized(&mut self) {
         if self.inbound.is_some() && self.outbound.is_some() {
             self.state = HandlerState::SendHandshake;
-            self.state_timeout = Some(Delay::new(Self::STATE_TRANSITION_TIMEOUT));
+            self.state_timeout = Some(Box::pin(sleep(Self::STATE_TRANSITION_TIMEOUT)));
 
             self.waker
                 .take()
@@ -352,7 +352,7 @@ impl ConnectionHandler for Handler {
         loop {
             // Check if we hit the state transition timeout
             if let Some(ref mut state_timeout) = self.state_timeout {
-                if state_timeout.poll_unpin(cx).is_ready() {
+                if state_timeout.as_mut().poll(cx).is_ready() {
                     return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
                         HandlerOutEvent::Error(Error::StateTransitionTimeout { state: self.state }),
                     ));
@@ -382,7 +382,7 @@ impl ConnectionHandler for Handler {
                 HandlerState::Init => {
                     // Request outbound substream
                     self.state = HandlerState::OpenSubstream;
-                    self.state_timeout = Some(Delay::new(Self::STATE_TRANSITION_TIMEOUT));
+                    self.state_timeout = Some(Box::pin(sleep(Self::STATE_TRANSITION_TIMEOUT)));
 
                     return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
                         protocol: SubstreamProtocol::new(DiscoveryProtocol, ()),
@@ -417,7 +417,7 @@ impl ConnectionHandler for Handler {
                     }
 
                     self.state = HandlerState::ReceiveHandshake;
-                    self.state_timeout = Some(Delay::new(Self::STATE_TRANSITION_TIMEOUT));
+                    self.state_timeout = Some(Box::pin(sleep(Self::STATE_TRANSITION_TIMEOUT)));
                 }
 
                 HandlerState::ReceiveHandshake => {
@@ -483,7 +483,7 @@ impl ConnectionHandler for Handler {
 
                                     self.state = HandlerState::ReceiveHandshakeAck;
                                     self.state_timeout =
-                                        Some(Delay::new(Self::STATE_TRANSITION_TIMEOUT));
+                                        Some(Box::pin(sleep(Self::STATE_TRANSITION_TIMEOUT)));
 
                                     return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(
                                         HandlerOutEvent::ObservedAddress { observed_address },

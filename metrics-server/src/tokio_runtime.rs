@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use nimiq_time::interval;
 use parking_lot::RwLock;
 use prometheus_client::{metrics::gauge::Gauge, registry::Registry};
 use tokio_metrics::{RuntimeMetrics, RuntimeMonitor};
@@ -114,7 +115,7 @@ impl TokioRuntimeMetrics {
         runtime_monitor: RuntimeMonitor,
     ) {
         let tokio_rt_metrics = tokio_rt_metrics.clone();
-        let mut interval = tokio::time::interval(Duration::from_secs(TOKIO_METRICS_FREQ_SECS));
+        let mut interval = interval(Duration::from_secs(TOKIO_METRICS_FREQ_SECS));
         let mut runtime_intervals = runtime_monitor.intervals();
 
         loop {

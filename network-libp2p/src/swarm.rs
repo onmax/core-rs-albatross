@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::NonZeroU8, sync::Arc};
+use std::{collections::HashMap, num::NonZeroU8, sync::Arc, time::Duration};
 
 use futures::StreamExt;
 #[cfg(feature = "metrics")]
@@ -231,14 +231,14 @@ fn new_transport(
                 .upgrade(core::upgrade::Version::V1)
                 .authenticate(noise::Config::new(keypair).unwrap())
                 .multiplex(yamux)
-                .timeout(std::time::Duration::from_secs(20))
+                .timeout(Duration::from_secs(20))
                 .boxed())
         } else {
             Ok(transport
                 .upgrade(core::upgrade::Version::V1)
                 .authenticate(noise::Config::new(keypair).unwrap())
                 .multiplex(yamux)
-                .timeout(std::time::Duration::from_secs(20))
+                .timeout(Duration::from_secs(20))
                 .boxed())
         }
     } else {
@@ -271,14 +271,14 @@ fn new_transport(
                 .upgrade(core::upgrade::Version::V1)
                 .authenticate(noise::Config::new(keypair).unwrap())
                 .multiplex(yamux)
-                .timeout(std::time::Duration::from_secs(20))
+                .timeout(Duration::from_secs(20))
                 .boxed())
         } else {
             Ok(transport
                 .upgrade(core::upgrade::Version::V1)
                 .authenticate(noise::Config::new(keypair).unwrap())
                 .multiplex(yamux)
-                .timeout(std::time::Duration::from_secs(20))
+                .timeout(Duration::from_secs(20))
                 .boxed())
         }
     }

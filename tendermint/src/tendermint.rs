@@ -12,7 +12,7 @@ use futures::{
     stream::{BoxStream, Stream, StreamExt},
 };
 use nimiq_collections::BitSet;
-use nimiq_time::sleep;
+use nimiq_time::{sleep, Sleep};
 use nimiq_utils::stream::{FuturesUnordered, SelectAll};
 use rand::{thread_rng, Rng};
 use tokio::{sync::mpsc, time::Duration};
@@ -74,7 +74,7 @@ pub struct Tendermint<TProtocol: Protocol> {
 
     /// In case a timeout is required it will be stored here until elapsed or no longer necessary.
     /// Must be cleared in both cases.
-    pub(crate) timeout: Option<BoxFuture<'static, ()>>,
+    pub(crate) timeout: Option<Pin<Box<Sleep>>>,
 
     /// Keeps track of a state return that still needs to happen. Whenever a proposal is Rejected/Ignored/Accepted
     /// it will be returned as a stream item but the state change following it must be returned on the next call
@@ -169,7 +169,7 @@ impl<TProtocol: Protocol> Tendermint<TProtocol> {
                 TProtocol::TIMEOUT_INIT
                     + self.state.current_round as u64 * TProtocol::TIMEOUT_DELTA,
             );
-            self.timeout = Some(sleep(duration).boxed());
+            self.timeout = Some(Box::pin(sleep(duration)));
         }
     }
 
