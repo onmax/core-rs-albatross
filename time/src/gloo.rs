@@ -1,48 +1,66 @@
-use std::{convert::TryInto, future::Future, pin::pin, time::Duration};
+use std::{
+    convert::TryInto,
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+    time::Duration,
+};
 
-use futures::future::{select, Either};
 use gloo_timers::future::{IntervalStream, TimeoutFuture};
 use instant::Instant;
+use pin_project_lite::pin_project;
 use send_wrapper::SendWrapper;
 
 pub type Interval = SendWrapper<IntervalStream>;
 
 pub fn interval(period: Duration) -> Interval {
-    assert!(!period.is_zero());
-    let millis = period
-        .as_millis()
-        .try_into()
-        .expect("Period as millis must fit in u32");
-    SendWrapper::new(IntervalStream::new(millis))
+    SendWrapper::new(IntervalStream::new(millis(period)))
 }
 
-pub fn timeout<F: Future>(
-    duration: Duration,
-    future: F,
-) -> impl Future<Output = Result<F::Output, ()>> {
-    SendWrapper::new(timeout_inner(duration, future))
+pub type Sleep = SendWrapper<TimeoutFuture>;
+
+pub fn sleep(duration: Duration) -> Sleep {
+    SendWrapper::new(TimeoutFuture::new(millis(duration)))
 }
 
-async fn timeout_inner<F: Future>(duration: Duration, future: F) -> Result<F::Output, ()> {
-    let millis = duration
-        .as_millis()
-        .try_into()
-        .expect("Duration as millis must fit in u32");
-    let timeout = TimeoutFuture::new(millis);
-    match select(pin!(future), timeout).await {
-        Either::Left((res, _)) => Ok(res),
-        Either::Right(_) => Err(()),
+pub fn sleep_until(deadline: Instant) -> Sleep {
+    sleep(deadline.saturating_duration_since(Instant::now()))
+}
+
+pin_project! {
+    pub struct Timeout<F: Future> {
+        #[pin]
+        future: F,
+        #[pin]
+        deadline: Sleep,
     }
 }
 
-pub fn sleep(duration: Duration) -> impl Future<Output = ()> {
-    let millis = duration
-        .as_millis()
-        .try_into()
-        .expect("Duration as millis must fit in u32");
-    SendWrapper::new(TimeoutFuture::new(millis))
+pub fn timeout<F: Future>(duration: Duration, future: F) -> Timeout<F> {
+    Timeout {
+        future: future,
+        deadline: sleep(duration),
+    }
 }
 
-pub fn sleep_until(deadline: Instant) -> impl Future<Output = ()> {
-    sleep(deadline.saturating_duration_since(Instant::now()))
+impl<F: Future> Future for Timeout<F> {
+    type Output = Result<F::Output, ()>;
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<F::Output, ()>> {
+        let this = self.project();
+        if let Poll::Ready(result) = this.future.poll(cx) {
+            return Poll::Ready(Ok(result));
+        }
+        if let Poll::Ready(_) = this.deadline.poll(cx) {
+            return Poll::Ready(Err(()));
+        }
+        Poll::Pending
+    }
+}
+
+#[track_caller]
+fn millis(duration: Duration) -> u32 {
+    duration
+        .as_millis()
+        .try_into()
+        .expect("Period in milliseconds must fit into a u32")
 }

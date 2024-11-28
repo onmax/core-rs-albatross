@@ -4895,9 +4895,10 @@ dependencies = [
 name = "nimiq-time"
 version = "1.0.5"
 dependencies = [
- "futures",
+ "futures-util",
  "gloo-timers 0.3.0",
  "instant",
+ "pin-project-lite",
  "send_wrapper 0.6.0",
  "tokio",
  "tokio-stream",
