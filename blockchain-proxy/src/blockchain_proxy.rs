@@ -94,7 +94,7 @@ pub enum BlockchainReadProxy<'a> {
     Light(RwLockReadGuard<'a, LightBlockchain>),
 }
 
-impl<'a> AbstractBlockchain for BlockchainReadProxy<'a> {
+impl AbstractBlockchain for BlockchainReadProxy<'_> {
     fn network_id(&self) -> NetworkId {
         gen_blockchain_match!(self, BlockchainReadProxy, network_id)
     }

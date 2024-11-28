@@ -201,7 +201,7 @@ fn it_can_produce_micro_blocks_with_equivocation_proofs() {
         let equivocation_proofs = if reverse {
             equivocation_proofs.iter().cloned().rev().collect()
         } else {
-            equivocation_proofs.iter().cloned().collect()
+            equivocation_proofs.to_vec()
         };
 
         let time = Arc::new(OffsetTime::new());

@@ -243,7 +243,7 @@ pub trait Serialize: serde::Serialize {
             written: &'b mut usize,
             error: &'b mut Option<io::Error>,
         }
-        impl<'a, 'b, W: Write> postcard::ser_flavors::Flavor for Wrapper<'a, 'b, W> {
+        impl<W: Write> postcard::ser_flavors::Flavor for Wrapper<'_, '_, W> {
             type Output = ();
             fn try_push(&mut self, data: u8) -> postcard::Result<()> {
                 self.try_extend(&[data])

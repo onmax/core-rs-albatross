@@ -390,7 +390,7 @@ mod tests {
         ));
 
         assert_eq!(cache.len(), 2);
-        assert!(matches!(cache.get(&1), None));
+        assert!(cache.get(&1).is_none());
         assert!(matches!(cache.get(&2), Some(2)));
         assert!(matches!(cache.get(&3), Some(3)));
 

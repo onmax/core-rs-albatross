@@ -31,7 +31,7 @@ impl<'txn, Kind: TransactionKind, T: Table> MdbxCursor<'txn, Kind, T> {
     }
 }
 
-impl<'txn, Kind: TransactionKind, T: DupTable> MdbxCursor<'txn, Kind, T>
+impl<Kind: TransactionKind, T: DupTable> MdbxCursor<'_, Kind, T>
 where
     T::Value: DupTableValue,
 {
@@ -223,7 +223,7 @@ impl<'txn, Kind: TransactionKind, T: DupTable> DupReadCursor<'txn, T>
         let result: Option<DbKvPair> = self.cursor.get_current().unwrap();
 
         if let Some((key, _)) = result {
-            return self.cursor.iter_dup_of::<(), ()>(&key).count();
+            self.cursor.iter_dup_of::<(), ()>(&key).count()
         } else {
             0_usize
         }
@@ -238,7 +238,7 @@ impl<'txn, Kind: TransactionKind, T: DupTable> DupReadCursor<'txn, T>
     }
 }
 
-impl<'txn, Kind: TransactionKind, T: Table> Clone for MdbxCursor<'txn, Kind, T> {
+impl<Kind: TransactionKind, T: Table> Clone for MdbxCursor<'_, Kind, T> {
     fn clone(&self) -> Self {
         Self {
             cursor: self.cursor.clone(),
@@ -286,7 +286,7 @@ pub enum CursorProxy<'txn, T: Table> {
     Write(MdbxCursor<'txn, RW, T>),
 }
 
-impl<'txn, T: Table> Clone for CursorProxy<'txn, T> {
+impl<T: Table> Clone for CursorProxy<'_, T> {
     fn clone(&self) -> Self {
         match self {
             Self::Read(cursor) => Self::Read(cursor.clone()),

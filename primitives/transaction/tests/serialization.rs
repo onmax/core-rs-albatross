@@ -114,9 +114,9 @@ fn it_cannot_deserialize_webuath_proofs_exceeding_max_size() {
     let mut proof = SignatureProof::default();
     proof.webauthn_fields = Some(
         WebauthnExtraFields {
-            origin_json_str: format!("www.test.i.am.a.veeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeery.looooooooooooooooooooooooooong.url.auth.example/123456789/sadfuhijkddesjfhghjswakd"),
+            origin_json_str: "www.test.i.am.a.veeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeery.looooooooooooooooooooooooooong.url.auth.example/123456789/sadfuhijkddesjfhghjswakd".to_string(),
             has_cross_origin_field: false,
-            client_data_extra_json: format!("sdfgbhngfdsdfvhjndskldmjfnvhdskfngfdksadnfbghjdnksmjnfhbgdjksmjnfhbgjadfghnfdseawdfgdseawqdfgnhbgfdsawqSDFGFDSAWqaswdfgfdsawdfghfdseawqswDFGDSEAFGHNBGF"),
+            client_data_extra_json: "sdfgbhngfdsdfvhjndskldmjfnvhdskfngfdksadnfbghjdnksmjnfhbgdjksmjnfhbgjadfghnfdseawdfgdseawqdfgnhbgfdsawqSDFGFDSAWqaswdfgfdsawdfghfdseawqswDFGDSEAFGHNBGF".to_string(),
             authenticator_data_suffix: vec![0u8; 209] }
     );
 

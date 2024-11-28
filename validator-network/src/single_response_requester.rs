@@ -29,8 +29,8 @@ where
         FuturesUnordered<BoxFuture<'a, Result<<TRequest as RequestCommon>::Response, u16>>>,
 }
 
-impl<'a, TValidatorNetwork, TRequest, TOutput>
-    SingleResponseRequester<'a, TValidatorNetwork, TRequest, TOutput>
+impl<TValidatorNetwork, TRequest, TOutput>
+    SingleResponseRequester<'_, TValidatorNetwork, TRequest, TOutput>
 where
     TValidatorNetwork: ValidatorNetwork + 'static,
     TRequest: Request + Clone,
@@ -87,8 +87,8 @@ where
     }
 }
 
-impl<'a, TValidatorNetwork, TRequest, TOutput> Future
-    for SingleResponseRequester<'a, TValidatorNetwork, TRequest, TOutput>
+impl<TValidatorNetwork, TRequest, TOutput> Future
+    for SingleResponseRequester<'_, TValidatorNetwork, TRequest, TOutput>
 where
     TValidatorNetwork: ValidatorNetwork + 'static,
     TRequest: Request + Clone,

@@ -13,7 +13,7 @@ pub struct IntoIter<'txn, Kind: TransactionKind, T: Table> {
     pub(super) _t: PhantomData<T>,
 }
 
-impl<'txn, Kind: TransactionKind, T: Table> Iterator for IntoIter<'txn, Kind, T> {
+impl<Kind: TransactionKind, T: Table> Iterator for IntoIter<'_, Kind, T> {
     type Item = Row<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -33,7 +33,7 @@ pub enum IntoIterProxy<'txn, T: Table> {
     Write(IntoIter<'txn, RW, T>),
 }
 
-impl<'txn, T: Table> Iterator for IntoIterProxy<'txn, T> {
+impl<T: Table> Iterator for IntoIterProxy<'_, T> {
     type Item = Row<T>;
 
     fn next(&mut self) -> Option<Self::Item> {

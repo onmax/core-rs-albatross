@@ -48,7 +48,7 @@ impl Debug for MacroState {
 
 /// A simple wrapper to use `Display` instead of `Debug`.
 struct DisplayWrapper<'a, T>(&'a T);
-impl<'a, T> Debug for DisplayWrapper<'a, T>
+impl<T> Debug for DisplayWrapper<'_, T>
 where
     T: Display,
 {
@@ -59,7 +59,7 @@ where
 }
 
 struct BestVotes<'a>(&'a BTreeMap<(u32, Step), TendermintContribution>);
-impl<'a> Debug for BestVotes<'a> {
+impl Debug for BestVotes<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Use the `Display` implementation for `TendermintContribution` instead.
         f.debug_map()
@@ -69,7 +69,7 @@ impl<'a> Debug for BestVotes<'a> {
 }
 
 struct Votes<'a>(&'a BTreeMap<(u32, Step), Option<Blake2sHash>>);
-impl<'a> Debug for Votes<'a> {
+impl Debug for Votes<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Use short representations for the hashes instead.
         f.debug_map()

@@ -537,7 +537,7 @@ fn accounts_performance_history_sync_batches_single_sender() {
     let recipient_balances = vec![0; total_txns as usize];
     let mut genesis_builder = GenesisBuilder::default();
     genesis_builder.with_network(NetworkId::UnitAlbatross);
-    let rewards = vec![];
+    let rewards = [];
 
     // Generate accounts
     let recipient_accounts =
@@ -666,7 +666,7 @@ fn accounts_performance_history_sync_batches_many_to_many() {
     let recipient_balances = vec![10; total_txns as usize];
     let mut genesis_builder = GenesisBuilder::default();
     genesis_builder.with_network(NetworkId::UnitAlbatross);
-    let rewards = vec![];
+    let rewards = [];
 
     // Generate accounts
     let recipient_accounts =

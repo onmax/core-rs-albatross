@@ -429,7 +429,7 @@ mod serde_derive {
 
     struct KeyNibblesBytesVisitor;
 
-    impl<'de> Visitor<'de> for KeyNibblesBytesVisitor {
+    impl Visitor<'_> for KeyNibblesBytesVisitor {
         type Value = KeyNibblesBytes;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

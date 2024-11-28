@@ -573,8 +573,8 @@ async fn send_n_request_to_succeed(net1: &Arc<Network>, net2: &Arc<Network>, n: 
 async fn send_n_request_to_fail(net1: &Arc<Network>, net2: &Arc<Network>, n: u32) {
     for i in 0..n {
         let test_request = TestRequest4 { request: 42 };
-        let net1 = Arc::clone(&net1);
-        let net2 = Arc::clone(&net2);
+        let net1 = Arc::clone(net1);
+        let net2 = Arc::clone(net2);
         assert!(net2.has_peer(net1.get_local_peer_id()));
         log::info!("Fail {:?}, {:?}", i, Instant::now());
 

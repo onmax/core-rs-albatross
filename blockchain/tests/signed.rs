@@ -123,7 +123,7 @@ fn test_replay() {
     });
 
     // verify commit - this should fail
-    assert!(!TendermintProof::verify(&block, &validators));
+    assert!(!TendermintProof::verify(&block, validators));
 
     // create the same thing again but for the PreCommit round
     let vote = TendermintVote {
@@ -154,5 +154,5 @@ fn test_replay() {
     });
 
     // verify commit - this should not fail as this time it is the correct round
-    assert!(TendermintProof::verify(&block, &validators));
+    assert!(TendermintProof::verify(&block, validators));
 }

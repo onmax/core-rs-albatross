@@ -48,7 +48,7 @@ fn main() {
     let path = &PathBuf::from(DEFAULT_EXAMPLE_ZKP_PATH);
 
     ZKP_VERIFYING_DATA
-        .init_with_data(load_verifying_data(&path).expect("No keys in current directory"));
+        .init_with_data(load_verifying_data(path).expect("No keys in current directory"));
 
     // Ask user for the number of epochs.
     println!("Enter the number of epochs to verify:");

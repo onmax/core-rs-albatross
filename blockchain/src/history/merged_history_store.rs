@@ -731,10 +731,10 @@ mod tests {
     }
 
     fn gen_hist_txs() -> Vec<HistoricTransaction> {
-        let start_block_number = Policy::genesis_block_number() + 0;
-        let ext_0 = create_transaction(start_block_number + 0, 0);
-        let ext_1 = create_transaction(start_block_number + 0, 1);
-        let ext_2 = create_reward_inherent(start_block_number + 0, 2);
+        let start_block_number = Policy::genesis_block_number();
+        let ext_0 = create_transaction(start_block_number, 0);
+        let ext_1 = create_transaction(start_block_number, 1);
+        let ext_2 = create_reward_inherent(start_block_number, 2);
 
         let ext_3 = create_transaction(start_block_number + 1, 3);
         let ext_4 = create_reward_inherent(start_block_number + 1, 4);

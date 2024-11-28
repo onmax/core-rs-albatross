@@ -27,7 +27,7 @@ fn prune_epoch_micro_blocks() {
         producer
             .next_micro_block(
                 &bc_read,
-                &bc_read.time.now() + 1_u64 * 1000,
+                &bc_read.time.now() + 1000,
                 vec![],
                 vec![],
                 vec![0x42],
@@ -40,7 +40,7 @@ fn prune_epoch_micro_blocks() {
         producer
             .next_micro_block(
                 &bc_read,
-                bc_read.time.now() + 1_u64 * 100,
+                bc_read.time.now() + 100,
                 vec![],
                 vec![],
                 vec![0x32],
@@ -53,7 +53,7 @@ fn prune_epoch_micro_blocks() {
         producer
             .next_micro_block(
                 &bc_read,
-                bc_read.time.now() + 1_u64 * 10000,
+                bc_read.time.now() + 10000,
                 vec![],
                 vec![],
                 vec![0x82],

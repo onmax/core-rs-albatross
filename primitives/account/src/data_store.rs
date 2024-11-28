@@ -59,13 +59,13 @@ pub struct DataStoreRead<'store, 'tree, 'txn, 'env> {
     txn: &'txn MdbxReadTransaction<'env>,
 }
 
-impl<'store, 'tree, 'txn, 'env> DataStoreReadOps for DataStoreRead<'store, 'tree, 'txn, 'env> {
+impl DataStoreReadOps for DataStoreRead<'_, '_, '_, '_> {
     fn get<T: Deserialize>(&self, key: &KeyNibbles) -> Option<T> {
         self.store.get(self.txn, key)
     }
 }
 
-impl<'store, 'tree, 'txn, 'env> DataStoreIterOps for DataStoreRead<'store, 'tree, 'txn, 'env> {
+impl<'txn> DataStoreIterOps for DataStoreRead<'_, '_, 'txn, '_> {
     type Iter<T: Deserialize> = TrieNodeIter<'txn, AccountsTrieTable, T>;
 
     fn iter<T: Deserialize>(&self, start_key: &KeyNibbles, end_key: &KeyNibbles) -> Self::Iter<T> {
@@ -82,7 +82,7 @@ pub struct DataStoreWrite<'store, 'tree, 'txn, 'txni, 'env> {
     txn: &'txn mut WriteTransactionProxy<'txni, 'env>,
 }
 
-impl<'store, 'tree, 'txn, 'txni, 'env> DataStoreWrite<'store, 'tree, 'txn, 'txni, 'env> {
+impl DataStoreWrite<'_, '_, '_, '_, '_> {
     pub fn get<T: Deserialize>(&self, key: &KeyNibbles) -> Option<T> {
         self.store.get(self.txn, key)
     }

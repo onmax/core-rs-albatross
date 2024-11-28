@@ -79,13 +79,13 @@ impl Policy {
     /// be honest).
     /// It is calculated as `ceil(SLOTS*2/3)` and we use the formula `ceil(x/y) = (x+y-1)/y` for the
     /// ceiling division.
-    pub const TWO_F_PLUS_ONE: u16 = (2 * Self::SLOTS + 3 - 1) / 3;
+    pub const TWO_F_PLUS_ONE: u16 = (2 * Self::SLOTS).div_ceil(3);
 
     /// Calculates f+1 slots which is the minimum number of slots necessary to be guaranteed to have at
     /// least one honest slots. That's because from a total of 3f+1 slots at most f will be malicious.
     /// It is calculated as `ceil(SLOTS/3)` and we use the formula `ceil(x/y) = (x+y-1)/y` for the
     /// ceiling division.
-    pub const F_PLUS_ONE: u16 = (Self::SLOTS + 3 - 1) / 3;
+    pub const F_PLUS_ONE: u16 = Self::SLOTS.div_ceil(3);
 
     /// The minimum timeout in milliseconds for a validator to produce a block (4s)
     pub const MIN_PRODUCER_TIMEOUT: u64 = 4 * 1000;
@@ -239,7 +239,7 @@ impl Policy {
         } else {
             let block_number = block_number - Self::genesis_block_number();
             let blocks_per_epoch = Self::blocks_per_epoch();
-            (block_number + blocks_per_epoch - 1) / blocks_per_epoch
+            block_number.div_ceil(blocks_per_epoch)
         }
     }
 
@@ -268,7 +268,7 @@ impl Policy {
         } else {
             let block_number = block_number - Self::genesis_block_number();
             let blocks_per_batch = Self::blocks_per_batch();
-            (block_number + blocks_per_batch - 1) / blocks_per_batch
+            block_number.div_ceil(blocks_per_batch)
         }
     }
 
@@ -717,13 +717,11 @@ mod tests {
         assert_eq!(Policy::batch_at(Policy::genesis_block_number()), 0);
         assert_eq!(Policy::batch_at(1 + Policy::genesis_block_number()), 1);
         assert_eq!(
-            Policy::batch_at(Policy::blocks_per_batch() as u32 + Policy::genesis_block_number()),
+            Policy::batch_at(Policy::blocks_per_batch() + Policy::genesis_block_number()),
             1
         );
         assert_eq!(
-            Policy::batch_at(
-                Policy::blocks_per_batch() as u32 + Policy::genesis_block_number() + 1
-            ),
+            Policy::batch_at(Policy::blocks_per_batch() + Policy::genesis_block_number() + 1),
             2
         );
     }
@@ -752,135 +750,85 @@ mod tests {
     #[test]
     fn it_correctly_computes_block_positions() {
         initialize_policy();
-        assert_eq!(
-            Policy::is_macro_block_at(Policy::genesis_block_number()),
-            true
-        );
-        assert_eq!(
-            !Policy::is_micro_block_at(Policy::genesis_block_number()),
-            true
-        );
-        assert_eq!(
-            Policy::is_election_block_at(Policy::genesis_block_number()),
-            true
-        );
+        assert!(Policy::is_macro_block_at(Policy::genesis_block_number()));
+        assert!(!Policy::is_micro_block_at(Policy::genesis_block_number()));
+        assert!(Policy::is_election_block_at(Policy::genesis_block_number()));
 
-        assert_eq!(
-            Policy::is_macro_block_at(1 + Policy::genesis_block_number()),
-            false
-        );
-        assert_eq!(
-            !Policy::is_micro_block_at(1 + Policy::genesis_block_number()),
-            false
-        );
-        assert_eq!(
-            Policy::is_election_block_at(1 + Policy::genesis_block_number()),
-            false
-        );
+        assert!(!Policy::is_macro_block_at(
+            1 + Policy::genesis_block_number()
+        ));
+        assert!(Policy::is_micro_block_at(
+            1 + Policy::genesis_block_number()
+        ));
+        assert!(!Policy::is_election_block_at(
+            1 + Policy::genesis_block_number()
+        ));
 
-        assert_eq!(
-            Policy::is_macro_block_at(2 + Policy::genesis_block_number()),
-            false
-        );
-        assert_eq!(
-            !Policy::is_micro_block_at(2 + Policy::genesis_block_number()),
-            false
-        );
-        assert_eq!(
-            Policy::is_election_block_at(2 + Policy::genesis_block_number()),
-            false
-        );
+        assert!(!Policy::is_macro_block_at(
+            2 + Policy::genesis_block_number()
+        ));
+        assert!(Policy::is_micro_block_at(
+            2 + Policy::genesis_block_number()
+        ));
+        assert!(!Policy::is_election_block_at(
+            2 + Policy::genesis_block_number()
+        ));
 
-        assert_eq!(
-            Policy::is_macro_block_at(
-                Policy::blocks_per_batch() as u32 + Policy::genesis_block_number()
-            ),
-            true
-        );
-        assert_eq!(
-            Policy::is_micro_block_at(
-                Policy::blocks_per_batch() as u32 + Policy::genesis_block_number()
-            ),
-            false
-        );
-        assert_eq!(
-            Policy::is_election_block_at(
-                Policy::blocks_per_batch() as u32 + Policy::genesis_block_number()
-            ),
-            false
-        );
+        assert!(Policy::is_macro_block_at(
+            Policy::blocks_per_batch() + Policy::genesis_block_number()
+        ));
+        assert!(!Policy::is_micro_block_at(
+            Policy::blocks_per_batch() + Policy::genesis_block_number()
+        ));
+        assert!(!Policy::is_election_block_at(
+            Policy::blocks_per_batch() + Policy::genesis_block_number()
+        ));
 
-        assert_eq!(
-            Policy::is_macro_block_at(127 + Policy::genesis_block_number()),
-            false
-        );
-        assert_eq!(
-            !Policy::is_micro_block_at(127 + Policy::genesis_block_number()),
-            false
-        );
-        assert_eq!(
-            Policy::is_election_block_at(127 + Policy::genesis_block_number()),
-            false
-        );
+        assert!(!Policy::is_macro_block_at(
+            127 + Policy::genesis_block_number()
+        ));
+        assert!(Policy::is_micro_block_at(
+            127 + Policy::genesis_block_number()
+        ));
+        assert!(!Policy::is_election_block_at(
+            127 + Policy::genesis_block_number()
+        ));
 
-        assert_eq!(
-            Policy::is_macro_block_at(Policy::blocks_per_epoch() + Policy::genesis_block_number()),
-            true
-        );
-        assert_eq!(
-            !Policy::is_micro_block_at(Policy::blocks_per_epoch() + Policy::genesis_block_number()),
-            true
-        );
-        assert_eq!(
-            Policy::is_election_block_at(
-                Policy::blocks_per_epoch() + Policy::genesis_block_number()
-            ),
-            true
-        );
+        assert!(Policy::is_macro_block_at(
+            Policy::blocks_per_epoch() + Policy::genesis_block_number()
+        ));
+        assert!(!Policy::is_micro_block_at(
+            Policy::blocks_per_epoch() + Policy::genesis_block_number()
+        ));
+        assert!(Policy::is_election_block_at(
+            Policy::blocks_per_epoch() + Policy::genesis_block_number()
+        ));
 
-        assert_eq!(
-            Policy::is_macro_block_at(
-                Policy::blocks_per_epoch() + Policy::genesis_block_number() + 1
-            ),
-            false
-        );
-        assert_eq!(
-            !Policy::is_micro_block_at(
-                Policy::blocks_per_epoch() + Policy::genesis_block_number() + 1
-            ),
-            false
-        );
-        assert_eq!(
-            Policy::is_election_block_at(
-                Policy::blocks_per_epoch() + Policy::genesis_block_number() + 1
-            ),
-            false
-        );
+        assert!(!Policy::is_macro_block_at(
+            Policy::blocks_per_epoch() + Policy::genesis_block_number() + 1
+        ));
+        assert!(Policy::is_micro_block_at(
+            Policy::blocks_per_epoch() + Policy::genesis_block_number() + 1
+        ));
+        assert!(!Policy::is_election_block_at(
+            Policy::blocks_per_epoch() + Policy::genesis_block_number() + 1
+        ));
 
-        assert_eq!(
-            Policy::is_macro_block_at(
-                Policy::blocks_per_epoch()
-                    + Policy::blocks_per_batch() as u32
-                    + Policy::genesis_block_number()
-            ),
-            true
-        );
-        assert_eq!(
-            Policy::is_micro_block_at(
-                Policy::blocks_per_epoch()
-                    + Policy::blocks_per_batch() as u32
-                    + Policy::genesis_block_number()
-            ),
-            false
-        );
-        assert_eq!(
-            Policy::is_election_block_at(
-                Policy::blocks_per_epoch()
-                    + Policy::blocks_per_batch() as u32
-                    + Policy::genesis_block_number()
-            ),
-            false
-        );
+        assert!(Policy::is_macro_block_at(
+            Policy::blocks_per_epoch()
+                + Policy::blocks_per_batch()
+                + Policy::genesis_block_number()
+        ));
+        assert!(!Policy::is_micro_block_at(
+            Policy::blocks_per_epoch()
+                + Policy::blocks_per_batch()
+                + Policy::genesis_block_number()
+        ));
+        assert!(!Policy::is_election_block_at(
+            Policy::blocks_per_epoch()
+                + Policy::blocks_per_batch()
+                + Policy::genesis_block_number()
+        ));
     }
 
     #[test]
@@ -888,11 +836,11 @@ mod tests {
         initialize_policy();
         assert_eq!(
             Policy::macro_block_after(Policy::genesis_block_number()),
-            Policy::genesis_block_number() + Policy::blocks_per_batch() as u32
+            Policy::genesis_block_number() + Policy::blocks_per_batch()
         );
         assert_eq!(
             Policy::macro_block_after(1 + Policy::genesis_block_number()),
-            Policy::genesis_block_number() + Policy::blocks_per_batch() as u32
+            Policy::genesis_block_number() + Policy::blocks_per_batch()
         );
         assert_eq!(
             Policy::macro_block_after(127 + Policy::genesis_block_number()),
@@ -1071,34 +1019,21 @@ mod tests {
     #[test]
     fn it_correctly_computes_first_batch_of_epoch() {
         initialize_policy();
-        assert_eq!(
-            Policy::first_batch_of_epoch(1 + Policy::genesis_block_number()),
-            true
-        );
-        assert_eq!(
-            Policy::first_batch_of_epoch(
-                Policy::blocks_per_batch() as u32 + Policy::genesis_block_number()
-            ),
-            true
-        );
-        assert_eq!(
-            Policy::first_batch_of_epoch(
-                Policy::blocks_per_batch() as u32 + 1 + Policy::genesis_block_number()
-            ),
-            false
-        );
-        assert_eq!(
-            Policy::first_batch_of_epoch(
-                Policy::blocks_per_epoch() + Policy::genesis_block_number()
-            ),
-            false
-        );
-        assert_eq!(
-            Policy::first_batch_of_epoch(
-                Policy::blocks_per_epoch() + 1 + Policy::genesis_block_number()
-            ),
-            true
-        );
+        assert!(Policy::first_batch_of_epoch(
+            1 + Policy::genesis_block_number()
+        ));
+        assert!(Policy::first_batch_of_epoch(
+            Policy::blocks_per_batch() + Policy::genesis_block_number()
+        ));
+        assert!(!Policy::first_batch_of_epoch(
+            Policy::blocks_per_batch() + 1 + Policy::genesis_block_number()
+        ));
+        assert!(!Policy::first_batch_of_epoch(
+            Policy::blocks_per_epoch() + Policy::genesis_block_number()
+        ));
+        assert!(Policy::first_batch_of_epoch(
+            Policy::blocks_per_epoch() + 1 + Policy::genesis_block_number()
+        ));
     }
 
     #[test]
@@ -1132,28 +1067,18 @@ mod tests {
         );
 
         // No macro blocks before genesis
-        assert_eq!(Policy::is_macro_block_at(1), false);
-        assert_eq!(
-            Policy::is_macro_block_at(Policy::genesis_block_number()),
-            true
-        );
+        assert!(!Policy::is_macro_block_at(1));
+        assert!(Policy::is_macro_block_at(Policy::genesis_block_number()));
 
         // No micro blocks before genesis
-        assert_eq!(
-            Policy::is_micro_block_at(Policy::genesis_block_number() - 20),
-            false
-        );
-        assert_eq!(Policy::is_micro_block_at(15), false);
+        assert!(!Policy::is_micro_block_at(
+            Policy::genesis_block_number() - 20
+        ));
+        assert!(!Policy::is_micro_block_at(15));
 
         // Genesis is a macro/election block
-        assert_eq!(
-            Policy::is_macro_block_at(Policy::genesis_block_number()),
-            true
-        );
-        assert_eq!(
-            Policy::is_election_block_at(Policy::genesis_block_number()),
-            true
-        );
+        assert!(Policy::is_macro_block_at(Policy::genesis_block_number()));
+        assert!(Policy::is_election_block_at(Policy::genesis_block_number()));
 
         // The next macro for any pre-genesis block is the genesis itself
         assert_eq!(Policy::macro_block_after(0), Policy::genesis_block_number());

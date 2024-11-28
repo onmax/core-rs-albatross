@@ -71,10 +71,8 @@ pub async fn create_mock_validator_network(n: usize, dial: bool) -> Vec<MockNetw
 #[cfg(test)]
 pub mod tests {
     use futures::{Stream, StreamExt};
-    use nimiq_keys::{KeyPair, SecureGenerate};
     use nimiq_network_interface::network::{Network, NetworkEvent, SubscribeEvents, Topic};
     use nimiq_test_log::test;
-    use nimiq_test_utils::test_rng::test_rng;
     use nimiq_utils::{spawn, tagged_signing::TaggedSignable};
     use serde::{Deserialize, Serialize};
 

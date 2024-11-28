@@ -74,7 +74,7 @@ impl<'a, H: Clone, S: Store<H>> MemoryTransaction<'a, H, S> {
     pub fn abort(self) {}
 }
 
-impl<'a, H: Clone, S: Store<H>> Store<H> for MemoryTransaction<'a, H, S> {
+impl<H: Clone, S: Store<H>> Store<H> for MemoryTransaction<'_, H, S> {
     fn push(&mut self, elem: H) {
         self.data.push(elem);
     }

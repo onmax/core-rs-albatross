@@ -9,7 +9,7 @@ use nimiq_database::{
 };
 use pprof::criterion::{Output, PProfProfiler};
 
-const TABLE: &'static str = "bench";
+const TABLE: &str = "bench";
 
 criterion_group! {
     name = pruning_benches;
@@ -68,7 +68,7 @@ fn measure_table_pruning(group: &mut BenchmarkGroup<'_, WallTime>, size: usize) 
             let mut txn = db.write_transaction();
 
             for (key, value) in &preload {
-                let _ = txn.put(&table, key, value);
+                txn.put(&table, key, value);
             }
 
             txn.commit();

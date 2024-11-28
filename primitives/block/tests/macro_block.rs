@@ -15,7 +15,7 @@ fn test_next_interlink() {
         }
     }
 
-    let block2 = create_interlink_macro_block(2, &vec![]);
+    let block2 = create_interlink_macro_block(2, &[]);
     let block3_interlink = vec![block2.hash()];
     assert_eq!(block2.get_next_interlink().unwrap(), block3_interlink);
     let block3 = create_interlink_macro_block(3, &block3_interlink);

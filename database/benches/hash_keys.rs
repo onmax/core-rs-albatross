@@ -14,7 +14,7 @@ use rand::{
     thread_rng, Rng,
 };
 
-const TABLE: &'static str = "bench";
+const TABLE: &str = "bench";
 
 criterion_group! {
     name = benches;
@@ -158,7 +158,7 @@ fn measure_table_insertion<K: Eq + PartialEq + PartialOrd + Ord + Hash + Clone +
                 let mut txn = db.write_transaction();
 
                 for (key, value) in &preload {
-                    let _ = txn.put(&table, key, value);
+                    txn.put(&table, key, value);
                 }
 
                 txn.commit();

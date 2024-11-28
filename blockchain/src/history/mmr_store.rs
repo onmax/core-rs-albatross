@@ -116,7 +116,7 @@ fn get_size(
     }
 }
 
-impl<'a, 'env> Store<Blake2bHash> for MMRStore<'a, 'env> {
+impl Store<Blake2bHash> for MMRStore<'_, '_> {
     fn push(&mut self, elem: Blake2bHash) {
         // This function assumes that there is no higher epoch.
         // Otherwise the append method will fail.

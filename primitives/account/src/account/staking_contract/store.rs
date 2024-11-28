@@ -54,9 +54,7 @@ impl<'read, T: DataStoreReadOps> StakingContractStoreRead<'read, T> {
     }
 }
 
-impl<'read, T: DataStoreReadOps> StakingContractStoreReadOps
-    for StakingContractStoreRead<'read, T>
-{
+impl<T: DataStoreReadOps> StakingContractStoreReadOps for StakingContractStoreRead<'_, T> {
     fn get_validator(&self, address: &Address) -> Option<Validator> {
         self.0.get(&StakingContractStore::validator_key(address))
     }
@@ -70,7 +68,7 @@ impl<'read, T: DataStoreReadOps> StakingContractStoreReadOps
     }
 }
 
-impl<'read, T: DataStoreReadOps + DataStoreIterOps> StakingContractStoreRead<'read, T> {
+impl<T: DataStoreReadOps + DataStoreIterOps> StakingContractStoreRead<'_, T> {
     pub(crate) fn iter_stakers(&self) -> impl Iterator<Item = Staker> {
         self.0.iter(
             &StakingContractStore::staker_key(&Address::START_ADDRESS),
@@ -128,9 +126,7 @@ impl<'write, 'store, 'tree, 'txn, 'txni, 'env>
 }
 
 #[cfg(feature = "interaction-traits")]
-impl<'write, 'store, 'tree, 'txn, 'txni, 'env> StakingContractStoreReadOps
-    for StakingContractStoreWrite<'write, 'store, 'tree, 'txn, 'txni, 'env>
-{
+impl StakingContractStoreReadOps for StakingContractStoreWrite<'_, '_, '_, '_, '_, '_> {
     fn get_validator(&self, address: &Address) -> Option<Validator> {
         self.0.get(&StakingContractStore::validator_key(address))
     }

@@ -355,7 +355,7 @@ impl SerializeContent for String {
     }
 }
 
-impl<'a, T: SerializeContent + ?Sized> SerializeContent for &'a T {
+impl<T: SerializeContent + ?Sized> SerializeContent for &T {
     fn serialize_content<W: io::Write, H: HashOutput>(&self, writer: &mut W) -> io::Result<()> {
         (**self).serialize_content::<W, H>(writer)
     }

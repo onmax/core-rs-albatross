@@ -20,7 +20,7 @@ pub(crate) trait TransactionExt {
     fn get_node<T: TrieTable>(&self, db: &T, key: &KeyNibbles) -> Option<TrieNode>;
 }
 
-impl<'db> TransactionExt for MdbxReadTransaction<'db> {
+impl TransactionExt for MdbxReadTransaction<'_> {
     fn get_node<T: TrieTable>(&self, db: &T, key: &KeyNibbles) -> Option<TrieNode> {
         let mut node: TrieNode = self.get(db, key)?;
         node.key = key.clone();
@@ -28,7 +28,7 @@ impl<'db> TransactionExt for MdbxReadTransaction<'db> {
     }
 }
 
-impl<'txn, 'env> TransactionExt for WriteTransactionProxy<'txn, 'env> {
+impl TransactionExt for WriteTransactionProxy<'_, '_> {
     fn get_node<T: TrieTable>(&self, table: &T, key: &KeyNibbles) -> Option<TrieNode> {
         self.raw.get_node(table, key)
     }
@@ -60,7 +60,7 @@ impl<'txn, 'env> From<&'txn mut MdbxWriteTransaction<'env>> for WriteTransaction
     }
 }
 
-impl<'txn, 'env> WriteTransactionProxy<'txn, 'env> {
+impl<'env> WriteTransactionProxy<'_, 'env> {
     pub fn start_recording(&mut self) {
         assert!(self.diff.is_none(), "cannot stack change recordings");
         self.diff = Some(Default::default());
@@ -118,7 +118,7 @@ impl<'txn, 'env> WriteTransactionProxy<'txn, 'env> {
     }
 }
 
-impl<'txn, 'env> ops::Deref for WriteTransactionProxy<'txn, 'env> {
+impl<'env> ops::Deref for WriteTransactionProxy<'_, 'env> {
     type Target = MdbxWriteTransaction<'env>;
     fn deref(&self) -> &MdbxWriteTransaction<'env> {
         self.raw

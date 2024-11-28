@@ -20,7 +20,7 @@ pub const fn num_inputs<P: Pairing>(num_bytes: &[usize]) -> usize {
     let mut i = 0;
     loop {
         // ceiling div: (self + rhs - 1) / rhs
-        num_inputs += (num_bytes[i] * 8 + capacity - 1) / capacity;
+        num_inputs += (num_bytes[i] * 8).div_ceil(capacity);
         i += 1;
         if i >= num_bytes.len() {
             break;

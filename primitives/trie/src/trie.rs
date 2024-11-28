@@ -1607,7 +1607,7 @@ pub struct TrieNodeIter<'txn, T: TrieTable, D> {
     _type: PhantomData<D>,
 }
 
-impl<'txn, T: TrieTable, D> TrieNodeIter<'txn, T, D> {
+impl<T: TrieTable, D> TrieNodeIter<'_, T, D> {
     /// This iterator is meant to start at `start_key` and finish at `end_key`, both of these are inclusive.
     fn new(
         table: &T,
@@ -1625,7 +1625,7 @@ impl<'txn, T: TrieTable, D> TrieNodeIter<'txn, T, D> {
     }
 }
 
-impl<'txn, T: TrieTable, D: Deserialize> Iterator for TrieNodeIter<'txn, T, D> {
+impl<T: TrieTable, D: Deserialize> Iterator for TrieNodeIter<'_, T, D> {
     type Item = D;
 
     fn next(&mut self) -> Option<Self::Item> {

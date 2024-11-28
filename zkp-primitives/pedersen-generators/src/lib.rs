@@ -46,7 +46,7 @@ const fn num_windows() -> usize {
     let capacity = POINT_CAPACITY;
 
     let generators_needed_a = 4; // At least this much is required for the non-leaf nodes.
-    let generators_needed_b = (num_bits_per_leaf + capacity - 1) / capacity + 1;
+    let generators_needed_b = num_bits_per_leaf.div_ceil(capacity) + 1;
 
     // Choose maximum.
     if generators_needed_a > generators_needed_b {

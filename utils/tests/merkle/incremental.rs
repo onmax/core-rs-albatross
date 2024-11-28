@@ -315,7 +315,7 @@ fn it_correctly_computes_more_complex_proofs() {
         for chunk_size in 1..end {
             let chunks = incremental(&values[..end], chunk_size);
 
-            assert_eq!(chunks.len(), (end + chunk_size - 1) / chunk_size);
+            assert_eq!(chunks.len(), end.div_ceil(chunk_size));
 
             // Verify each chunk.
             let mut prev_proof = None;

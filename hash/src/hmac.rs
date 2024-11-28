@@ -8,7 +8,7 @@ enum Key<'a> {
     Owned([u8; SHA512_LENGTH]),
 }
 
-impl<'a> Key<'a> {
+impl Key<'_> {
     fn get(&self, index: usize) -> Option<u8> {
         match self {
             Key::Borrowed(key) => key.get(index),

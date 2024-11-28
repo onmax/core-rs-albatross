@@ -198,7 +198,7 @@ impl Verifier {
         keys: &Arc<RwLock<BTreeMap<Address, <KeyPair as TaggedKeyPair>::PublicKey>>>,
     ) -> Self {
         Self {
-            keys: Arc::clone(&keys),
+            keys: Arc::clone(keys),
         }
     }
 }
@@ -234,7 +234,7 @@ impl dht::Verifier for Verifier {
             .ok_or(dht::DhtVerifierError::UnknownValidator(validator_address))?;
 
         validator_record
-            .verify(&public_key)
+            .verify(public_key)
             .then(|| {
                 dht::DhtRecord::Validator(
                     record.publisher.unwrap(),

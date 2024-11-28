@@ -46,7 +46,7 @@ fn revert_block(temp_producer: &TemporaryBlockProducer, hist_tx_pre: &[HistoricT
     blockchain.revert_blocks(1, &mut txn).unwrap();
     txn.commit();
 
-    let hist_tx_revert = get_hist_tx(&temp_producer);
+    let hist_tx_revert = get_hist_tx(temp_producer);
 
     assert_eq!(hist_tx_pre, &hist_tx_revert);
 }
@@ -215,7 +215,7 @@ fn add_block_assert_history_store(
     is_skip_block: bool,
 ) -> (Vec<HistoricTransaction>, Vec<HistoricTransaction>) {
     // Get initial history store.
-    let hist_tx_pre = get_hist_tx(&temp_producer1);
+    let hist_tx_pre = get_hist_tx(temp_producer1);
 
     // Add a block with the equivocation proofs.
     let skip_block_proof = if is_skip_block {
@@ -244,7 +244,7 @@ fn add_block_assert_history_store(
     );
 
     // Get the new history store after the block push.
-    let hist_tx_after = get_hist_tx(&temp_producer1);
+    let hist_tx_after = get_hist_tx(temp_producer1);
 
     // Assert that the jail inherent and equivocation proofs are present in history store.
     // There is 1 inherent and 1 event generated per equivocation proof.

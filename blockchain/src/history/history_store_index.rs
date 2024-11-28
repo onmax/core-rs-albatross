@@ -600,7 +600,7 @@ impl<'txn> TxHashIterator<'txn> {
     }
 }
 
-impl<'txn> Iterator for TxHashIterator<'txn> {
+impl Iterator for TxHashIterator<'_> {
     type Item = Blake2bHash;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -829,15 +829,9 @@ mod tests {
         history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 1, &hist_txs);
 
         // Those transactions should be part of the valitidy window
-        assert_eq!(
-            history_store.tx_in_validity_window(&ext_0.tx_hash(), Some(&txn)),
-            true
-        );
+        assert!(history_store.tx_in_validity_window(&ext_0.tx_hash(), Some(&txn)));
 
-        assert_eq!(
-            history_store.tx_in_validity_window(&ext_1.tx_hash(), Some(&txn)),
-            true
-        );
+        assert!(history_store.tx_in_validity_window(&ext_1.tx_hash(), Some(&txn)));
 
         // Now keep pushing transactions to the history store until we are past the transaction validity window
         let validity_window_blocks = Policy::transaction_validity_window_blocks();
@@ -850,33 +844,21 @@ mod tests {
             history_store.add_to_history(
                 &mut txn,
                 Policy::genesis_block_number() + bn,
-                &vec![historic_txn],
+                &[historic_txn],
             );
         }
 
         // Since we are past the txn in validity window, the first two transaction should no longer be in it
-        assert_eq!(
-            history_store.tx_in_validity_window(&ext_0.tx_hash(), Some(&txn)),
-            false
-        );
+        assert!(!history_store.tx_in_validity_window(&ext_0.tx_hash(), Some(&txn)));
 
-        assert_eq!(
-            history_store.tx_in_validity_window(&ext_1.tx_hash(), Some(&txn)),
-            false
-        );
+        assert!(!history_store.tx_in_validity_window(&ext_1.tx_hash(), Some(&txn)));
 
         for txn_hash in &txn_hashes[..8] {
-            assert_eq!(
-                history_store.tx_in_validity_window(txn_hash, Some(&txn)),
-                false
-            );
+            assert!(!history_store.tx_in_validity_window(txn_hash, Some(&txn)));
         }
 
         for txn_hash in &txn_hashes[8..] {
-            assert_eq!(
-                history_store.tx_in_validity_window(txn_hash, Some(&txn)),
-                true
-            );
+            assert!(history_store.tx_in_validity_window(txn_hash, Some(&txn)));
         }
     }
 
@@ -891,12 +873,12 @@ mod tests {
 
         // Add historic transactions to History Store.
         let mut txn = env.write_transaction();
-        history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 0, &hist_txs[..3]);
+        history_store.add_to_history(&mut txn, Policy::genesis_block_number(), &hist_txs[..3]);
         history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 2, &hist_txs[3..]);
 
         // Verify method works.
         let real_root_0 =
-            history_store.get_history_tree_root(Policy::genesis_block_number() + 0, Some(&txn));
+            history_store.get_history_tree_root(Policy::genesis_block_number(), Some(&txn));
         let calc_root_0 = HistoryStore::_root_from_hist_txs(&hist_txs[..3]);
 
         assert_eq!(real_root_0, calc_root_0);
@@ -919,7 +901,7 @@ mod tests {
 
         // Add historic transactions to History Store.
         let mut txn = env.write_transaction();
-        history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 0, &hist_txs[..3]);
+        history_store.add_to_history(&mut txn, Policy::genesis_block_number(), &hist_txs[..3]);
         history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 2, &hist_txs[3..]);
 
         let hashes: Vec<_> = hist_txs.iter().map(|hist_tx| hist_tx.tx_hash()).collect();
@@ -967,7 +949,7 @@ mod tests {
 
         // Add historic transactions to History Store.
         let mut txn = env.write_transaction();
-        history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 0, &hist_txs[..3]);
+        history_store.add_to_history(&mut txn, Policy::genesis_block_number(), &hist_txs[..3]);
         history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 2, &hist_txs[3..]);
 
         // Verify method works. Note that the block transactions are returned in the same
@@ -1127,7 +1109,7 @@ mod tests {
 
         // Add historic transactions to History Store.
         let mut txn = env.write_transaction();
-        history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 0, &hist_txs[..3]);
+        history_store.add_to_history(&mut txn, Policy::genesis_block_number(), &hist_txs[..3]);
         history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 2, &hist_txs[3..]);
 
         // Verify method works.
@@ -1231,7 +1213,7 @@ mod tests {
 
         // Add historic transactions to History Store.
         let mut txn = env.write_transaction();
-        history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 0, &hist_txs[..3]);
+        history_store.add_to_history(&mut txn, Policy::genesis_block_number(), &hist_txs[..3]);
         history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 2, &hist_txs[3..]);
 
         // Verify method works.
@@ -1259,7 +1241,7 @@ mod tests {
 
         // Add historic transactions to History Store.
         let mut txn = env.write_transaction();
-        history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 0, &hist_txs[..3]);
+        history_store.add_to_history(&mut txn, Policy::genesis_block_number(), &hist_txs[..3]);
         history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 2, &hist_txs[3..]);
 
         // Verify method works.
@@ -1334,14 +1316,14 @@ mod tests {
 
         // Add historic transactions to History Store.
         let mut txn = env.write_transaction();
-        history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 0, &hist_txs[..3]);
+        history_store.add_to_history(&mut txn, Policy::genesis_block_number(), &hist_txs[..3]);
         history_store.add_to_history(&mut txn, Policy::genesis_block_number() + 2, &hist_txs[3..]);
 
         let hashes: Vec<_> = hist_txs.iter().map(|hist_tx| hist_tx.tx_hash()).collect();
 
         // Verify method works.
         let root = history_store
-            .get_history_tree_root(Policy::genesis_block_number() + 0, Some(&txn))
+            .get_history_tree_root(Policy::genesis_block_number(), Some(&txn))
             .unwrap();
 
         let proof = history_store
@@ -1405,7 +1387,7 @@ mod tests {
 
         // Verify method works.
         let root = history_store
-            .get_history_tree_root(Policy::genesis_block_number() + 0, Some(&txn))
+            .get_history_tree_root(Policy::genesis_block_number(), Some(&txn))
             .unwrap();
 
         let proof = history_store.prove(0, vec![], None, Some(&txn)).unwrap();
@@ -1561,9 +1543,9 @@ mod tests {
 
     fn gen_hist_txs() -> Vec<HistoricTransaction> {
         let genesis_block_number = Policy::genesis_block_number();
-        let ext_0 = create_transaction(genesis_block_number + 0, 0);
-        let ext_1 = create_transaction(genesis_block_number + 0, 1);
-        let ext_2 = create_reward_inherent(genesis_block_number + 0, 2);
+        let ext_0 = create_transaction(genesis_block_number, 0);
+        let ext_1 = create_transaction(genesis_block_number, 1);
+        let ext_2 = create_reward_inherent(genesis_block_number, 2);
 
         let ext_3 = create_transaction(genesis_block_number + 1, 3);
         let ext_4 = create_reward_inherent(genesis_block_number + 1, 4);

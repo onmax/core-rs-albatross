@@ -43,7 +43,7 @@ async fn validator_update() {
     let tx = TransactionBuilder::new_update_validator(
         &validator_key(),
         &validator_key(),
-        Some(new_signing_key.public.clone()),
+        Some(new_signing_key.public),
         Some(&new_voting_key),
         None,
         None,
