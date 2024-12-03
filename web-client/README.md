@@ -7,10 +7,33 @@ as its Javascript environments.
 
 ## Running the example
 
+### Requisites for every OS
+
+You must have Node installed. Follow [these instructions](https://nodejs.org/en/download/package-manager) to install it.
+
+### Requisites for MAC-OS systems
+
+On MAC-OS there are special requirements.
+
+1. Install and add LLVM Clang to the path (The Clang shipped with your system doesn't have support enabled for
+   `wasm32_unknown_unknown`):
+   1. Install LLVM Clang: `brew install llvm`.
+   2. Add it to the `PATH`: `export PATH="/opt/homebrew/opt/llvm/bin:$PATH"` (and remember to add it to your
+      `.zshrc` or `.bashrc` for future uses).
+   3. Verify the installation: `llvm-config --version`.
+2. Install GNU sed (The sed shipped with your system is very old and the script below assumes newer versions):
+   1. Install `sed`: `brew install gnu-sed`.
+   2. Add it to the `PATH`: `export PATH="/opt/homebrew/opt/gnu-sed/libexec/gnubi:$PATH"` (and remember to add it to your
+      `.zshrc` or `.bashrc` for future uses).
+   3. Verify the installation: `sed --version`.
+
+
+### Steps for every system
+
 To run the example, first build the web-client by running the following script from this directory:
 
 ```sh
-./scripts/build.sh --only web
+./scripts/build.sh --only web,types
 ```
 
 This script builds the `web` wasm-bindgen target and generates the corresponding JS bindings required
