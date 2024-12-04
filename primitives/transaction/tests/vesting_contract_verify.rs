@@ -39,6 +39,7 @@ fn it_can_verify_creation_transaction() {
         AccountType::verify_incoming_transaction(&transaction),
         Err(TransactionError::InvalidData)
     );
+    CreationTransactionData::parse_data(&data, transaction.value).unwrap();
     transaction.recipient_data = data;
 
     // Invalid recipient
@@ -70,6 +71,7 @@ fn it_can_verify_creation_transaction() {
     Serialize::serialize_to_writer(&100u64.to_be_bytes(), &mut data);
     Serialize::serialize_to_writer(&100u64.to_be_bytes(), &mut data);
     Serialize::serialize_to_writer(&Coin::try_from(100).unwrap(), &mut data);
+    CreationTransactionData::parse_data(&data, transaction.value).unwrap();
     transaction.recipient_data = data;
     transaction.recipient = transaction.contract_creation_address();
     assert_eq!(
@@ -85,6 +87,7 @@ fn it_can_verify_creation_transaction() {
     Serialize::serialize_to_writer(&100u64.to_be_bytes(), &mut data);
     Serialize::serialize_to_writer(&Coin::try_from(100).unwrap(), &mut data);
     Serialize::serialize_to_writer(&Coin::try_from(100).unwrap(), &mut data);
+    CreationTransactionData::parse_data(&data, transaction.value).unwrap();
     transaction.recipient_data = data;
     transaction.recipient = transaction.contract_creation_address();
     assert_eq!(
