@@ -1,4 +1,4 @@
-use nimiq_serde::Deserialize;
+use nimiq_primitives::coin::Coin;
 use nimiq_transaction::account::vesting_contract::CreationTransactionData;
 use wasm_bindgen::prelude::*;
 
@@ -18,8 +18,11 @@ pub struct VestingContract;
 impl VestingContract {
     /// Parses the data of a Vesting Contract creation transaction into a plain object.
     #[wasm_bindgen(js_name = dataToPlain)]
-    pub fn data_to_plain(data: &[u8]) -> Result<PlainTransactionRecipientDataType, JsError> {
-        let plain = VestingContract::parse_data(data)?;
+    pub fn data_to_plain(
+        data: &[u8],
+        tx_value: u64,
+    ) -> Result<PlainTransactionRecipientDataType, JsError> {
+        let plain = VestingContract::parse_data(data, tx_value)?;
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 
@@ -32,8 +35,11 @@ impl VestingContract {
 }
 
 impl VestingContract {
-    pub fn parse_data(bytes: &[u8]) -> Result<PlainTransactionRecipientData, JsError> {
-        let data = CreationTransactionData::deserialize_all(bytes)?;
+    pub fn parse_data(
+        bytes: &[u8],
+        tx_value: u64,
+    ) -> Result<PlainTransactionRecipientData, JsError> {
+        let data = CreationTransactionData::parse_data(bytes, Coin::try_from(tx_value)?)?;
 
         Ok(PlainTransactionRecipientData::Vesting(PlainVestingData {
             raw: hex::encode(bytes),

@@ -114,7 +114,7 @@ struct CreationTransactionData32 {
 }
 
 impl CreationTransactionData {
-    fn parse_impl(data: &[u8], tx_value: Coin) -> Result<Self, TransactionError> {
+    pub fn parse_data(data: &[u8], tx_value: Coin) -> Result<Self, TransactionError> {
         Ok(match data.len() {
             CreationTransactionData8::SIZE => {
                 // Only timestamp: vest full amount at that time
@@ -163,7 +163,7 @@ impl CreationTransactionData {
         })
     }
     pub fn parse(tx: &Transaction) -> Result<Self, TransactionError> {
-        CreationTransactionData::parse_impl(&tx.recipient_data, tx.value)
+        CreationTransactionData::parse_data(&tx.recipient_data, tx.value)
     }
 
     pub fn to_tx_data(&self) -> Vec<u8> {
