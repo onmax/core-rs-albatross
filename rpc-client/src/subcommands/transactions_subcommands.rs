@@ -328,6 +328,18 @@ pub enum TransactionCommand {
         #[clap(short, long, default_value_t)]
         validity_start_height: ValidityStartHeight,
     },
+
+    /// Deserializes the given transaction and prints its details.
+    GetRawTransactionInfo {
+        /// The transaction to be sent in hex string format.
+        raw_tx: String,
+    },
+
+    /// Sends the given serialized transaction to the network.
+    SendRawTransaction {
+        /// The transaction to be sent in hex string format.
+        raw_tx: String,
+    },
 }
 
 impl TransactionCommand {
@@ -826,6 +838,14 @@ impl HandleSubcommand for TransactionCommand {
                         validity_start_height,
                     )
                     .await?;
+                println!("{tx:#?}");
+            }
+            TransactionCommand::GetRawTransactionInfo { raw_tx } => {
+                let tx = client.consensus.get_raw_transaction_info(raw_tx).await?;
+                println!("{tx:#?}");
+            }
+            TransactionCommand::SendRawTransaction { raw_tx } => {
+                let tx = client.consensus.send_raw_transaction(raw_tx).await?;
                 println!("{tx:#?}");
             }
         }
