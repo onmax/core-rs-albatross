@@ -31,8 +31,17 @@ hex = "0.4"
 http = { version = "1", optional = true }
 http-body-util = { version = "0.1", optional = true }
 hyper = { version = "1", default-features = false, optional = true }
-hyper-rustls = { version = "0.27", features = ["native-tokio", "http1", "tls12", "logging", "ring"], default-features = false, optional = true }
-hyper-util = { version = "0.1", default-features = false, features = ["client-legacy", "tokio"], optional = true }
+hyper-rustls = { version = "0.27", features = [
+    "native-tokio",
+    "http1",
+    "tls12",
+    "logging",
+    "ring",
+], default-features = false, optional = true }
+hyper-util = { version = "0.1", default-features = false, features = [
+    "client-legacy",
+    "tokio",
+], optional = true }
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 log = { workspace = true }
 log-panics = { version = "2.1", features = ["with-backtrace"], optional = true }
@@ -118,7 +127,6 @@ full-consensus = [
     "nimiq-dht",
     "nimiq-network-libp2p/kad",
 ]
-launcher = []
 logging = ["nimiq-log", "serde_json", "tokio", "tracing-subscriber"]
 loki = ["logging", "tracing-loki"]
 metrics-server = [

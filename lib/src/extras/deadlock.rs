@@ -2,6 +2,8 @@ use std::{thread, time::Duration};
 
 use parking_lot::deadlock;
 
+// This code is not being used. We want to keep it for possible future reactivation.
+// The deadlock detection was giving too many false positives.
 pub fn initialize_deadlock_detection() {
     // Create a background thread which checks for deadlocks every 10s
     thread::spawn(move || loop {

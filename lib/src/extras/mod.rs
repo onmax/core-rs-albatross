@@ -2,8 +2,6 @@
 pub mod deadlock;
 #[cfg(feature = "dht-fallback")]
 pub mod dht_fallback;
-#[cfg(feature = "launcher")]
-pub mod launcher;
 #[cfg(feature = "logging")]
 pub mod logging;
 #[cfg(feature = "metrics-server")]
