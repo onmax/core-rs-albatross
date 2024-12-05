@@ -72,7 +72,7 @@ impl AccountTransactionVerification for VestingContractVerifier {
 pub struct CreationTransactionData {
     /// The owner of the contract, the only address that can interact with it.
     pub owner: Address,
-    /// The block height at which the release schedule starts.
+    /// The timestamp at which the release schedule starts.
     pub start_time: u64,
     /// The frequency at which funds are released.
     pub time_step: u64,
@@ -117,7 +117,7 @@ impl CreationTransactionData {
     pub fn parse_data(data: &[u8], tx_value: Coin) -> Result<Self, TransactionError> {
         Ok(match data.len() {
             CreationTransactionData8::SIZE => {
-                // Only timestamp: vest full amount at that time
+                // Only step length: vest full amount at that time
                 let CreationTransactionData8 { owner, time_step } =
                     CreationTransactionData8::deserialize_all(data)?;
                 CreationTransactionData {
@@ -162,8 +162,8 @@ impl CreationTransactionData {
             _ => return Err(TransactionError::InvalidData),
         })
     }
-    pub fn parse(tx: &Transaction) -> Result<Self, TransactionError> {
-        CreationTransactionData::parse_data(&tx.recipient_data, tx.value)
+    pub fn parse(transaction: &Transaction) -> Result<Self, TransactionError> {
+        CreationTransactionData::parse_data(&transaction.recipient_data, transaction.value)
     }
 
     pub fn to_tx_data(&self) -> Vec<u8> {
@@ -195,6 +195,120 @@ impl CreationTransactionData {
                 total_amount,
             }
             .serialize_to_vec()
+        }
+    }
+}
+
+/// Data used to create vesting contracts in PoW.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct PoWCreationTransactionData {
+    /// The owner of the contract, the only address that can interact with it.
+    pub owner: Address,
+    /// The block height at which the release schedule starts.
+    pub start_block: u32,
+    /// The frequency at which funds are released.
+    pub step_blocks: u32,
+    /// The amount released at each [`step_blocks`](Self::step_blocks).
+    pub step_amount: Coin,
+    /// Initially locked balance.
+    pub total_amount: Coin,
+}
+
+#[derive(Deserialize, Serialize, SerializedSize)]
+struct PoWCreationTransactionData4 {
+    pub owner: Address,
+    #[serde(with = "nimiq_serde::fixint::be")]
+    #[serialize_size(fixed_size)]
+    pub step_blocks: u32,
+}
+#[derive(Deserialize, Serialize, SerializedSize)]
+struct PoWCreationTransactionData16 {
+    pub owner: Address,
+    #[serde(with = "nimiq_serde::fixint::be")]
+    #[serialize_size(fixed_size)]
+    pub start_block: u32,
+    #[serde(with = "nimiq_serde::fixint::be")]
+    #[serialize_size(fixed_size)]
+    pub step_blocks: u32,
+    pub step_amount: Coin,
+}
+#[derive(Deserialize, Serialize, SerializedSize)]
+struct PoWCreationTransactionData24 {
+    pub owner: Address,
+    #[serde(with = "nimiq_serde::fixint::be")]
+    #[serialize_size(fixed_size)]
+    pub start_block: u32,
+    #[serde(with = "nimiq_serde::fixint::be")]
+    #[serialize_size(fixed_size)]
+    pub step_blocks: u32,
+    pub step_amount: Coin,
+    pub total_amount: Coin,
+}
+
+impl PoWCreationTransactionData {
+    pub fn parse_data(data: &[u8], tx_value: Coin) -> Result<Self, TransactionError> {
+        Ok(match data.len() {
+            PoWCreationTransactionData4::SIZE => {
+                // Only step length: vest full amount at that block
+                let PoWCreationTransactionData4 { owner, step_blocks } =
+                    PoWCreationTransactionData4::deserialize_all(data)?;
+                PoWCreationTransactionData {
+                    owner,
+                    start_block: 1, // PoW genesis block number
+                    step_blocks,
+                    step_amount: tx_value,
+                    total_amount: tx_value,
+                }
+            }
+            PoWCreationTransactionData16::SIZE => {
+                let PoWCreationTransactionData16 {
+                    owner,
+                    start_block,
+                    step_blocks,
+                    step_amount,
+                } = PoWCreationTransactionData16::deserialize_all(data)?;
+                PoWCreationTransactionData {
+                    owner,
+                    start_block,
+                    step_blocks,
+                    step_amount,
+                    total_amount: tx_value,
+                }
+            }
+            PoWCreationTransactionData24::SIZE => {
+                let PoWCreationTransactionData24 {
+                    owner,
+                    start_block,
+                    step_blocks,
+                    step_amount,
+                    total_amount,
+                } = PoWCreationTransactionData24::deserialize_all(data)?;
+                PoWCreationTransactionData {
+                    owner,
+                    start_block,
+                    step_blocks,
+                    step_amount,
+                    total_amount,
+                }
+            }
+            _ => return Err(TransactionError::InvalidData),
+        })
+    }
+
+    pub fn into_pos(self, genesis_number: u32, genesis_timestamp: u64) -> CreationTransactionData {
+        let start_time = if self.start_block <= genesis_number {
+            genesis_timestamp - (genesis_number - self.start_block) as u64 * 60_000
+        } else {
+            genesis_timestamp + (self.start_block - genesis_number) as u64 * 60_000
+        };
+        let time_step = self.step_blocks as u64 * 60_000;
+
+        CreationTransactionData {
+            owner: self.owner,
+            start_time,
+            time_step,
+            step_amount: self.step_amount,
+            total_amount: self.total_amount,
         }
     }
 }

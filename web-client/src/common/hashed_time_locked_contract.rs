@@ -1,7 +1,7 @@
 use nimiq_keys::{PublicKey, Signature};
 use nimiq_serde::Deserialize;
 use nimiq_transaction::account::htlc_contract::{
-    AnyHash, CreationTransactionData, OutgoingHTLCTransactionProof,
+    AnyHash, CreationTransactionData, OutgoingHTLCTransactionProof, PoWCreationTransactionData,
 };
 use wasm_bindgen::prelude::*;
 
@@ -22,7 +22,7 @@ impl HashedTimeLockedContract {
     /// Parses the data of a Hashed Time Locked Contract creation transaction into a plain object.
     #[wasm_bindgen(js_name = dataToPlain)]
     pub fn data_to_plain(data: &[u8]) -> Result<PlainTransactionRecipientDataType, JsError> {
-        let plain = HashedTimeLockedContract::parse_data(data)?;
+        let plain = HashedTimeLockedContract::parse_data(data, false)?;
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 
@@ -35,8 +35,15 @@ impl HashedTimeLockedContract {
 }
 
 impl HashedTimeLockedContract {
-    pub fn parse_data(bytes: &[u8]) -> Result<PlainTransactionRecipientData, JsError> {
-        let data = CreationTransactionData::deserialize_all(bytes)?;
+    pub fn parse_data(
+        bytes: &[u8],
+        as_pow: bool,
+    ) -> Result<PlainTransactionRecipientData, JsError> {
+        let data = if as_pow {
+            PoWCreationTransactionData::parse_data(bytes)?.into_pos()
+        } else {
+            CreationTransactionData::parse_data(bytes)?
+        };
 
         Ok(PlainTransactionRecipientData::Htlc(PlainHtlcData {
             raw: hex::encode(bytes),

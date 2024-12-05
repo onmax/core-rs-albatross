@@ -1,5 +1,7 @@
 use nimiq_primitives::coin::Coin;
-use nimiq_transaction::account::vesting_contract::CreationTransactionData;
+use nimiq_transaction::account::vesting_contract::{
+    CreationTransactionData, PoWCreationTransactionData,
+};
 use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "primitives")]
@@ -22,7 +24,7 @@ impl VestingContract {
         data: &[u8],
         tx_value: u64,
     ) -> Result<PlainTransactionRecipientDataType, JsError> {
-        let plain = VestingContract::parse_data(data, tx_value)?;
+        let plain = VestingContract::parse_data(data, Coin::try_from(tx_value)?, false)?;
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 
@@ -37,9 +39,14 @@ impl VestingContract {
 impl VestingContract {
     pub fn parse_data(
         bytes: &[u8],
-        tx_value: u64,
+        tx_value: Coin,
+        as_pow: bool,
     ) -> Result<PlainTransactionRecipientData, JsError> {
-        let data = CreationTransactionData::parse_data(bytes, Coin::try_from(tx_value)?)?;
+        let data = if as_pow {
+            PoWCreationTransactionData::parse_data(bytes, tx_value)?.into_pos()
+        } else {
+            CreationTransactionData::parse_data(bytes, tx_value)?
+        };
 
         Ok(PlainTransactionRecipientData::Vesting(PlainVestingData {
             raw: hex::encode(bytes),

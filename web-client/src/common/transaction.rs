@@ -6,11 +6,7 @@ use nimiq_primitives::policy::Policy;
 use nimiq_primitives::{account::AccountType, coin::Coin, networks::NetworkId};
 use nimiq_serde::{Deserialize, Serialize};
 use nimiq_transaction::{
-    account::{
-        staking_contract::OutgoingStakingTransactionData,
-        vesting_contract::CreationTransactionData as VestingCreationTransactionData,
-    },
-    TransactionFormat,
+    account::staking_contract::OutgoingStakingTransactionData, TransactionFormat,
 };
 #[cfg(feature = "client")]
 use nimiq_transaction::{
@@ -26,6 +22,7 @@ use wasm_bindgen::prelude::*;
 #[cfg(feature = "primitives")]
 use wasm_bindgen_derive::TryFromJsValue;
 
+use super::vesting_contract::VestingContract;
 use crate::common::{
     address::Address,
     hashed_time_locked_contract::HashedTimeLockedContract,
@@ -479,16 +476,55 @@ impl Transaction {
                     // Parse transaction data
                     StakingContract::parse_data(&self.inner.recipient_data).unwrap()
                 } else if self.inner.recipient_type == AccountType::Vesting {
-                    let data = VestingCreationTransactionData::parse(&self.inner).unwrap();
-                    PlainTransactionRecipientData::Vesting(PlainVestingData {
-                        raw: hex::encode(self.recipient_data()),
-                        owner: data.owner.to_user_friendly_address(),
-                        start_time: data.start_time,
-                        step_amount: data.step_amount.into(),
-                        time_step: data.time_step,
-                    })
+                    match self.inner.network_id {
+                        NetworkId::Bounty
+                        | NetworkId::Dev
+                        | NetworkId::Dummy
+                        | NetworkId::Main
+                        | NetworkId::Test => {
+                            // In PoW transactions, the start and step fields were a u32 block numbers, which we'll
+                            // convert to u64 timestamp and millisecond here.
+                            VestingContract::parse_data(
+                                &self.inner.recipient_data,
+                                self.inner.value,
+                                true,
+                            )
+                            .unwrap()
+                        }
+                        NetworkId::DevAlbatross
+                        | NetworkId::MainAlbatross
+                        | NetworkId::TestAlbatross
+                        | NetworkId::UnitAlbatross => {
+                            // PoS transactions need no special treatment.
+                            VestingContract::parse_data(
+                                &self.inner.recipient_data,
+                                self.inner.value,
+                                false,
+                            )
+                            .unwrap()
+                        }
+                    }
                 } else if self.inner.recipient_type == AccountType::HTLC {
-                    HashedTimeLockedContract::parse_data(&self.inner.recipient_data).unwrap()
+                    match self.inner.network_id {
+                        NetworkId::Bounty
+                        | NetworkId::Dev
+                        | NetworkId::Dummy
+                        | NetworkId::Main
+                        | NetworkId::Test => {
+                            // In PoW transactions, the timeout field was a u32 block height, which we'll convert
+                            // to a u64 timestamp here.
+                            HashedTimeLockedContract::parse_data(&self.inner.recipient_data, true)
+                                .unwrap()
+                        }
+                        NetworkId::DevAlbatross
+                        | NetworkId::MainAlbatross
+                        | NetworkId::TestAlbatross
+                        | NetworkId::UnitAlbatross => {
+                            // PoS transactions need no special treatment.
+                            HashedTimeLockedContract::parse_data(&self.inner.recipient_data, false)
+                                .unwrap()
+                        }
+                    }
                 } else {
                     PlainTransactionRecipientData::Raw(PlainRawData {
                         raw: hex::encode(self.recipient_data()),
@@ -508,6 +544,7 @@ impl Transaction {
                         | NetworkId::Dummy
                         | NetworkId::Main
                         | NetworkId::Test => {
+                            // TODO: Handle HTLC redeeming proofs differently, as they need more than just a generic zero-byte prefix
                             // PoW transactions need an extra 0 byte prepended to the proof as the webauthn_fields
                             // were added in PoS and the option will always be None for PoW transactions.
                             let mut proof = vec![0];

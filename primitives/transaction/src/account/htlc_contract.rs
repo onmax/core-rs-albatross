@@ -212,8 +212,12 @@ pub struct CreationTransactionData {
 }
 
 impl CreationTransactionData {
+    pub fn parse_data(data: &[u8]) -> Result<Self, TransactionError> {
+        Ok(Self::deserialize_all(data)?)
+    }
+
     pub fn parse(transaction: &Transaction) -> Result<Self, TransactionError> {
-        Ok(Self::deserialize_all(&transaction.recipient_data)?)
+        Self::parse_data(&transaction.recipient_data)
     }
 
     pub fn verify(&self) -> Result<(), TransactionError> {
@@ -222,6 +226,42 @@ impl CreationTransactionData {
             return Err(TransactionError::InvalidData);
         }
         Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct PoWCreationTransactionData {
+    pub sender: Address,
+    pub recipient: Address,
+    pub hash_root: AnyHash,
+    pub hash_count: u8,
+    #[serde(with = "nimiq_serde::fixint::be")]
+    pub timeout: u32, // Block height
+}
+
+impl PoWCreationTransactionData {
+    pub fn parse_data(data: &[u8]) -> Result<Self, TransactionError> {
+        Ok(Self::deserialize_all(data)?)
+    }
+
+    pub fn parse(transaction: &Transaction) -> Result<Self, TransactionError> {
+        Self::parse_data(&transaction.recipient_data)
+    }
+
+    pub fn into_pos(self, genesis_number: u32, genesis_timestamp: u64) -> CreationTransactionData {
+        let timeout = if self.timeout <= genesis_number {
+            genesis_timestamp - (genesis_number - self.timeout) as u64 * 60_000
+        } else {
+            genesis_timestamp + (self.timeout - genesis_number) as u64 * 60_000
+        };
+
+        CreationTransactionData {
+            sender: self.sender,
+            recipient: self.recipient,
+            hash_root: self.hash_root,
+            hash_count: self.hash_count,
+            timeout,
+        }
     }
 }
 
