@@ -139,28 +139,20 @@ async fn four_validators_can_create_micro_blocks() {
 }
 
 #[test(tokio::test)]
-async fn four_validators_can_do_skip_block() {
-    let hub = MockHub::default();
+async fn validators_can_do_skip_block() {
     let env =
         MdbxDatabase::new_volatile(Default::default()).expect("Could not open a volatile database");
 
-    let mut validators = build_validators::<Network>(
-        env,
-        &(5u64..=8u64).collect::<Vec<_>>(),
-        &mut Some(hub),
-        false,
-    )
-    .await;
+    let mut validators =
+        build_validators::<Network>(env, &(5u64..=10u64).collect::<Vec<_>>(), &mut None, false)
+            .await;
 
     // Disconnect the next block producer.
-    let validator = pop_validator_for_slot(&mut validators, 1 + Policy::genesis_block_number(), 1);
-    validator
-        .consensus
-        .network
-        .disconnect(CloseReason::GoingOffline)
-        .await;
-    drop(validator);
-    log::info!("Peer disconnection");
+    let _validator = pop_validator_for_slot(
+        &mut validators,
+        1 + Policy::genesis_block_number(),
+        1 + Policy::genesis_block_number(),
+    );
 
     // Listen for blockchain events from the new block producer (after a skip block).
     let validator = validators.first().unwrap();
@@ -174,10 +166,14 @@ async fn four_validators_can_do_skip_block() {
         spawn(validator);
     }
 
-    // Wait for the new block producer to create a block.
+    // Wait for the new block producer to create a skip block.
     events.next().await;
 
-    assert!(blockchain.read().block_number() > Policy::genesis_block_number());
+    // Verify the skip block was produced:
+    let block = blockchain.read().head().clone();
+
+    assert!(block.is_skip());
+    assert!(block.block_number() > Policy::genesis_block_number());
 }
 
 fn create_skip_block_update(
