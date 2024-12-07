@@ -122,7 +122,7 @@ impl ConfigFile {
 
         // The config doesn't exist. Create an example config file and tell
         // the user to create a config.
-        let example = paths::home().join("client.toml.example");
+        let example = paths::home().join("client.example.toml");
         let example_message = Self::create_example(&example)
             .map(|()| format!("see example config file at {}", example.display()))
             .unwrap_or_else(|error| {
