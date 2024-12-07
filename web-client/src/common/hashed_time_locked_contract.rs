@@ -22,7 +22,7 @@ impl HashedTimeLockedContract {
     /// Parses the data of a Hashed Time Locked Contract creation transaction into a plain object.
     #[wasm_bindgen(js_name = dataToPlain)]
     pub fn data_to_plain(data: &[u8]) -> Result<PlainTransactionRecipientDataType, JsError> {
-        let plain = HashedTimeLockedContract::parse_data(data, false)?;
+        let plain = HashedTimeLockedContract::parse_data(data, false, None, None)?;
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 
@@ -38,9 +38,16 @@ impl HashedTimeLockedContract {
     pub fn parse_data(
         bytes: &[u8],
         as_pow: bool,
+        genesis_number: Option<u32>,
+        genesis_timestamp: Option<u64>,
     ) -> Result<PlainTransactionRecipientData, JsError> {
         let data = if as_pow {
-            PoWCreationTransactionData::parse_data(bytes)?.into_pos()
+            let genesis_number =
+                genesis_number.ok_or(JsError::new("Genesis number is required"))?;
+            let genesis_timestamp =
+                genesis_timestamp.ok_or(JsError::new("Genesis timestamp is required"))?;
+            PoWCreationTransactionData::parse_data(bytes)?
+                .into_pos(genesis_number, genesis_timestamp)
         } else {
             CreationTransactionData::parse_data(bytes)?
         };

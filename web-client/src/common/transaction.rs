@@ -361,8 +361,12 @@ impl Transaction {
 
     /// Creates a JSON-compatible plain object representing the transaction.
     #[wasm_bindgen(js_name = toPlain)]
-    pub fn to_plain(&self) -> Result<PlainTransactionType, JsError> {
-        let plain = self.to_plain_transaction();
+    pub fn to_plain(
+        &self,
+        genesis_number: Option<u32>,
+        genesis_timestamp: Option<u64>,
+    ) -> Result<PlainTransactionType, JsError> {
+        let plain = self.to_plain_transaction(genesis_number, genesis_timestamp);
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 
@@ -434,7 +438,11 @@ impl Transaction {
         self.inner
     }
 
-    pub fn to_plain_transaction(&self) -> PlainTransaction {
+    pub fn to_plain_transaction(
+        &self,
+        genesis_number: Option<u32>,
+        genesis_timestamp: Option<u64>,
+    ) -> PlainTransaction {
         PlainTransaction {
             transaction_hash: self.hash(),
             format: self.format(),
@@ -476,54 +484,46 @@ impl Transaction {
                     // Parse transaction data
                     StakingContract::parse_data(&self.inner.recipient_data).unwrap()
                 } else if self.inner.recipient_type == AccountType::Vesting {
-                    match self.inner.network_id {
-                        NetworkId::Bounty
-                        | NetworkId::Dev
-                        | NetworkId::Dummy
-                        | NetworkId::Main
-                        | NetworkId::Test => {
-                            // In PoW transactions, the start and step fields were a u32 block numbers, which we'll
-                            // convert to u64 timestamp and millisecond here.
-                            VestingContract::parse_data(
-                                &self.inner.recipient_data,
-                                self.inner.value,
-                                true,
-                            )
-                            .unwrap()
-                        }
-                        NetworkId::DevAlbatross
-                        | NetworkId::MainAlbatross
-                        | NetworkId::TestAlbatross
-                        | NetworkId::UnitAlbatross => {
-                            // PoS transactions need no special treatment.
-                            VestingContract::parse_data(
-                                &self.inner.recipient_data,
-                                self.inner.value,
-                                false,
-                            )
-                            .unwrap()
-                        }
+                    if self.inner.network_id.is_albatross() {
+                        VestingContract::parse_data(
+                            &self.inner.recipient_data,
+                            self.inner.value,
+                            false,
+                            None,
+                            None,
+                        )
+                        .unwrap()
+                    } else {
+                        // In PoW transactions, the start and step fields were a u32 block numbers, which we'll
+                        // convert to u64 timestamp and millisecond here.
+                        VestingContract::parse_data(
+                            &self.inner.recipient_data,
+                            self.inner.value,
+                            true,
+                            genesis_number,
+                            genesis_timestamp,
+                        )
+                        .unwrap()
                     }
                 } else if self.inner.recipient_type == AccountType::HTLC {
-                    match self.inner.network_id {
-                        NetworkId::Bounty
-                        | NetworkId::Dev
-                        | NetworkId::Dummy
-                        | NetworkId::Main
-                        | NetworkId::Test => {
-                            // In PoW transactions, the timeout field was a u32 block height, which we'll convert
-                            // to a u64 timestamp here.
-                            HashedTimeLockedContract::parse_data(&self.inner.recipient_data, true)
-                                .unwrap()
-                        }
-                        NetworkId::DevAlbatross
-                        | NetworkId::MainAlbatross
-                        | NetworkId::TestAlbatross
-                        | NetworkId::UnitAlbatross => {
-                            // PoS transactions need no special treatment.
-                            HashedTimeLockedContract::parse_data(&self.inner.recipient_data, false)
-                                .unwrap()
-                        }
+                    if self.inner.network_id.is_albatross() {
+                        HashedTimeLockedContract::parse_data(
+                            &self.inner.recipient_data,
+                            false,
+                            None,
+                            None,
+                        )
+                        .unwrap()
+                    } else {
+                        // In PoW transactions, the timeout field was a u32 block height, which we'll convert
+                        // to a u64 timestamp here.
+                        HashedTimeLockedContract::parse_data(
+                            &self.inner.recipient_data,
+                            true,
+                            genesis_number,
+                            genesis_timestamp,
+                        )
+                        .unwrap()
                     }
                 } else {
                     PlainTransactionRecipientData::Raw(PlainRawData {
@@ -538,26 +538,15 @@ impl Transaction {
                     HashedTimeLockedContract::parse_proof(&self.inner.proof).unwrap()
                 } else {
                     // Depending on the network the signature proofs are constructed slightly differently.
-                    let proof = match self.inner.network_id {
-                        NetworkId::Bounty
-                        | NetworkId::Dev
-                        | NetworkId::Dummy
-                        | NetworkId::Main
-                        | NetworkId::Test => {
-                            // TODO: Handle HTLC redeeming proofs differently, as they need more than just a generic zero-byte prefix
-                            // PoW transactions need an extra 0 byte prepended to the proof as the webauthn_fields
-                            // were added in PoS and the option will always be None for PoW transactions.
-                            let mut proof = vec![0];
-                            proof.append(&mut self.inner.proof.clone());
-                            SignatureProof::deserialize(&proof).unwrap()
-                        }
-                        NetworkId::DevAlbatross
-                        | NetworkId::MainAlbatross
-                        | NetworkId::TestAlbatross
-                        | NetworkId::UnitAlbatross => {
-                            // PoS transactions need no special treatment.
-                            SignatureProof::deserialize(&self.inner.proof).unwrap()
-                        }
+                    let proof = if self.inner.network_id.is_albatross() {
+                        SignatureProof::deserialize(&self.inner.proof).unwrap()
+                    } else {
+                        // TODO: Handle HTLC redeeming proofs differently, as they need more than just a generic zero-byte prefix
+                        // PoW transactions need an extra 0 byte prepended to the proof as the webauthn_fields
+                        // were added in PoS and the option will always be None for PoW transactions.
+                        let mut proof = vec![0];
+                        proof.append(&mut self.inner.proof.clone());
+                        SignatureProof::deserialize(&proof).unwrap()
                     };
                     proof.to_plain_transaction_proof()
                 }
@@ -1061,7 +1050,7 @@ impl PlainTransactionDetails {
         confirmations: Option<u32>,
     ) -> Self {
         Self {
-            transaction: tx.to_plain_transaction(),
+            transaction: tx.to_plain_transaction(None, None),
             state,
             execution_result,
             block_height,
@@ -1073,6 +1062,8 @@ impl PlainTransactionDetails {
     pub fn try_from_historic_transaction(
         hist_tx: HistoricTransaction,
         current_block: u32,
+        genesis_number: Option<u32>,
+        genesis_timestamp: Option<u64>,
     ) -> Option<PlainTransactionDetails> {
         let block_number = hist_tx.block_number;
         let block_time = hist_tx.block_time;
@@ -1084,12 +1075,14 @@ impl PlainTransactionDetails {
         };
 
         let (succeeded, transaction) = match hist_tx.data {
-            HistoricTransactionData::Basic(ExecutedTransaction::Ok(inner)) => {
-                (true, Transaction::from(inner).to_plain_transaction())
-            }
-            HistoricTransactionData::Basic(ExecutedTransaction::Err(inner)) => {
-                (false, Transaction::from(inner).to_plain_transaction())
-            }
+            HistoricTransactionData::Basic(ExecutedTransaction::Ok(inner)) => (
+                true,
+                Transaction::from(inner).to_plain_transaction(genesis_number, genesis_timestamp),
+            ),
+            HistoricTransactionData::Basic(ExecutedTransaction::Err(inner)) => (
+                false,
+                Transaction::from(inner).to_plain_transaction(genesis_number, genesis_timestamp),
+            ),
             HistoricTransactionData::Reward(ref ev) => (
                 true,
                 PlainTransaction::from_reward_event(

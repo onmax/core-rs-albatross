@@ -24,7 +24,8 @@ impl VestingContract {
         data: &[u8],
         tx_value: u64,
     ) -> Result<PlainTransactionRecipientDataType, JsError> {
-        let plain = VestingContract::parse_data(data, Coin::try_from(tx_value)?, false)?;
+        let plain =
+            VestingContract::parse_data(data, Coin::try_from(tx_value)?, false, None, None)?;
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 
@@ -41,9 +42,16 @@ impl VestingContract {
         bytes: &[u8],
         tx_value: Coin,
         as_pow: bool,
+        genesis_number: Option<u32>,
+        genesis_timestamp: Option<u64>,
     ) -> Result<PlainTransactionRecipientData, JsError> {
         let data = if as_pow {
-            PoWCreationTransactionData::parse_data(bytes, tx_value)?.into_pos()
+            let genesis_number =
+                genesis_number.ok_or(JsError::new("Genesis number is required"))?;
+            let genesis_timestamp =
+                genesis_timestamp.ok_or(JsError::new("Genesis timestamp is required"))?;
+            PoWCreationTransactionData::parse_data(bytes, tx_value)?
+                .into_pos(genesis_number, genesis_timestamp)
         } else {
             CreationTransactionData::parse_data(bytes, tx_value)?
         };

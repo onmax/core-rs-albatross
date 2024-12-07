@@ -71,6 +71,10 @@ impl AbstractBlockchain for LightBlockchain {
         self.genesis_block.hash()
     }
 
+    fn get_genesis_block(&self) -> Block {
+        self.genesis_block.clone()
+    }
+
     fn get_blocks(
         &self,
         start_block_hash: &Blake2bHash,

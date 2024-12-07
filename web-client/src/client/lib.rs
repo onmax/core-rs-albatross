@@ -648,9 +648,22 @@ impl Client {
             .into_iter()
             .next()
             .map(|hist_tx| {
+                let genesis = if hist_tx.block_number < Policy::genesis_block_number() {
+                    Some(
+                        self.inner
+                            .consensus_proxy()
+                            .blockchain
+                            .read()
+                            .get_genesis_block(),
+                    )
+                } else {
+                    None
+                };
                 PlainTransactionDetails::try_from_historic_transaction(
                     hist_tx,
                     self.inner.blockchain_head().block_number(),
+                    genesis.as_ref().map(|block| block.block_number()),
+                    genesis.as_ref().map(|block| block.timestamp()),
                 )
                 .expect("no non-reward inherent")
             })
@@ -840,13 +853,33 @@ impl Client {
         let current_height = self.get_head_height().await;
 
         // Convert historic transactions into the plain transaction details result type.
+        // TODO: Optimization: If the receipts are ordered, we can only compare with the earliest receipt instead of potentially iterating over all receipts.
+        let genesis = if ext_txs
+            .iter()
+            .any(|tx| tx.block_number < Policy::genesis_block_number())
+        {
+            Some(
+                self.inner
+                    .consensus_proxy()
+                    .blockchain
+                    .read()
+                    .get_genesis_block(),
+            )
+        } else {
+            None
+        };
         let mut txs: Vec<_> = ext_txs
             .into_iter()
             .map(|hist_tx| {
                 // This method automatically marks the PlainTransactionDetails as status `Included`
                 // or `confirmed` from the `current_height`.
-                PlainTransactionDetails::try_from_historic_transaction(hist_tx, current_height)
-                    .expect("no non-reward inherent")
+                PlainTransactionDetails::try_from_historic_transaction(
+                    hist_tx,
+                    current_height,
+                    genesis.as_ref().map(|block| block.block_number()),
+                    genesis.as_ref().map(|block| block.timestamp()),
+                )
+                .expect("no non-reward inherent")
             })
             .collect();
 
@@ -1214,6 +1247,10 @@ impl Client {
                         let details = PlainTransactionDetails::try_from_historic_transaction(
                             hist_tx,
                             block_number,
+                            // Genesis number and timestamp are needed for converting historic PoW transactions,
+                            // but we'll only get PoS transactions here from the event stream.
+                            None,
+                            None,
                         )
                         .expect("no non-reward inherent");
 

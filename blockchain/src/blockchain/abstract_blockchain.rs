@@ -87,6 +87,11 @@ impl AbstractBlockchain for Blockchain {
         self.genesis_hash.clone()
     }
 
+    fn get_genesis_block(&self) -> Block {
+        self.get_block_at(self.genesis_block_number, true, None)
+            .unwrap()
+    }
+
     fn get_block(&self, hash: &Blake2bHash, include_body: bool) -> Result<Block, BlockchainError> {
         self.get_block(hash, include_body, None)
     }
