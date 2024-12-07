@@ -535,13 +535,19 @@ impl Transaction {
                 if self.inner.proof.is_empty() {
                     PlainTransactionProof::Raw(PlainRawProof::default())
                 } else if self.inner.sender_type == AccountType::HTLC {
-                    HashedTimeLockedContract::parse_proof(&self.inner.proof).unwrap()
+                    if self.inner.network_id.is_albatross() {
+                        HashedTimeLockedContract::parse_proof(&self.inner.proof).unwrap()
+                    } else {
+                        // TODO: Convert PoW HTLC proofs to plain format
+                        PlainTransactionProof::Raw(PlainRawProof {
+                            raw: hex::encode(&self.inner.proof),
+                        })
+                    }
                 } else {
                     // Depending on the network the signature proofs are constructed slightly differently.
                     let proof = if self.inner.network_id.is_albatross() {
                         SignatureProof::deserialize(&self.inner.proof).unwrap()
                     } else {
-                        // TODO: Handle HTLC redeeming proofs differently, as they need more than just a generic zero-byte prefix
                         // PoW transactions need an extra 0 byte prepended to the proof as the webauthn_fields
                         // were added in PoS and the option will always be None for PoW transactions.
                         let mut proof = vec![0];
