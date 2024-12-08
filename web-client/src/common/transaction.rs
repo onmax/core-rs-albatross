@@ -6,7 +6,7 @@ use nimiq_primitives::policy::Policy;
 use nimiq_primitives::{account::AccountType, coin::Coin, networks::NetworkId};
 use nimiq_serde::{Deserialize, Serialize};
 use nimiq_transaction::{
-    account::staking_contract::OutgoingStakingTransactionData, TransactionFormat,
+    account::staking_contract::OutgoingStakingTransactionData, PoWSignatureProof, TransactionFormat,
 };
 #[cfg(feature = "client")]
 use nimiq_transaction::{
@@ -548,11 +548,11 @@ impl Transaction {
                     let proof = if self.inner.network_id.is_albatross() {
                         SignatureProof::deserialize(&self.inner.proof).unwrap()
                     } else {
-                        // PoW transactions need an extra 0 byte prepended to the proof as the webauthn_fields
-                        // were added in PoS and the option will always be None for PoW transactions.
-                        let mut proof = vec![0];
-                        proof.append(&mut self.inner.proof.clone());
-                        SignatureProof::deserialize(&proof).unwrap()
+                        SignatureProof::from(
+                            PoWSignatureProof::deserialize_all(&self.inner.proof)
+                                .unwrap()
+                                .into_pos(),
+                        )
                     };
                     proof.to_plain_transaction_proof()
                 }

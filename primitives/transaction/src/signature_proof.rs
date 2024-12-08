@@ -350,6 +350,24 @@ impl WebauthnExtraFields {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PoWSignatureProof {
+    pub public_key: Ed25519PublicKey,
+    pub merkle_path: Blake2bMerklePath,
+    pub signature: Ed25519Signature,
+}
+
+impl PoWSignatureProof {
+    pub fn into_pos(self) -> SignatureProof {
+        SignatureProof {
+            public_key: PublicKey::Ed25519(self.public_key),
+            merkle_path: self.merkle_path,
+            signature: Signature::Ed25519(self.signature),
+            webauthn_fields: None,
+        }
+    }
+}
+
 mod serde_derive {
     use std::fmt;
 
