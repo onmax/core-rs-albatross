@@ -10,8 +10,8 @@ use nimiq_primitives::account::AccountType;
 use nimiq_serde::{Deserialize, Serialize};
 
 use crate::{
-    account::AccountTransactionVerification, SignatureProof, Transaction, TransactionError,
-    TransactionFlags,
+    account::AccountTransactionVerification, PoWSignatureProof, SignatureProof, Transaction,
+    TransactionError, TransactionFlags,
 };
 
 /// The verifier trait for a hash time locked contract. This only uses data available in the transaction.
@@ -377,6 +377,60 @@ impl OutgoingHTLCTransactionProof {
         }
 
         Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+#[repr(u8)]
+pub enum PoWOutgoingHTLCTransactionProof {
+    DummyZero, // In PoW, RegularTransfer has ID 1, so we need a dummy ID 0
+    RegularTransfer {
+        hash_algorithm: u8,
+        hash_depth: u8,
+        // TODO: Requires a custom deserializer, because the algorithm ID is the first byte of the struct, not part of this field
+        hash_root: AnyHash,
+        // TODO: Requires a custom deserializer, because the preimage length is not part of this field, but dependant on the algorithm
+        pre_image: PreImage,
+        signature_proof: PoWSignatureProof,
+    },
+    EarlyResolve {
+        signature_proof_recipient: PoWSignatureProof,
+        signature_proof_sender: PoWSignatureProof,
+    },
+    TimeoutResolve {
+        signature_proof_sender: PoWSignatureProof,
+    },
+}
+
+impl PoWOutgoingHTLCTransactionProof {
+    pub fn into_pos(self) -> OutgoingHTLCTransactionProof {
+        match self {
+            Self::DummyZero => panic!("DummyZero is not a valid PoW proof"),
+            Self::RegularTransfer {
+                hash_algorithm: _,
+                hash_depth,
+                hash_root,
+                pre_image,
+                signature_proof,
+            } => OutgoingHTLCTransactionProof::RegularTransfer {
+                hash_depth,
+                hash_root,
+                pre_image,
+                signature_proof: signature_proof.into_pos(),
+            },
+            Self::EarlyResolve {
+                signature_proof_recipient,
+                signature_proof_sender,
+            } => OutgoingHTLCTransactionProof::EarlyResolve {
+                signature_proof_recipient: signature_proof_recipient.into_pos(),
+                signature_proof_sender: signature_proof_sender.into_pos(),
+            },
+            Self::TimeoutResolve {
+                signature_proof_sender,
+            } => OutgoingHTLCTransactionProof::TimeoutResolve {
+                signature_proof_sender: signature_proof_sender.into_pos(),
+            },
+        }
     }
 }
 

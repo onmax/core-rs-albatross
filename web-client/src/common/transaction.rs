@@ -535,14 +535,11 @@ impl Transaction {
                 if self.inner.proof.is_empty() {
                     PlainTransactionProof::Raw(PlainRawProof::default())
                 } else if self.inner.sender_type == AccountType::HTLC {
-                    if self.inner.network_id.is_albatross() {
-                        HashedTimeLockedContract::parse_proof(&self.inner.proof).unwrap()
-                    } else {
-                        // TODO: Convert PoW HTLC proofs to plain format
-                        PlainTransactionProof::Raw(PlainRawProof {
-                            raw: hex::encode(&self.inner.proof),
-                        })
-                    }
+                    HashedTimeLockedContract::parse_proof(
+                        &self.inner.proof,
+                        !self.inner.network_id.is_albatross(),
+                    )
+                    .unwrap()
                 } else {
                     // Depending on the network the signature proofs are constructed slightly differently.
                     let proof = if self.inner.network_id.is_albatross() {

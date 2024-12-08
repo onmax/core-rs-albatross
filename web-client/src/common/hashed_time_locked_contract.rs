@@ -2,6 +2,7 @@ use nimiq_keys::{PublicKey, Signature};
 use nimiq_serde::Deserialize;
 use nimiq_transaction::account::htlc_contract::{
     AnyHash, CreationTransactionData, OutgoingHTLCTransactionProof, PoWCreationTransactionData,
+    PoWOutgoingHTLCTransactionProof,
 };
 use wasm_bindgen::prelude::*;
 
@@ -29,7 +30,7 @@ impl HashedTimeLockedContract {
     /// Parses the proof of a Hashed Time Locked Contract settlement transaction into a plain object.
     #[wasm_bindgen(js_name = proofToPlain)]
     pub fn proof_to_plain(proof: &[u8]) -> Result<PlainTransactionProofType, JsError> {
-        let plain = HashedTimeLockedContract::parse_proof(proof)?;
+        let plain = HashedTimeLockedContract::parse_proof(proof, false)?;
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 }
@@ -67,8 +68,12 @@ impl HashedTimeLockedContract {
         }))
     }
 
-    pub fn parse_proof(bytes: &[u8]) -> Result<PlainTransactionProof, JsError> {
-        let proof = OutgoingHTLCTransactionProof::deserialize_all(bytes)?;
+    pub fn parse_proof(bytes: &[u8], as_pow: bool) -> Result<PlainTransactionProof, JsError> {
+        let proof = if as_pow {
+            PoWOutgoingHTLCTransactionProof::deserialize_all(bytes)?.into_pos()
+        } else {
+            OutgoingHTLCTransactionProof::deserialize_all(bytes)?
+        };
 
         Ok(match proof {
             OutgoingHTLCTransactionProof::RegularTransfer {
