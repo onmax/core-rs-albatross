@@ -612,7 +612,7 @@ impl Mempool {
         (txs, size)
     }
 
-    /// Adds a transaction to the Mempool.
+    /// Adds a transaction to the local mempool without broadcasting it over the network.
     pub fn add_transaction(
         &self,
         transaction: Transaction,

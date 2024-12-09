@@ -49,7 +49,7 @@ pub fn initialize_rpc_server(
     ));
     dispatcher.add(NetworkDispatcher::new(client.network()));
     if let Some(mempool) = client.mempool() {
-        dispatcher.add(MempoolDispatcher::new(mempool));
+        dispatcher.add(MempoolDispatcher::new(client.consensus_proxy(), mempool));
     }
     dispatcher.add(PolicyDispatcher {});
     if let Some(validator_proxy) = client.validator_proxy() {

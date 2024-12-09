@@ -9,11 +9,11 @@ use crate::types::{HashOrTx, MempoolInfo, RPCResult};
 pub trait MempoolInterface {
     type Error;
 
-    /// Pushes a raw transaction into the mempool, it will be assigned a default priority.
+    /// Pushes a raw transaction with a default priority assigned into the mempool and broadcast it to the network.
     async fn push_transaction(&mut self, raw_tx: String)
         -> RPCResult<Blake2bHash, (), Self::Error>;
 
-    /// Pushes a raw transaction into the mempool with high priority.
+    /// Pushes a raw transaction with a high priority assigned into the mempool and broadcast it to the network.
     async fn push_high_priority_transaction(
         &mut self,
         raw_tx: String,

@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use nimiq_consensus::ConsensusProxy;
 use nimiq_hash::{Blake2bHash, Hash};
 use nimiq_mempool::{mempool::Mempool, mempool_transactions::TxPriority};
+use nimiq_network_libp2p::Network;
 use nimiq_rpc_interface::{
     mempool::MempoolInterface,
     types::{HashOrTx, MempoolInfo, RPCResult},
@@ -14,12 +16,13 @@ use crate::error::Error;
 
 #[allow(dead_code)]
 pub struct MempoolDispatcher {
+    consensus: ConsensusProxy<Network>,
     mempool: Arc<Mempool>,
 }
 
 impl MempoolDispatcher {
-    pub fn new(mempool: Arc<Mempool>) -> Self {
-        MempoolDispatcher { mempool }
+    pub fn new(consensus: ConsensusProxy<Network>, mempool: Arc<Mempool>) -> Self {
+        MempoolDispatcher { consensus, mempool }
     }
 }
 
@@ -35,8 +38,13 @@ impl MempoolInterface for MempoolDispatcher {
         let tx = Transaction::deserialize_from_vec(&hex::decode(&raw_tx)?)?;
         let txid = tx.hash::<Blake2bHash>();
 
-        match self.mempool.add_transaction(tx, None) {
-            Ok(_) => Ok(txid.into()),
+        match self.mempool.add_transaction(tx.clone(), None) {
+            Ok(_) => self
+                .consensus
+                .send_transaction(tx)
+                .await
+                .map(|_| txid.into())
+                .map_err(Error::NetworkError),
             Err(e) => Err(Error::MempoolError(e)),
         }
     }
@@ -48,8 +56,16 @@ impl MempoolInterface for MempoolDispatcher {
         let tx = Transaction::deserialize_from_vec(&hex::decode(&raw_tx)?)?;
         let txid = tx.hash::<Blake2bHash>();
 
-        match self.mempool.add_transaction(tx, Some(TxPriority::High)) {
-            Ok(_) => Ok(txid.into()),
+        match self
+            .mempool
+            .add_transaction(tx.clone(), Some(TxPriority::High))
+        {
+            Ok(_) => self
+                .consensus
+                .send_transaction(tx)
+                .await
+                .map(|_| txid.into())
+                .map_err(Error::NetworkError),
             Err(e) => Err(Error::MempoolError(e)),
         }
     }
