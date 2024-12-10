@@ -139,7 +139,7 @@ impl TransactionBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     ///
     /// let proof_builder = builder.generate().unwrap();
@@ -211,7 +211,7 @@ impl TransactionBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     /// builder.with_fee(Coin::from_u64_unchecked(1337));
     ///
@@ -267,7 +267,7 @@ impl TransactionBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     /// builder.with_fee(Coin::from_u64_unchecked(1337));
     ///
@@ -297,7 +297,7 @@ impl TransactionBuilder {
     /// use nimiq_primitives::networks::NetworkId;
     ///
     /// let mut builder = TransactionBuilder::new();
-    /// builder.with_network_id(NetworkId::Main);
+    /// builder.with_network_id(NetworkId::MainAlbatross);
     /// ```
     pub fn with_network_id(&mut self, network_id: NetworkId) -> &mut Self {
         self.network_id = Some(network_id);
@@ -346,7 +346,7 @@ impl TransactionBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     /// builder.with_fee(Coin::from_u64_unchecked(1337));
     ///

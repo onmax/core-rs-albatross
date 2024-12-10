@@ -96,7 +96,7 @@ fn run_app() -> Result<(), Error> {
             .ok_or(AppError::ValidityStartHeight)?;
         let network_id = match matches.get_one::<String>("network_id") {
             Some(s) => NetworkId::from_str(s)?,
-            None => NetworkId::Main,
+            None => NetworkId::MainAlbatross,
         };
         Transaction::new_basic(
             from_address,

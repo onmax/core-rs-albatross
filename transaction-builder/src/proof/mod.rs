@@ -84,7 +84,7 @@ impl TransactionProofBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     /// builder.with_fee(Coin::from_u64_unchecked(1337));
     ///
@@ -123,7 +123,7 @@ impl TransactionProofBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     /// builder.with_fee(Coin::from_u64_unchecked(1337));
     ///
@@ -175,7 +175,7 @@ impl TransactionProofBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     ///
     /// let proof_builder = builder.generate().unwrap();
@@ -186,7 +186,7 @@ impl TransactionProofBuilder {
     ///
     /// let final_transaction = htlc_proof_builder.generate();
     /// assert!(final_transaction.is_some());
-    /// assert!(final_transaction.unwrap().verify(NetworkId::Main).is_ok());
+    /// assert!(final_transaction.unwrap().verify(NetworkId::MainAlbatross).is_ok());
     /// ```
     ///
     /// [`HtlcProofBuilder`]: htlc_contract/struct.HtlcProofBuilder.html
@@ -226,7 +226,7 @@ impl TransactionProofBuilder {
     ///     recipient.generate().unwrap(),
     ///     Coin::from_u64_unchecked(0), // must be zero because of signaling transaction
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     ///
     /// let proof_builder = tx_builder.generate().unwrap();
@@ -241,7 +241,7 @@ impl TransactionProofBuilder {
     ///
     /// let final_transaction = basic_proof_builder.generate();
     /// assert!(final_transaction.is_some());
-    /// assert!(final_transaction.unwrap().verify(NetworkId::Main).is_ok());
+    /// assert!(final_transaction.unwrap().verify(NetworkId::MainAlbatross).is_ok());
     /// ```
     ///
     /// [`StakingDataBuilder`]: staking_contract/struct.StakingDataBuilder.html
@@ -279,7 +279,7 @@ impl TransactionProofBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     ///
     /// let proof_builder = tx_builder.generate().unwrap();

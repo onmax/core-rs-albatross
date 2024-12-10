@@ -50,7 +50,7 @@ impl HtlcProofBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     ///
     /// let proof_builder = builder.generate().unwrap();
@@ -62,7 +62,7 @@ impl HtlcProofBuilder {
     ///
     /// let final_transaction = htlc_proof_builder.generate();
     /// assert!(final_transaction.is_some());
-    /// assert!(final_transaction.unwrap().verify(NetworkId::Main).is_ok());
+    /// assert!(final_transaction.unwrap().verify(NetworkId::MainAlbatross).is_ok());
     /// ```
     pub fn signature_with_key_pair(&self, key_pair: &KeyPair) -> SignatureProof {
         let signature = key_pair.sign(&self.transaction.serialize_content());
@@ -95,7 +95,7 @@ impl HtlcProofBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     ///
     /// let proof_builder = builder.generate().unwrap();
@@ -106,7 +106,7 @@ impl HtlcProofBuilder {
     ///
     /// let final_transaction = htlc_proof_builder.generate();
     /// assert!(final_transaction.is_some());
-    /// assert!(final_transaction.unwrap().verify(NetworkId::Main).is_ok());
+    /// assert!(final_transaction.unwrap().verify(NetworkId::MainAlbatross).is_ok());
     /// ```
     ///
     /// [`signature_with_key_pair`]: struct.HtlcProofBuilder.html#method.signature_with_key_pair
@@ -144,7 +144,7 @@ impl HtlcProofBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     ///
     /// let proof_builder = builder.generate().unwrap();
@@ -156,7 +156,7 @@ impl HtlcProofBuilder {
     ///
     /// let final_transaction = htlc_proof_builder.generate();
     /// assert!(final_transaction.is_some());
-    /// assert!(final_transaction.unwrap().verify(NetworkId::Main).is_ok());
+    /// assert!(final_transaction.unwrap().verify(NetworkId::MainAlbatross).is_ok());
     /// ```
     ///
     /// [`signature_with_key_pair`]: struct.HtlcProofBuilder.html#method.signature_with_key_pair
@@ -241,7 +241,7 @@ impl HtlcProofBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     ///
     /// let proof_builder = builder.generate().unwrap();
@@ -252,7 +252,7 @@ impl HtlcProofBuilder {
     ///
     /// let final_transaction = htlc_proof_builder.generate();
     /// assert!(final_transaction.is_some());
-    /// assert!(final_transaction.unwrap().verify(NetworkId::Main).is_ok());
+    /// assert!(final_transaction.unwrap().verify(NetworkId::MainAlbatross).is_ok());
     /// ```
     ///
     /// [`signature_with_key_pair`]: struct.HtlcProofBuilder.html#method.signature_with_key_pair
@@ -313,7 +313,7 @@ impl HtlcProofBuilder {
     ///     recipient,
     ///     Coin::from_u64_unchecked(100),
     ///     1,
-    ///     NetworkId::Main
+    ///     NetworkId::MainAlbatross
     /// );
     ///
     /// let proof_builder = builder.generate().unwrap();
@@ -324,7 +324,7 @@ impl HtlcProofBuilder {
     ///
     /// let final_transaction = htlc_proof_builder.generate();
     /// assert!(final_transaction.is_some());
-    /// assert!(final_transaction.unwrap().verify(NetworkId::Main).is_ok());
+    /// assert!(final_transaction.unwrap().verify(NetworkId::MainAlbatross).is_ok());
     /// ```
     ///
     /// [`signature_with_key_pair`]: struct.HtlcProofBuilder.html#method.signature_with_key_pair
