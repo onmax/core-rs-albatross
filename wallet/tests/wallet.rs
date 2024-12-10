@@ -25,9 +25,9 @@ fn test_create_transaction() {
         Coin::from_u64_unchecked(42),
         Coin::ZERO,
         0,
-        NetworkId::Main,
+        NetworkId::MainAlbatross,
     );
-    assert_eq!(Ok(()), transaction.verify(NetworkId::Main));
+    assert_eq!(Ok(()), transaction.verify(NetworkId::MainAlbatross));
 }
 
 #[test]

@@ -358,6 +358,10 @@ pub struct PoWSignatureProof {
 }
 
 impl PoWSignatureProof {
+    pub fn verify(&self, message: &[u8]) -> bool {
+        self.public_key.verify(&self.signature, message)
+    }
+
     pub fn into_pos(self) -> SignatureProof {
         SignatureProof {
             public_key: PublicKey::Ed25519(self.public_key),

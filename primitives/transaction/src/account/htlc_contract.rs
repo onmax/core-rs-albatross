@@ -46,18 +46,27 @@ impl AccountTransactionVerification for HashedTimeLockedContractVerifier {
             return Err(TransactionError::InvalidForRecipient);
         }
 
-        if transaction.recipient_data.len() != (20 * 2 + 1 + 32 + 1 + 8)
-            && transaction.recipient_data.len() != (20 * 2 + 1 + 64 + 1 + 8)
-        {
-            warn!(
-                data_len = transaction.recipient_data.len(),
-                ?transaction,
-                "Invalid data length. For the following transaction",
-            );
-            return Err(TransactionError::InvalidData);
-        }
+        if transaction.network_id.is_albatross() {
+            if transaction.recipient_data.len() != (20 * 2 + 1 + 32 + 1 + 8)
+                && transaction.recipient_data.len() != (20 * 2 + 1 + 64 + 1 + 8)
+            {
+                warn!(
+                    data_len = transaction.recipient_data.len(),
+                    ?transaction,
+                    "Invalid data length. For the following transaction",
+                );
+                return Err(TransactionError::InvalidData);
+            }
 
-        CreationTransactionData::parse(transaction)?.verify()
+            CreationTransactionData::parse(transaction)?.verify()
+        } else {
+            if transaction.recipient_data.len() != (20 * 2 + 1 + 32 + 1 + 4)
+                && transaction.recipient_data.len() != (20 * 2 + 1 + 64 + 1 + 4)
+            {
+                return Err(TransactionError::InvalidData);
+            }
+            PoWCreationTransactionData::parse(transaction)?.verify()
+        }
     }
 
     fn verify_outgoing_transaction(transaction: &Transaction) -> Result<(), TransactionError> {
@@ -71,8 +80,13 @@ impl AccountTransactionVerification for HashedTimeLockedContractVerifier {
             return Err(TransactionError::Overflow);
         }
 
-        let proof = OutgoingHTLCTransactionProof::parse(transaction)?;
-        proof.verify(transaction)?;
+        if transaction.network_id.is_albatross() {
+            let proof = OutgoingHTLCTransactionProof::parse(transaction)?;
+            proof.verify(transaction)?;
+        } else {
+            let proof = PoWOutgoingHTLCTransactionProof::parse(transaction)?;
+            proof.verify(transaction)?;
+        }
 
         Ok(())
     }
@@ -248,6 +262,13 @@ impl PoWCreationTransactionData {
         Self::parse_data(&transaction.recipient_data)
     }
 
+    pub fn verify(&self) -> Result<(), TransactionError> {
+        if self.hash_count == 0 {
+            return Err(TransactionError::InvalidData);
+        }
+        Ok(())
+    }
+
     pub fn into_pos(self, genesis_number: u32, genesis_timestamp: u64) -> CreationTransactionData {
         let timeout = if self.timeout <= genesis_number {
             genesis_timestamp - (genesis_number - self.timeout) as u64 * 60_000
@@ -405,6 +426,74 @@ pub enum PoWOutgoingHTLCTransactionProof {
 }
 
 impl PoWOutgoingHTLCTransactionProof {
+    pub fn parse(transaction: &Transaction) -> Result<Self, TransactionError> {
+        Ok(Self::deserialize_all(&transaction.proof)?)
+    }
+
+    pub fn verify(&self, transaction: &Transaction) -> Result<(), TransactionError> {
+        // Verify proof.
+        let tx_content = transaction.serialize_content();
+        let tx_buf = tx_content.as_slice();
+
+        match self {
+            PoWOutgoingHTLCTransactionProof::DummyZero => {
+                return Err(TransactionError::InvalidProof);
+            }
+            PoWOutgoingHTLCTransactionProof::RegularTransfer(PoWRegularTransfer {
+                hash_depth,
+                hash_root,
+                pre_image,
+                signature_proof,
+            }) => {
+                let mut tmp_hash = pre_image.clone();
+                for _ in 0..*hash_depth {
+                    match &hash_root {
+                        AnyHash::Blake2b(_) => {
+                            tmp_hash = PreImage::from(
+                                Blake2bHasher::default().digest(tmp_hash.as_bytes()),
+                            );
+                        }
+                        AnyHash::Sha256(_) => {
+                            tmp_hash =
+                                PreImage::from(Sha256Hasher::default().digest(tmp_hash.as_bytes()));
+                        }
+                        AnyHash::Sha512(_) => {
+                            tmp_hash =
+                                PreImage::from(Sha512Hasher::default().digest(tmp_hash.as_bytes()));
+                        }
+                    }
+                }
+
+                if hash_root.as_bytes() != tmp_hash.as_bytes() {
+                    return Err(TransactionError::InvalidProof);
+                }
+
+                if !signature_proof.verify(tx_buf) {
+                    return Err(TransactionError::InvalidProof);
+                }
+            }
+            PoWOutgoingHTLCTransactionProof::EarlyResolve {
+                signature_proof_recipient,
+                signature_proof_sender,
+            } => {
+                if !signature_proof_recipient.verify(tx_buf)
+                    || !signature_proof_sender.verify(tx_buf)
+                {
+                    return Err(TransactionError::InvalidProof);
+                }
+            }
+            PoWOutgoingHTLCTransactionProof::TimeoutResolve {
+                signature_proof_sender,
+            } => {
+                if !signature_proof_sender.verify(tx_buf) {
+                    return Err(TransactionError::InvalidProof);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn into_pos(self) -> OutgoingHTLCTransactionProof {
         match self {
             Self::DummyZero => panic!("DummyZero is not a valid PoWOutgoingHTLCTransactionProof"),

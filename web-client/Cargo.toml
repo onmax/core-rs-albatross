@@ -19,7 +19,7 @@ maintenance = { status = "experimental" }
 workspace = true
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 futures = { workspace = true }

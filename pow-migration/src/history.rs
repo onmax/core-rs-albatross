@@ -269,11 +269,13 @@ pub async fn get_history_store_height(env: MdbxDatabase, network_id: NetworkId) 
 #[cfg(test)]
 mod test {
 
+    use nimiq_web_client::common::transaction::Transaction as WebTransaction;
+
     use super::*;
 
     static TRANSACTIONS: &str = r#"
 [
-    {
+  {
     "hash": "b216c4d1b655ebc918fcd25212f1f5abb1ed82a45a2114ee7109f92dba955f5c",
     "blockHash": "cbca3812447d51983a55beb2d16464b45dba19db29abdbbb7b9be8cead4a66a2",
     "blockNumber": 2815085,
@@ -552,6 +554,86 @@ mod test {
     "flags": 0,
     "validityStartHeight": 2815092,
     "networkId": 42
+  },
+  {
+    "hash": "1ae3f9d84e1951863b34f9de0f30e6d4a59619cd0cb4dd70fbd75c330bc14cbc",
+    "blockHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "blockNumber": 3381335,
+    "timestamp": 1727529953,
+    "confirmations": 1818875,
+    "from": "0000000000000000000000000000000000000000",
+    "fromAddress": "NQ12 0B4A X8HK CDYF LVLR RVVT DKB3 FS1G Y2DS",
+    "fromType": 0,
+    "to": "0000000000000000000000000000000000000000",
+    "toAddress": "NQ14 PC35 FMEJ X6PT J74X 8CHK FN66 RN68 Y2AC",
+    "toType": 1,
+    "value": 20000000,
+    "fee": 0,
+    "data": "5fb123ae5c64698b85e03e06a8259c4fd9e8152500339858000000020000000000989680",
+    "flags": 1,
+    "validityStartHeight": 3381332,
+    "proof": "26dcb47806d6d1a0f51ab470d518799dfc29236c79dad4c9c1ce4d09c64651af00b7f06e9118254767372c8d07f3f5cff6d753097129624b8f83a16652d518233bcb5d35e136cc50d0fed7aea67b5548c62017c1719cba80c0d943495a862f4b0b",
+    "networkId": 42
+  },
+  {
+    "hash": "d98625628971998dd9f5b29fc0f95615254cfd60b342fe729620889d7b3b15ac",
+    "blockHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "blockNumber": 3454647,
+    "timestamp": 1731952574,
+    "confirmations": 1745013,
+    "from": "0000000000000000000000000000000000000000",
+    "fromAddress": "NQ19 LYQQ BL3N E4K6 AXCN CFB4 TDD4 LAN0 BYK1",
+    "fromType": 0,
+    "to": "0000000000000000000000000000000000000000",
+    "toAddress": "NQ72 C5TJ 9RU2 HM64 SH8P D222 GCCE 41N3 HXC1",
+    "toType": 2,
+    "value": 515101564,
+    "fee": 0,
+    "data": "a7f185d076712665799663d64db5a4a2ac05fe61eb933bf41fdcc9bc2ebf439305a0b2c64d5aea34033913543fa4e5b6c41176ee552d314db28d786bd87f103ee25f49f4e2555e51d1010034b71d",
+    "flags": 1,
+    "validityStartHeight": 3454645,
+    "proof": "05cd72f08df886acf3f7ae7b5abe7aca89c2191f092a2c121b1d7b0d26d2244500b2fba4e35847d6e3e4b4292e797cb256ec8f5f42ce9f347bbfc9c0ff19deaa3c9b5171ca98347ff1b2f3d48918059efcc4662f98eb4a53702942be7174430a0e",
+    "networkId": 42
+  },
+  {
+    "hash": "9b0448c37c40ecf48bf60a1240dda67085b12ab9f6848a3c9f026682acd66621",
+    "blockHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "blockNumber": 3454649,
+    "timestamp": 1731952691,
+    "confirmations": 1744481,
+    "from": "0000000000000000000000000000000000000000",
+    "fromAddress": "NQ72 C5TJ 9RU2 HM64 SH8P D222 GCCE 41N3 HXC1",
+    "fromType": 2,
+    "to": "0000000000000000000000000000000000000000",
+    "toAddress": "NQ56 VE9K PV0Y TK4T QBMY 8E9G B85J QR6M MSHL",
+    "toType": 0,
+    "value": 515101564,
+    "fee": 0,
+    "data": "",
+    "flags": 0,
+    "validityStartHeight": 3454647,
+    "proof": "0103013913543fa4e5b6c41176ee552d314db28d786bd87f103ee25f49f4e2555e51d1bff5b88ef94cd7c2ba354a8e4b50fef063ab1659646570b34effbb48f36ecb4c08600ec9f0d44dc8d43275c705d7780caa31497d2620da4d7838d10574a6dfa100410b82decb73b7c6f4047b4fb504000c364edd9a3337e5194b60f896d31904ccab8bf310cf808fd98a9b3b13096b6701d53bbba8402465d08cb99948c8407500",
+    "networkId": 42
+  },
+  {
+    "hash": "25ab1a2708b2ca845ffebaa6a1cfa6cb0e99f7221b71f0036caff0930ab24bc3",
+    "blockHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "blockNumber": 3455024,
+    "timestamp": 1731974479,
+    "confirmations": 1745593,
+    "from": "0000000000000000000000000000000000000000",
+    "fromAddress": "NQ83 5445 36JA 0528 2H8H 7PEJ 3S82 5H9X AT6J",
+    "fromType": 2,
+    "to": "0000000000000000000000000000000000000000",
+    "toAddress": "NQ54 S7LK APF3 KNDN 4YCE V9UY 22VN V160 S96D",
+    "toType": 2,
+    "value": 85957876150,
+    "fee": 0,
+    "data": "15f81c52d072d974d4a8463f8c7c36950be8228aa70b9e44a448b5183ac4e186cd749d3d889fff8401000000000000000000000000000000000000000000000000000000000000000001003506ee",
+    "flags": 1,
+    "validityStartHeight": 3455022,
+    "proof": "0291b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300d18f33335132492722f0c7024573bc73ec074eddc7b8a83bc1fccc11ce2f6cf126d1500003b788c969cca371439e48c7decc7ff5dcb7851aca4475e53f9bf901381418b67ad00bf1d056858aa31f10c5bf3d70a44bfe9c5245e3e5bf3f798189005ee1023a0af18e6388df3ba29ed03d5e8834da00307d326545d6cee0b56b9bba6d9fc42d22970efa47c83f9f1b67dbe34f0fef968dd943fbdafa54c9f9e0ee0d",
+    "networkId": 42
   }
 ]"#;
 
@@ -560,7 +642,10 @@ mod test {
         let pow_transactions: Vec<PoWTransaction> = serde_json::from_str(TRANSACTIONS).unwrap();
         for txn in pow_transactions {
             let pos_transaction = from_pow_transaction(&txn).unwrap();
-            assert_eq!(txn.hash, pos_transaction.hash::<Blake2bHash>().to_hex())
+            assert_eq!(txn.hash, pos_transaction.hash::<Blake2bHash>().to_hex());
+
+            let web_transaction: WebTransaction = pos_transaction.into();
+            web_transaction.to_plain_transaction(Some(3456000), Some(1732034720000));
         }
     }
 }

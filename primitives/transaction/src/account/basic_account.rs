@@ -2,8 +2,8 @@ use nimiq_primitives::{account::AccountType, policy::Policy};
 use nimiq_serde::Deserialize;
 
 use crate::{
-    account::AccountTransactionVerification, SignatureProof, Transaction, TransactionError,
-    TransactionFlags,
+    account::AccountTransactionVerification, PoWSignatureProof, SignatureProof, Transaction,
+    TransactionError, TransactionFlags,
 };
 
 /// The verifier trait for a basic account. This only uses data available in the transaction.
@@ -56,7 +56,11 @@ impl AccountTransactionVerification for BasicAccountVerifier {
         }
 
         // Verify signer & signature.
-        let signature_proof = SignatureProof::deserialize_all(&transaction.proof)?;
+        let signature_proof = if transaction.network_id.is_albatross() {
+            SignatureProof::deserialize_all(&transaction.proof)?
+        } else {
+            PoWSignatureProof::deserialize_all(&transaction.proof)?.into_pos()
+        };
 
         if !signature_proof.is_signed_by(&transaction.sender)
             || !signature_proof.verify(&transaction.serialize_content())

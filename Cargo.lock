@@ -4607,6 +4607,7 @@ dependencies = [
  "nimiq-transaction",
  "nimiq-utils",
  "nimiq-vrf",
+ "nimiq-web-client",
  "nimiq_rpc",
  "percentage",
  "rand",

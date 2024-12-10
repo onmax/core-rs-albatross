@@ -47,9 +47,9 @@ impl VestingContract {
     ) -> Result<PlainTransactionRecipientData, JsError> {
         let data = if as_pow {
             let genesis_number =
-                genesis_number.ok_or(JsError::new("Genesis number is required"))?;
+                genesis_number.ok_or_else(|| JsError::new("Genesis number is required"))?;
             let genesis_timestamp =
-                genesis_timestamp.ok_or(JsError::new("Genesis timestamp is required"))?;
+                genesis_timestamp.ok_or_else(|| JsError::new("Genesis timestamp is required"))?;
             PoWCreationTransactionData::parse_data(bytes, tx_value)?
                 .into_pos(genesis_number, genesis_timestamp)
         } else {

@@ -3,8 +3,8 @@ use nimiq_primitives::{account::AccountType, coin::Coin};
 use nimiq_serde::{Deserialize, Serialize, SerializedSize};
 
 use crate::{
-    account::AccountTransactionVerification, SignatureProof, Transaction, TransactionError,
-    TransactionFlags,
+    account::AccountTransactionVerification, PoWSignatureProof, SignatureProof, Transaction,
+    TransactionError, TransactionFlags,
 };
 
 /// The verifier trait for a basic account. This only uses data available in the transaction.
@@ -39,7 +39,11 @@ impl AccountTransactionVerification for VestingContractVerifier {
             return Err(TransactionError::InvalidForRecipient);
         }
 
-        CreationTransactionData::parse(transaction).map(|_| ())
+        if transaction.network_id.is_albatross() {
+            CreationTransactionData::parse(transaction).map(|_| ())
+        } else {
+            PoWCreationTransactionData::parse(transaction).map(|_| ())
+        }
     }
 
     fn verify_outgoing_transaction(transaction: &Transaction) -> Result<(), TransactionError> {
@@ -54,7 +58,11 @@ impl AccountTransactionVerification for VestingContractVerifier {
         }
 
         // Verify signature.
-        let signature_proof = SignatureProof::deserialize_all(&transaction.proof)?;
+        let signature_proof = if transaction.network_id.is_albatross() {
+            SignatureProof::deserialize_all(&transaction.proof)?
+        } else {
+            PoWSignatureProof::deserialize_all(&transaction.proof)?.into_pos()
+        };
 
         if !signature_proof.verify(&transaction.serialize_content()) {
             warn!("Invalid signature for this transaction:\n{:?}", transaction);
@@ -293,6 +301,9 @@ impl PoWCreationTransactionData {
             }
             _ => return Err(TransactionError::InvalidData),
         })
+    }
+    pub fn parse(transaction: &Transaction) -> Result<Self, TransactionError> {
+        PoWCreationTransactionData::parse_data(&transaction.recipient_data, transaction.value)
     }
 
     pub fn into_pos(self, genesis_number: u32, genesis_timestamp: u64) -> CreationTransactionData {
