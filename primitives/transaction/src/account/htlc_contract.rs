@@ -382,7 +382,8 @@ impl OutgoingHTLCTransactionProof {
 
 #[derive(Clone, Debug)]
 pub struct PoWRegularTransfer {
-    hash_algorithm: u8,
+    // PoW regular transfers encode the hash algorithm as the first u8 byte,
+    // but in Rust, the algorithm is encoded in the hash_root AnyHash enum.
     hash_depth: u8,
     hash_root: AnyHash,
     pre_image: PreImage,
@@ -392,7 +393,8 @@ pub struct PoWRegularTransfer {
 #[derive(Clone, Debug, Deserialize)]
 #[repr(u8)]
 pub enum PoWOutgoingHTLCTransactionProof {
-    RegularTransfer(PoWRegularTransfer) = 1, // In PoW, RegularTransfer has ID 1
+    DummyZero, // In PoW, RegularTransfer has ID 1, so we need a dummy ID 0
+    RegularTransfer(PoWRegularTransfer),
     EarlyResolve {
         signature_proof_recipient: PoWSignatureProof,
         signature_proof_sender: PoWSignatureProof,
@@ -405,8 +407,8 @@ pub enum PoWOutgoingHTLCTransactionProof {
 impl PoWOutgoingHTLCTransactionProof {
     pub fn into_pos(self) -> OutgoingHTLCTransactionProof {
         match self {
+            Self::DummyZero => panic!("DummyZero is not a valid PoWOutgoingHTLCTransactionProof"),
             Self::RegularTransfer(PoWRegularTransfer {
-                hash_algorithm: _,
                 hash_depth,
                 hash_root,
                 pre_image,
@@ -723,24 +725,18 @@ mod serde_derive {
                 }
             };
 
-            let pre_image = match hash_depth {
-                32u8 => {
+            let pre_image = match hash_root {
+                AnyHash::Blake2b(_) | AnyHash::Sha256(_) => {
                     let pre_image: AnyHash32 = seq
                         .next_element()?
                         .ok_or_else(|| Error::invalid_length(3, &self))?;
                     PreImage::PreImage32(pre_image)
                 }
-                64u8 => {
+                AnyHash::Sha512(_) => {
                     let pre_image: AnyHash64 = seq
                         .next_element()?
                         .ok_or_else(|| Error::invalid_length(3, &self))?;
                     PreImage::PreImage64(pre_image)
-                }
-                _ => {
-                    return Err(Error::custom(format!(
-                        "Invalid hash depth type: {}",
-                        hash_depth
-                    )))
                 }
             };
 
@@ -749,7 +745,6 @@ mod serde_derive {
                 .ok_or_else(|| Error::invalid_length(4, &self))?;
 
             Ok(PoWRegularTransfer {
-                hash_algorithm,
                 hash_depth,
                 hash_root,
                 pre_image,
@@ -777,10 +772,7 @@ mod tests {
     use nimiq_serde::{Deserialize, Serialize};
     use nimiq_test_log::test;
 
-    use super::{
-        AnyHash, AnyHash32, AnyHash64, PoWOutgoingHTLCTransactionProof,
-        PreImage,
-    };
+    use super::{AnyHash, AnyHash32, AnyHash64, PoWOutgoingHTLCTransactionProof, PreImage};
 
     fn sample_anyhashes() -> [AnyHash; 3] {
         let hash_32 = AnyHash32([0xC; AnyHash32::SIZE]);

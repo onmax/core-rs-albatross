@@ -368,6 +368,13 @@ impl PoWSignatureProof {
     }
 }
 
+#[test]
+fn it_can_correctly_deserialize_pow_signature_proof() {
+    let bin = hex::decode("08600ec9f0d44dc8d43275c705d7780caa31497d2620da4d7838d10574a6dfa100410b82decb73b7c6f4047b4fb504000c364edd9a3337e5194b60f896d31904ccab8bf310cf808fd98a9b3b13096b6701d53bbba8402465d08cb99948c8407500")
+        .unwrap();
+    let _ = PoWSignatureProof::deserialize_all(&bin).unwrap();
+}
+
 mod serde_derive {
     use std::fmt;
 
