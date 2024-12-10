@@ -381,18 +381,18 @@ impl OutgoingHTLCTransactionProof {
 }
 
 #[derive(Clone, Debug)]
+pub struct PoWRegularTransfer {
+    hash_algorithm: u8,
+    hash_depth: u8,
+    hash_root: AnyHash,
+    pre_image: PreImage,
+    signature_proof: PoWSignatureProof,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 #[repr(u8)]
 pub enum PoWOutgoingHTLCTransactionProof {
-    DummyZero, // In PoW, RegularTransfer has ID 1, so we need a dummy ID 0
-    RegularTransfer {
-        hash_algorithm: u8,
-        hash_depth: u8,
-        // TODO: Requires a custom deserializer, because the algorithm ID is the first byte of the struct, not part of this field
-        hash_root: AnyHash,
-        // TODO: Requires a custom deserializer, because the preimage length is not part of this field, but dependant on the algorithm
-        pre_image: PreImage,
-        signature_proof: PoWSignatureProof,
-    },
+    RegularTransfer(PoWRegularTransfer) = 1, // In PoW, RegularTransfer has ID 1
     EarlyResolve {
         signature_proof_recipient: PoWSignatureProof,
         signature_proof_sender: PoWSignatureProof,
@@ -405,14 +405,13 @@ pub enum PoWOutgoingHTLCTransactionProof {
 impl PoWOutgoingHTLCTransactionProof {
     pub fn into_pos(self) -> OutgoingHTLCTransactionProof {
         match self {
-            Self::DummyZero => panic!("DummyZero is not a valid PoW proof"),
-            Self::RegularTransfer {
+            Self::RegularTransfer(PoWRegularTransfer {
                 hash_algorithm: _,
                 hash_depth,
                 hash_root,
                 pre_image,
                 signature_proof,
-            } => OutgoingHTLCTransactionProof::RegularTransfer {
+            }) => OutgoingHTLCTransactionProof::RegularTransfer {
                 hash_depth,
                 hash_root,
                 pre_image,
@@ -442,10 +441,17 @@ mod serde_derive {
         ser::{Serialize, SerializeStruct, Serializer},
     };
 
-    use super::{AnyHash, AnyHash32, AnyHash64, PreImage};
+    use super::{AnyHash, AnyHash32, AnyHash64, PoWRegularTransfer, PoWSignatureProof, PreImage};
 
     const ANYHASH_FIELDS: &[&str] = &["algorithm", "hash"];
     const PREIMAGE_FIELDS: &[&str] = &["type", "pre_image"];
+    const POW_REGULAR_TRANSFER_FIELDS: &[&str] = &[
+        "hash_algorithm",
+        "hash_depth",
+        "hash_root",
+        "pre_image",
+        "signature_proof",
+    ];
 
     #[derive(nimiq_serde::Deserialize)]
     #[serde(field_identifier, rename_all = "lowercase")]
@@ -456,6 +462,7 @@ mod serde_derive {
 
     struct PreImageVisitor;
     struct AnyHashVisitor;
+    struct PoWRegularTransferVisitor;
 
     impl Serialize for AnyHash {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -668,6 +675,101 @@ mod serde_derive {
             }
         }
     }
+
+    impl<'de> Visitor<'de> for PoWRegularTransferVisitor {
+        type Value = PoWRegularTransfer;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+            write!(f, "a PoWRegularTransfer")
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<PoWRegularTransfer, A::Error>
+        where
+            A: SeqAccess<'de>,
+        {
+            let hash_algorithm: u8 = seq
+                .next_element()?
+                .ok_or_else(|| Error::invalid_length(0, &self))?;
+
+            let hash_depth: u8 = seq
+                .next_element()?
+                .ok_or_else(|| Error::invalid_length(1, &self))?;
+
+            let hash_root = match hash_algorithm {
+                1u8 => {
+                    let hash_root: AnyHash32 = seq
+                        .next_element()?
+                        .ok_or_else(|| Error::invalid_length(2, &self))?;
+                    AnyHash::Blake2b(hash_root)
+                }
+                3u8 => {
+                    let hash_root: AnyHash32 = seq
+                        .next_element()?
+                        .ok_or_else(|| Error::invalid_length(2, &self))?;
+                    AnyHash::Sha256(hash_root)
+                }
+                4u8 => {
+                    let hash_root: AnyHash64 = seq
+                        .next_element()?
+                        .ok_or_else(|| Error::invalid_length(2, &self))?;
+
+                    AnyHash::Sha512(hash_root)
+                }
+                _ => {
+                    return Err(Error::custom(format!(
+                        "Invalid hash algorithm type: {}",
+                        hash_algorithm
+                    )))
+                }
+            };
+
+            let pre_image = match hash_depth {
+                32u8 => {
+                    let pre_image: AnyHash32 = seq
+                        .next_element()?
+                        .ok_or_else(|| Error::invalid_length(3, &self))?;
+                    PreImage::PreImage32(pre_image)
+                }
+                64u8 => {
+                    let pre_image: AnyHash64 = seq
+                        .next_element()?
+                        .ok_or_else(|| Error::invalid_length(3, &self))?;
+                    PreImage::PreImage64(pre_image)
+                }
+                _ => {
+                    return Err(Error::custom(format!(
+                        "Invalid hash depth type: {}",
+                        hash_depth
+                    )))
+                }
+            };
+
+            let signature_proof: PoWSignatureProof = seq
+                .next_element()?
+                .ok_or_else(|| Error::invalid_length(4, &self))?;
+
+            Ok(PoWRegularTransfer {
+                hash_algorithm,
+                hash_depth,
+                hash_root,
+                pre_image,
+                signature_proof,
+            })
+        }
+    }
+
+    impl<'de> Deserialize<'de> for PoWRegularTransfer {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_struct(
+                "PoWRegularTransfer",
+                POW_REGULAR_TRANSFER_FIELDS,
+                PoWRegularTransferVisitor,
+            )
+        }
+    }
 }
 
 #[cfg(test)]
@@ -675,7 +777,10 @@ mod tests {
     use nimiq_serde::{Deserialize, Serialize};
     use nimiq_test_log::test;
 
-    use super::{AnyHash, AnyHash32, AnyHash64, PreImage};
+    use super::{
+        AnyHash, AnyHash32, AnyHash64, PoWOutgoingHTLCTransactionProof,
+        PreImage,
+    };
 
     fn sample_anyhashes() -> [AnyHash; 3] {
         let hash_32 = AnyHash32([0xC; AnyHash32::SIZE]);
@@ -849,5 +954,12 @@ mod tests {
             r#""0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c""#
         )
         .is_err()); // too large for 64 byte
+    }
+
+    #[test]
+    fn it_can_correctly_deserialize_pow_outgoing_htlc_transaction_proof() {
+        let bin = hex::decode("0103013913543fa4e5b6c41176ee552d314db28d786bd87f103ee25f49f4e2555e51d1bff5b88ef94cd7c2ba354a8e4b50fef063ab1659646570b34effbb48f36ecb4c08600ec9f0d44dc8d43275c705d7780caa31497d2620da4d7838d10574a6dfa100410b82decb73b7c6f4047b4fb504000c364edd9a3337e5194b60f896d31904ccab8bf310cf808fd98a9b3b13096b6701d53bbba8402465d08cb99948c8407500")
+            .unwrap();
+        let _ = PoWOutgoingHTLCTransactionProof::deserialize_from_vec(&bin).unwrap();
     }
 }
