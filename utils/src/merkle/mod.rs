@@ -1,6 +1,8 @@
 use std::{borrow::Cow, cmp::Ordering, error, fmt, io::Write, marker::PhantomData};
 
 use nimiq_hash::{Blake2bHash, HashOutput, Hasher, SerializeContent};
+#[cfg(test)]
+use nimiq_serde::Deserialize as NimiqDeserialize;
 use serde::{
     de::{Error, SeqAccess, Visitor},
     ser::SerializeStruct,
@@ -243,6 +245,99 @@ impl<'de, H: HashOutput> Deserialize<'de> for MerklePath<H> {
 }
 
 pub type Blake2bMerklePath = MerklePath<Blake2bHash>;
+
+#[test]
+fn it_can_correctly_deserialize_merkle_path() {
+    let bin = hex::decode("02018002de8d7ee7e54f301095294d494024430c8b251b4ebf9b1384922dc7f9dd24422f830e231d26cdc3bbd1f55f1918757568522acae62c21e8046190ea84d6e8ff16")
+        .unwrap();
+    let _ = MerklePath::<Blake2bHash>::deserialize_all(&bin).unwrap();
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PoWMerklePath<H: HashOutput> {
+    nodes: Vec<MerklePathNode<H>>,
+}
+
+impl<H: HashOutput> PoWMerklePath<H> {
+    pub fn empty() -> Self {
+        PoWMerklePath { nodes: Vec::new() }
+    }
+
+    pub fn into_pos(self) -> MerklePath<H> {
+        MerklePath { nodes: self.nodes }
+    }
+}
+
+struct PoWMerklePathVisitor<H: HashOutput> {
+    phantom: PhantomData<H>,
+}
+
+impl<'de, H: HashOutput> Visitor<'de> for PoWMerklePathVisitor<H> {
+    type Value = PoWMerklePath<H>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("struct PoWMerklePath")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let count: u8 = seq
+            .next_element()?
+            .ok_or_else(|| A::Error::invalid_length(0, &self))?;
+        if count == 0 {
+            return Ok(PoWMerklePath::empty());
+        }
+        let count = count as usize;
+        let left_bits_size = count.div_ceil(8);
+        let mut left_bits = Vec::with_capacity(left_bits_size);
+        for i in 0..left_bits_size {
+            let bits: u8 = seq
+                .next_element()?
+                .ok_or_else(|| A::Error::invalid_length(i, &self))?;
+            left_bits.push(bits);
+        }
+        let mut node_hashes = Vec::with_capacity(count);
+        for i in 0..count {
+            let hash: H = seq
+                .next_element()?
+                .ok_or_else(|| A::Error::invalid_length(i, &self))?;
+            node_hashes.push(hash);
+        }
+        let mut nodes: Vec<MerklePathNode<H>> = Vec::with_capacity(count);
+        for (i, node_hash) in node_hashes.iter().enumerate().take(count) {
+            nodes.push(MerklePathNode {
+                left: MerklePath::<H>::decompress(i, &left_bits),
+                hash: node_hash.clone(),
+            });
+        }
+        Ok(PoWMerklePath { nodes })
+    }
+}
+
+impl<'de, H: HashOutput> Deserialize<'de> for PoWMerklePath<H> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_tuple(
+            288,
+            PoWMerklePathVisitor {
+                phantom: PhantomData,
+            },
+        )
+    }
+}
+
+pub type PoWBlake2bMerklePath = PoWMerklePath<Blake2bHash>;
+
+#[test]
+fn it_can_correctly_deserialize_pow_merkle_path() {
+    let bin = hex::decode("0280de8d7ee7e54f301095294d494024430c8b251b4ebf9b1384922dc7f9dd24422f830e231d26cdc3bbd1f55f1918757568522acae62c21e8046190ea84d6e8ff16")
+        .unwrap();
+    let _ = PoWMerklePath::<Blake2bHash>::deserialize_all(&bin).unwrap();
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct MerklePathNode<H: HashOutput> {

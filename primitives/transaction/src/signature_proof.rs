@@ -6,7 +6,7 @@ use nimiq_hash::{Blake2bHash, Hash, HashOutput, Sha256Hash};
 use nimiq_keys::{Address, Ed25519PublicKey, Ed25519Signature, PublicKey, Signature};
 use nimiq_primitives::policy::Policy;
 use nimiq_serde::{Deserialize, Serialize, SerializedMaxSize};
-use nimiq_utils::merkle::Blake2bMerklePath;
+use nimiq_utils::merkle::{Blake2bMerklePath, PoWBlake2bMerklePath};
 use url::Url;
 
 #[derive(Clone, Debug)]
@@ -350,10 +350,10 @@ impl WebauthnExtraFields {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct PoWSignatureProof {
     pub public_key: Ed25519PublicKey,
-    pub merkle_path: Blake2bMerklePath,
+    pub merkle_path: PoWBlake2bMerklePath,
     pub signature: Ed25519Signature,
 }
 
@@ -365,7 +365,7 @@ impl PoWSignatureProof {
     pub fn into_pos(self) -> SignatureProof {
         SignatureProof {
             public_key: PublicKey::Ed25519(self.public_key),
-            merkle_path: self.merkle_path,
+            merkle_path: self.merkle_path.into_pos(),
             signature: Signature::Ed25519(self.signature),
             webauthn_fields: None,
         }
@@ -375,6 +375,13 @@ impl PoWSignatureProof {
 #[test]
 fn it_can_correctly_deserialize_pow_signature_proof() {
     let bin = hex::decode("08600ec9f0d44dc8d43275c705d7780caa31497d2620da4d7838d10574a6dfa100410b82decb73b7c6f4047b4fb504000c364edd9a3337e5194b60f896d31904ccab8bf310cf808fd98a9b3b13096b6701d53bbba8402465d08cb99948c8407500")
+        .unwrap();
+    let _ = PoWSignatureProof::deserialize_all(&bin).unwrap();
+}
+
+#[test]
+fn it_can_correctly_deserialize_pow_multisig_signature_proof() {
+    let bin = hex::decode("c79090f344bf7ed4cdd6c25512ee61d1d5fe9cff643263342996ba3448df189f0280de8d7ee7e54f301095294d494024430c8b251b4ebf9b1384922dc7f9dd24422f830e231d26cdc3bbd1f55f1918757568522acae62c21e8046190ea84d6e8ff160caadca71723067d5080d6c3858b61ef8cdf286326818e90ddbefe23af2d529cef7654be5b99bb418786d49e164b24f9db1c482545d8e4473804a53b889e4b07")
         .unwrap();
     let _ = PoWSignatureProof::deserialize_all(&bin).unwrap();
 }
