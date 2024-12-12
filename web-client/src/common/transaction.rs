@@ -484,47 +484,22 @@ impl Transaction {
                     // Parse transaction data
                     StakingContract::parse_data(&self.inner.recipient_data).unwrap()
                 } else if self.inner.recipient_type == AccountType::Vesting {
-                    if self.inner.network_id.is_albatross() {
-                        VestingContract::parse_data(
-                            &self.inner.recipient_data,
-                            self.inner.value,
-                            false,
-                            None,
-                            None,
-                        )
-                        .unwrap()
-                    } else {
-                        // In PoW transactions, the start and step fields were a u32 block numbers, which we'll
-                        // convert to u64 timestamp and millisecond here.
-                        VestingContract::parse_data(
-                            &self.inner.recipient_data,
-                            self.inner.value,
-                            true,
-                            genesis_block_number,
-                            genesis_timestamp,
-                        )
-                        .unwrap()
-                    }
+                    VestingContract::parse_data(
+                        &self.inner.recipient_data,
+                        self.inner.value,
+                        !self.inner.network_id.is_albatross(),
+                        genesis_block_number,
+                        genesis_timestamp,
+                    )
+                    .unwrap()
                 } else if self.inner.recipient_type == AccountType::HTLC {
-                    if self.inner.network_id.is_albatross() {
-                        HashedTimeLockedContract::parse_data(
-                            &self.inner.recipient_data,
-                            false,
-                            None,
-                            None,
-                        )
-                        .unwrap()
-                    } else {
-                        // In PoW transactions, the timeout field was a u32 block height, which we'll convert
-                        // to a u64 timestamp here.
-                        HashedTimeLockedContract::parse_data(
-                            &self.inner.recipient_data,
-                            true,
-                            genesis_block_number,
-                            genesis_timestamp,
-                        )
-                        .unwrap()
-                    }
+                    HashedTimeLockedContract::parse_data(
+                        &self.inner.recipient_data,
+                        !self.inner.network_id.is_albatross(),
+                        genesis_block_number,
+                        genesis_timestamp,
+                    )
+                    .unwrap()
                 } else {
                     PlainTransactionRecipientData::Raw(PlainRawData {
                         raw: hex::encode(self.recipient_data()),
