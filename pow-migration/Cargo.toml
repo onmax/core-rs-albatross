@@ -72,9 +72,9 @@ build-data = "0.2"
 
 [dev-dependencies]
 serde_json = "1.0"
-nimiq-web-client = { workspace = true, default-features = false, features = ["primitives"] }
 
 nimiq-test-log = { workspace = true }
+nimiq-web-client = { workspace = true, features = ["primitives"] }
 
 [features]
 pow-migration-tests = []

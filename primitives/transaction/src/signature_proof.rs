@@ -350,6 +350,9 @@ impl WebauthnExtraFields {
     }
 }
 
+/// This struct represents signature proofs in the Proof-of-Work chain. The difference to proofs on the
+/// Albatross chain are that PoW signature could only be of type Ed25519 (they had no type-and-flags byte)
+/// and that the merkle path had a different serialization.
 #[derive(Clone, Debug, Deserialize)]
 pub struct PoWSignatureProof {
     pub public_key: Ed25519PublicKey,

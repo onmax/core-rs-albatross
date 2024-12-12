@@ -248,11 +248,16 @@ pub type Blake2bMerklePath = MerklePath<Blake2bHash>;
 
 #[test]
 fn it_can_correctly_deserialize_merkle_path() {
+    // PoS merkle paths have the u8 count of nodes as the first byte, then the left-bits prefixed by
+    // their own varint length (0b01 here), then the node hashes themselves, prefixed by another varint length
+    // which is the same as the count in the first byte.
     let bin = hex::decode("02018002de8d7ee7e54f301095294d494024430c8b251b4ebf9b1384922dc7f9dd24422f830e231d26cdc3bbd1f55f1918757568522acae62c21e8046190ea84d6e8ff16")
         .unwrap();
     let _ = MerklePath::<Blake2bHash>::deserialize_all(&bin).unwrap();
 }
 
+/// This struct represents the serialization of merkle paths in the Proof-of-Work chain, which was
+/// different from the serialization in the Proof-of-Stake chain (it was more efficient but harder to parse).
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PoWMerklePath<H: HashOutput> {
     nodes: Vec<MerklePathNode<H>>,
@@ -321,6 +326,25 @@ impl<'de, H: HashOutput> Deserialize<'de> for PoWMerklePath<H> {
     where
         D: Deserializer<'de>,
     {
+        // I have tried many ways to deserialize the PoW merkle path format with serde/postcard, but none
+        // allowed me to read the raw bytes and then parse vecs for which I already knew the length of (so
+        // that serde/postcard does not try to read a length prefix).
+        // I cannot use `deserializer.deserialize_bytes()` or anything similar that deserializes vecs, because
+        // they internally read the first byte as the length byte and then only let you work with that number
+        // of following bytes.
+        // Additionally, the number of fields passed to `deserializer.deserialize_stuct()` limits the number
+        // of times one can call `seq.next_element()` in the visitor before it throws a `SerdeDeCustom` error.
+        // Since we don't know how many nodes we need to parse from the input without looking at the input first
+        // (need to read that first byte), we cannot use it.
+        // `deserializer.deserialize_tuple()` has the same limitation, but we can work around it by giving it
+        // the maximum number of fields we will ever need to parse (length of a merkle path is serialized as a u8,
+        // so can be at most 255. That means the highest possible number of elements is 1 length field +
+        // 255.div_ceil(8) bitset bytes + 255 nodes = 288 elements). The deserializer doesn't complain when we
+        // parse less elements than indicated, so we can return from the visitor at any time when we have parsed
+        // all that we need to.
+        // (Technically one can do the same with `deserializer.deserialize_struct()`, but one would have to pass in
+        // a list of 288 strings for the `fields`. So using `deserialize_tuple()` that takes just a number is much
+        // easier.)
         deserializer.deserialize_tuple(
             288,
             PoWMerklePathVisitor {
@@ -334,6 +358,8 @@ pub type PoWBlake2bMerklePath = PoWMerklePath<Blake2bHash>;
 
 #[test]
 fn it_can_correctly_deserialize_pow_merkle_path() {
+    // PoW merkle paths have the u8 count of nodes as the first byte, then the left-bits, then immediately the
+    // node hashes themselves - no length bytes inbetween.
     let bin = hex::decode("0280de8d7ee7e54f301095294d494024430c8b251b4ebf9b1384922dc7f9dd24422f830e231d26cdc3bbd1f55f1918757568522acae62c21e8046190ea84d6e8ff16")
         .unwrap();
     let _ = PoWMerklePath::<Blake2bHash>::deserialize_all(&bin).unwrap();

@@ -363,10 +363,10 @@ impl Transaction {
     #[wasm_bindgen(js_name = toPlain)]
     pub fn to_plain(
         &self,
-        genesis_number: Option<u32>,
+        genesis_block_number: Option<u32>,
         genesis_timestamp: Option<u64>,
     ) -> Result<PlainTransactionType, JsError> {
-        let plain = self.to_plain_transaction(genesis_number, genesis_timestamp);
+        let plain = self.to_plain_transaction(genesis_block_number, genesis_timestamp);
         Ok(serde_wasm_bindgen::to_value(&plain)?.into())
     }
 
@@ -440,7 +440,7 @@ impl Transaction {
 
     pub fn to_plain_transaction(
         &self,
-        genesis_number: Option<u32>,
+        genesis_block_number: Option<u32>,
         genesis_timestamp: Option<u64>,
     ) -> PlainTransaction {
         PlainTransaction {
@@ -500,7 +500,7 @@ impl Transaction {
                             &self.inner.recipient_data,
                             self.inner.value,
                             true,
-                            genesis_number,
+                            genesis_block_number,
                             genesis_timestamp,
                         )
                         .unwrap()
@@ -520,7 +520,7 @@ impl Transaction {
                         HashedTimeLockedContract::parse_data(
                             &self.inner.recipient_data,
                             true,
-                            genesis_number,
+                            genesis_block_number,
                             genesis_timestamp,
                         )
                         .unwrap()
@@ -1065,7 +1065,7 @@ impl PlainTransactionDetails {
     pub fn try_from_historic_transaction(
         hist_tx: HistoricTransaction,
         current_block: u32,
-        genesis_number: Option<u32>,
+        genesis_block_number: Option<u32>,
         genesis_timestamp: Option<u64>,
     ) -> Option<PlainTransactionDetails> {
         let block_number = hist_tx.block_number;
@@ -1080,11 +1080,13 @@ impl PlainTransactionDetails {
         let (succeeded, transaction) = match hist_tx.data {
             HistoricTransactionData::Basic(ExecutedTransaction::Ok(inner)) => (
                 true,
-                Transaction::from(inner).to_plain_transaction(genesis_number, genesis_timestamp),
+                Transaction::from(inner)
+                    .to_plain_transaction(genesis_block_number, genesis_timestamp),
             ),
             HistoricTransactionData::Basic(ExecutedTransaction::Err(inner)) => (
                 false,
-                Transaction::from(inner).to_plain_transaction(genesis_number, genesis_timestamp),
+                Transaction::from(inner)
+                    .to_plain_transaction(genesis_block_number, genesis_timestamp),
             ),
             HistoricTransactionData::Reward(ref ev) => (
                 true,

@@ -67,8 +67,11 @@ init().then(async () => {
     });
 
     document.querySelector('#query-staking-contract').addEventListener("click", async () => {
-        let account = await client.getAccount('NQ07 0000 0000 0000 0000 0000 0000 0000 0000');
+        let account = await client.getAccount('NQ77 0000 0000 0000 0000 0000 0000 0000 0001');
         console.log(account);
+    });
+
+    document.querySelector('#query-transaction-history').addEventListener("click", async () => {
         let history = await client.getTransactionsByAddress('NQ07 0000 0000 0000 0000 0000 0000 0000 0000');
         console.log(history);
     });

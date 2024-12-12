@@ -170,6 +170,7 @@ impl CreationTransactionData {
             _ => return Err(TransactionError::InvalidData),
         })
     }
+
     pub fn parse(transaction: &Transaction) -> Result<Self, TransactionError> {
         CreationTransactionData::parse_data(&transaction.recipient_data, transaction.value)
     }
@@ -207,7 +208,9 @@ impl CreationTransactionData {
     }
 }
 
-/// Data used to create vesting contracts in PoW.
+/// This struct represents vesting contract creation data in the Proof-of-Work chain. The differences
+/// to the data in the Albatross chain are that the vesting period start and step length were u32 block numbers
+/// in PoW instead of a u64 timestamps, making this serialization shorter.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct PoWCreationTransactionData {
     /// The owner of the contract, the only address that can interact with it.
@@ -302,15 +305,20 @@ impl PoWCreationTransactionData {
             _ => return Err(TransactionError::InvalidData),
         })
     }
+
     pub fn parse(transaction: &Transaction) -> Result<Self, TransactionError> {
         PoWCreationTransactionData::parse_data(&transaction.recipient_data, transaction.value)
     }
 
-    pub fn into_pos(self, genesis_number: u32, genesis_timestamp: u64) -> CreationTransactionData {
-        let start_time = if self.start_block <= genesis_number {
-            genesis_timestamp - (genesis_number - self.start_block) as u64 * 60_000
+    pub fn into_pos(
+        self,
+        genesis_block_number: u32,
+        genesis_timestamp: u64,
+    ) -> CreationTransactionData {
+        let start_time = if self.start_block <= genesis_block_number {
+            genesis_timestamp - (genesis_block_number - self.start_block) as u64 * 60_000
         } else {
-            genesis_timestamp + (self.start_block - genesis_number) as u64 * 60_000
+            genesis_timestamp + (self.start_block - genesis_block_number) as u64 * 60_000
         };
         let time_step = self.step_blocks as u64 * 60_000;
 

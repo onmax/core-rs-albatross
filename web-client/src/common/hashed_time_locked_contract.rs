@@ -39,16 +39,16 @@ impl HashedTimeLockedContract {
     pub fn parse_data(
         bytes: &[u8],
         as_pow: bool,
-        genesis_number: Option<u32>,
+        genesis_block_number: Option<u32>,
         genesis_timestamp: Option<u64>,
     ) -> Result<PlainTransactionRecipientData, JsError> {
         let data = if as_pow {
-            let genesis_number =
-                genesis_number.ok_or_else(|| JsError::new("Genesis number is required"))?;
+            let genesis_block_number = genesis_block_number
+                .ok_or_else(|| JsError::new("Genesis block number is required"))?;
             let genesis_timestamp =
                 genesis_timestamp.ok_or_else(|| JsError::new("Genesis timestamp is required"))?;
             PoWCreationTransactionData::parse_data(bytes)?
-                .into_pos(genesis_number, genesis_timestamp)
+                .into_pos(genesis_block_number, genesis_timestamp)
         } else {
             CreationTransactionData::parse_data(bytes)?
         };

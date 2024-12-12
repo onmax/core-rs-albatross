@@ -60,6 +60,7 @@ impl AccountTransactionVerification for HashedTimeLockedContractVerifier {
 
             CreationTransactionData::parse(transaction)?.verify()
         } else {
+            // PoW HTLC creation data specified the timeout (last field) as a u32 block number instead of a timestamp.
             if transaction.recipient_data.len() != (20 * 2 + 1 + 32 + 1 + 4)
                 && transaction.recipient_data.len() != (20 * 2 + 1 + 64 + 1 + 4)
             {
@@ -217,11 +218,21 @@ add_serialization_fns_typed_arr!(AnyHash64, AnyHash64::SIZE);
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct CreationTransactionData {
+    /// Address that is allowed to redeem the funds after the timeout.
     pub sender: Address,
+    /// Address that is allowed to redeem the funds before the timeout.
     pub recipient: Address,
+    /// The hash root of the contract. The recipient can redeem the funds before the timeout by providing
+    /// a pre-image that hashes to this root.
     pub hash_root: AnyHash,
+    /// The number of times the pre-image must be hashed to match the `hash_root`. Must be at least 1.
+    /// A number higher than 1 allows the recipient to provide an already hashed pre-image, with the
+    /// remaining number of hashes required to match the `hash_root` corresponding to the fraction of
+    /// the funds that can be claimed.
     pub hash_count: u8,
     #[serde(with = "nimiq_serde::fixint::be")]
+    /// The timeout as a millisecond timestamp before which the `recipient` and after which the `sender`
+    /// can claim the funds.
     pub timeout: u64,
 }
 
@@ -243,14 +254,26 @@ impl CreationTransactionData {
     }
 }
 
+/// This struct represents HTLC creation data in the Proof-of-Work chain. The only difference to the data in
+/// the Albatross chain is that the `timeout` was a u32 block number in PoW instead of a u64 timestamp.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct PoWCreationTransactionData {
+    /// Address that is allowed to redeem the funds after the timeout.
     pub sender: Address,
+    /// Address that is allowed to redeem the funds before the timeout.
     pub recipient: Address,
+    /// The hash root of the contract. The recipient can redeem the funds before the timeout by providing
+    /// a pre-image that hashes to this root.
     pub hash_root: AnyHash,
+    /// The number of times the pre-image must be hashed to match the `hash_root`. Must be at least 1.
+    /// A number higher than 1 allows the recipient to provide an already hashed pre-image, with the
+    /// remaining number of hashes required to match the `hash_root` corresponding to the fraction of
+    /// the funds that can be claimed.
     pub hash_count: u8,
     #[serde(with = "nimiq_serde::fixint::be")]
-    pub timeout: u32, // Block height
+    /// The timeout as a block height before which the `recipient` and after which the `sender`
+    /// can claim the funds.
+    pub timeout: u32,
 }
 
 impl PoWCreationTransactionData {
@@ -269,11 +292,15 @@ impl PoWCreationTransactionData {
         Ok(())
     }
 
-    pub fn into_pos(self, genesis_number: u32, genesis_timestamp: u64) -> CreationTransactionData {
-        let timeout = if self.timeout <= genesis_number {
-            genesis_timestamp - (genesis_number - self.timeout) as u64 * 60_000
+    pub fn into_pos(
+        self,
+        genesis_block_number: u32,
+        genesis_timestamp: u64,
+    ) -> CreationTransactionData {
+        let timeout = if self.timeout <= genesis_block_number {
+            genesis_timestamp - (genesis_block_number - self.timeout) as u64 * 60_000
         } else {
-            genesis_timestamp + (self.timeout - genesis_number) as u64 * 60_000
+            genesis_timestamp + (self.timeout - genesis_block_number) as u64 * 60_000
         };
 
         CreationTransactionData {
@@ -401,6 +428,9 @@ impl OutgoingHTLCTransactionProof {
     }
 }
 
+/// This struct represents a HTLC redeem proof for the regular transfer case in the Proof-of-Work chain.
+/// Differences to the Proof-of-Stake is the serialization (PoW had a different position for the algorithm type
+/// and no PreImage type prefix) and that the signature proof is a PoWSignatureProof and thus shorter than in PoS.
 #[derive(Clone, Debug)]
 pub struct PoWRegularTransfer {
     // PoW regular transfers encode the hash algorithm as the first u8 byte,
@@ -411,6 +441,9 @@ pub struct PoWRegularTransfer {
     signature_proof: PoWSignatureProof,
 }
 
+/// Enum over the different types of outgoing HTLC transaction proofs in the Proof-of-Work chain.
+/// The differences to Proof-of-Stake are the variant IDs (they start at 1 in PoW, while they start at 0 in PoS)
+/// and that all signature proofs are PoWSignatureProofs.
 #[derive(Clone, Debug, Deserialize)]
 #[repr(u8)]
 pub enum PoWOutgoingHTLCTransactionProof {
