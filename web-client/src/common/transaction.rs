@@ -567,7 +567,7 @@ impl Transaction {
             from_network_id(NetworkId::from_str(&plain.network)?),
         )?;
         tx.set_proof(hex::decode(match plain.proof {
-            PlainTransactionProof::Raw(_) => "",
+            PlainTransactionProof::Raw(ref data) => &data.raw,
             PlainTransactionProof::Standard(ref data) => &data.raw,
             PlainTransactionProof::RegularTransfer(ref data) => &data.raw,
             PlainTransactionProof::TimeoutResolve(ref data) => &data.raw,

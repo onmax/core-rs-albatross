@@ -88,7 +88,13 @@ describe('Transaction', () => {
             },
         };
 
-        expect(() => Transaction.fromPlain(plain as PlainTransactionDetails)).not.toThrow();
+        let tx: Transaction | undefined;
+        expect(() => tx = Transaction.fromPlain(plain as PlainTransactionDetails)).not.toThrow();
+        if (!tx) throw new Error('Transaction.fromPlain returned undefined');
+        const plain2 = tx.toPlain();
+        expect(plain2.proof).toEqual(plain.proof);
+        expect(plain2.size).toEqual(plain.size);
+        expect(plain2.valid).toEqual(plain.valid);
     });
 
     it('can deserialize PoW style plain transaction details', () => {
@@ -116,7 +122,7 @@ describe('Transaction', () => {
                 "pathLength": 0,
                 "raw": "4490c883a95fc7c44e45043108436973b071851ed2a203111ddb2f088056f0fc0098be457841e99d998cc54e96306a82e106bc5306271cd2194eba1d8e7653baff6e5e3b3344c11da401d4f42ab5763e4f3147662f07ac4c32addd3e15da469707"
             },
-            "size": 201,
+            "size": 200,
             "valid": true,
             "state": "confirmed",
             "blockHash": "f8a0d2a34352368bbb07590434b58f1c23c31b12b8b6368eb92cb84928968575",
@@ -129,6 +135,14 @@ describe('Transaction', () => {
             },
         };
 
-        expect(() => Transaction.fromPlain(plain as unknown as PlainTransactionDetails)).not.toThrow();
+        let tx: Transaction | undefined;
+        expect(() => tx = Transaction.fromPlain(plain as unknown as PlainTransactionDetails)).not.toThrow();
+        if (!tx) throw new Error('Transaction.fromPlain returned undefined');
+
+        const plain2 = tx.toPlain();
+        // Cannot compare proof field yet, as re-serialization creates a PoS proof with a a leading 0x00-byte
+        // expect(plain2.proof).toEqual(plain.proof);
+        expect(plain2.size).toEqual(plain.size);
+        expect(plain2.valid).toEqual(plain.valid);
     });
 });
