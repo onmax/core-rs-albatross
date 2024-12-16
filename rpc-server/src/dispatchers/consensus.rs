@@ -145,7 +145,7 @@ impl ConsensusInterface for ConsensusDispatcher {
         let transaction = TransactionBuilder::new_basic_with_data(
             &self.get_wallet_keypair(&wallet)?,
             recipient,
-            hex::decode(data).unwrap(),
+            hex::decode(data)?,
             value,
             fee,
             self.validity_start_height(validity_start_height),
