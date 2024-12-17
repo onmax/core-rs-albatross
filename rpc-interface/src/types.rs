@@ -27,8 +27,8 @@ use nimiq_transaction::{
     },
 };
 use nimiq_vrf::VrfSeed;
-use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DeserializeFromStr, SerializeDisplay};
+use serde::{de::Error, Deserialize, Serialize};
+use serde_with::{serde_as, SerializeDisplay};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,7 +49,7 @@ impl From<nimiq_transaction::Transaction> for HashOrTx {
     }
 }
 
-#[derive(Copy, Clone, Debug, SerializeDisplay, DeserializeFromStr)]
+#[derive(Copy, Clone, Debug, SerializeDisplay)]
 pub enum ValidityStartHeight {
     Absolute(u32),
     Relative(u32),
@@ -75,6 +75,30 @@ impl Display for ValidityStartHeight {
         match self {
             Self::Absolute(n) => write!(f, "{n}"),
             Self::Relative(n) => write!(f, "+{n}"),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ValidityStartHeight {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum StrOrU32 {
+            Number(u32),
+            String(String),
+        }
+
+        match StrOrU32::deserialize(deserializer)? {
+            StrOrU32::Number(height) => Ok(Self::Absolute(height)),
+            StrOrU32::String(height) => Self::from_str(&height).map_err(|e| {
+                Error::custom(format!(
+                    "ValidityStartHeight cannot be converted into a `u32`: {}",
+                    e
+                ))
+            }),
         }
     }
 }
