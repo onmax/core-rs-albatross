@@ -277,20 +277,26 @@ impl<N: Network> ConsensusProxy<N> {
                     //  - Finalized epochs: we use the election block number that finalized the respective epoch
                     //  - Finalized batch in the current epoch: We use the latest checkpoint block number
                     //  - Current batch: We use the current head to prove those transactions
-                    if block_number <= &election_head.block_number() {
-                        // First Case: Transactions from finalized epochs
+                    if Policy::is_election_block_at(*block_number) {
+                        // 1st Case: Transactions in election blocks
+                        hashes_by_block
+                            .entry(Some(*block_number))
+                            .or_insert(vec![])
+                            .push(hash.clone());
+                    } else if block_number < &election_head.block_number() {
+                        // 2nd Case: Transactions from finalized epochs (but not in election blocks)
                         hashes_by_block
                             .entry(Some(Policy::election_block_after(*block_number)))
                             .or_insert(vec![])
                             .push(hash.clone());
                     } else if block_number <= &checkpoint_head.block_number() {
-                        // Second Case: Transactions from a finalized batch in the current epoch
+                        // 3rd Case: Transactions from a finalized batch in the current epoch
                         hashes_by_block
                             .entry(Some(checkpoint_head.block_number()))
                             .or_insert(vec![])
                             .push(hash.clone());
                     } else {
-                        // Third Case: Transactions from the current batch
+                        // 4th Case: Transactions from the current batch
                         hashes_by_block
                             .entry(Some(current_block_number))
                             .or_insert(vec![])
