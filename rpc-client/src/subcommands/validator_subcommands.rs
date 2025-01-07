@@ -28,10 +28,9 @@ pub enum ValidatorCommand {
     /// Returns the voting key of the local validator.
     ValidatorVotingKey {},
 
-    /// Sends a `new_validator` transaction to the network. You need to provide the address of a basic
+    /// Sends a transaction to the network to create this validator. You need to provide the address of a basic
     /// account (the sender wallet) to pay the transaction fee and the validator deposit. The sender wallet must be unlocked
     /// prior to this command.
-    /// The sender_wallet must be unlocked prior to this command.
     /// Since JSON doesn't have a primitive for Option (it just has the null primitive), we can't
     /// have a double Option. This becomes an issue when creating an update_validator transaction.
     /// Instead we use the following work-around. We define the empty String to be None. So, in
@@ -41,12 +40,6 @@ pub enum ValidatorCommand {
     CreateNewValidator {
         /// The fee will be paid from this address. This address must be already unlocked.
         sender_wallet: Address,
-
-        /// The new validator address. This wallet must be already unlocked.
-        validator_wallet: Address,
-
-        /// The Schnorr signing key used by the validator.
-        signing_secret_key: String,
 
         /// The BLS key used by the validator.
         voting_secret_key: String,
@@ -154,20 +147,20 @@ impl HandleSubcommand for ValidatorCommand {
 
             ValidatorCommand::CreateNewValidator {
                 sender_wallet,
-                validator_wallet,
-                signing_secret_key,
                 voting_secret_key,
                 reward_address,
                 signal_data,
                 tx_commons,
             } => {
+                let validator_address = client.validator.get_address().await?.data;
+                let key_data = client.validator.get_signing_key().await?.data;
                 if tx_commons.dry {
                     let tx = client
                         .consensus
                         .create_new_validator_transaction(
                             sender_wallet,
-                            validator_wallet,
-                            signing_secret_key,
+                            validator_address,
+                            key_data,
                             voting_secret_key,
                             reward_address,
                             signal_data,
@@ -181,8 +174,8 @@ impl HandleSubcommand for ValidatorCommand {
                         .consensus
                         .send_new_validator_transaction(
                             sender_wallet,
-                            validator_wallet,
-                            signing_secret_key,
+                            validator_address,
+                            key_data,
                             voting_secret_key,
                             reward_address,
                             signal_data,

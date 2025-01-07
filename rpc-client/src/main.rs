@@ -56,6 +56,7 @@ enum Command {
 
     /// Shows and modifies validator information.
     /// Create, signs and send transactions referring to the local validator.
+    /// These operations only work if the current client is configured as a validator.
     #[clap(flatten)]
     Validator(ValidatorCommand),
 
