@@ -153,8 +153,18 @@ You can also choose to run a validator or a prover node. Check our guides with t
 `docker pull ghcr.io/nimiq/core-rs-albatross:latest`.
 3. Create a `client.toml` file in `~/data` with `cp ./lib/src/config/config_file/client.example.toml ~/data/client.toml`.
 4. Customize the configuration file to match your requirements. Refer to the [sample configuration file](https://github.com/nimiq/core-rs-albatross/blob/albatross/lib/src/config/config_file/client.example.toml) and [configuration settings](#configuration) for guidance.
-5. Run the client via Docker:
-`docker run -v $(pwd)/data:/home/nimiq/.nimiq -p 8443:8443 -p 8648:8648 -p 9100:9100 --name nimiq-rpc --rm ghcr.io/nimiq/core-rs-albatross:latest`.
+5. Run the client via Docker.
+   - If you are running a history node for **mainnet**:
+     1. Make sure to have downloaded the full genesis file as explained in [this section](#history-nodes).
+     2. Copy the full genesis file into the `data` folder: `cp /path/to/nimiq-genesis-main-albatross.toml ~/data`.
+     3. Run the client with the `NIMIQ_OVERRIDE_MAINNET_CONFIG` environment variable:
+        ```
+        docker run -v $(pwd)/data:/home/nimiq/.nimiq -p 8443:8443 -p 8648:8648 -p 9100:9100 -e NIMIQ_OVERRIDE_MAINNET_CONFIG=/home/nimiq/.nimiq/nimiq-genesis-main-albatross.toml --name nimiq-rpc --rm ghcr.io/nimiq/core-rs-albatross:latest
+        ```
+   - If you're not running a history node or not running the client for **mainnet**:
+     ```
+     docker run -v $(pwd)/data:/home/nimiq/.nimiq -p 8443:8443 -p 8648:8648 -p 9100:9100 --name nimiq-rpc --rm ghcr.io/nimiq/core-rs-albatross:latest
+     ```
 
 **Overview of Exposed Ports**
 
