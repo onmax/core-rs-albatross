@@ -4156,9 +4156,9 @@ dependencies = [
 
 [[package]]
 name = "nimiq-jsonrpc-client"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "844a8fceaf19654c3b911e580f9fc425b4c8ce4d81e91ef4d43a237255fc830f"
+checksum = "5e42f658452741799b7c5ac8852729d05f952ba925f3524752f22b43491ad43e"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -4178,9 +4178,9 @@ dependencies = [
 
 [[package]]
 name = "nimiq-jsonrpc-core"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "419861fe0523ec2ed2a22a91bc5de37281af742aa5e5f4b8b848a3bb4cebf152"
+checksum = "b55415115dbedde87b282b3359269bc6d4f231778e5912ff7516661beaebc3ca"
 dependencies = [
  "log",
  "serde",
@@ -4190,9 +4190,9 @@ dependencies = [
 
 [[package]]
 name = "nimiq-jsonrpc-derive"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90e0815fbdb9b4f1b3d4b01f2b92015270a9b5b6b6a03a952ddb994e55c50042"
+checksum = "c80d9a4e435131b2eb1223e4d0e6f0e7d541a74fe24cf503170ccd9676846978"
 dependencies = [
  "darling",
  "heck 0.5.0",
@@ -4206,9 +4206,9 @@ dependencies = [
 
 [[package]]
 name = "nimiq-jsonrpc-server"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6a1a4219d02f3ff48ed75883f0d3025c2fb5d5bfa49fb1a92f955cc7927cf5c"
+checksum = "74a83610134208ccf343e28462b77029429a1d9ca4e5b4f0b3f0052bdffc58e1"
 dependencies = [
  "async-trait",
  "blake2",
