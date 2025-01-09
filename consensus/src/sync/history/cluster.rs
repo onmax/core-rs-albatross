@@ -366,9 +366,15 @@ impl<TNetwork: Network + 'static> SyncCluster<TNetwork> {
         let current_epoch_number = blockchain.epoch_number();
         let num_known_txs = if epoch_number == current_epoch_number {
             let last_macro_block = Policy::last_macro_block(current_block_number);
-            blockchain
-                .history_store
-                .num_epoch_transactions_before(last_macro_block, None) as u64
+            // Check if the last_macro_block crosses an epoch boundary. This could happen if locally the node is in the first batch of an epoch.
+            // In this case, the number of known transactions must be 0 to avoid fetching the number of epoch transactions from the previous epoch.
+            if Policy::is_election_block_at(last_macro_block) {
+                0
+            } else {
+                blockchain
+                    .history_store
+                    .num_epoch_transactions_before(last_macro_block, None) as u64
+            }
         } else {
             0
         };
