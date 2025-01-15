@@ -59,8 +59,7 @@ export function clientFactory(workerFactory: () => Worker, comlinkWrapper: (work
             await new Promise<void>((resolve, reject) => {
                 addEventListener(worker, 'message', (event) => {
                     const eventData = getEventData(event);
-
-                    if (!('ok' in eventData)) return;
+                    if (typeof eventData !== 'object' || !('ok' in eventData)) return;
 
                     if (eventData.ok === true) resolve();
                     if (eventData.ok === false && 'error' in eventData && typeof eventData.error === 'string') {
