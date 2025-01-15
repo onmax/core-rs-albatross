@@ -9,14 +9,23 @@ export function clientFactory(workerFactory: () => Worker, comlinkWrapper: (work
         async create(config: PlainClientConfiguration): Promise<Client> {
             const worker = workerFactory();
 
-            // Wait for worker script to load
-            await new Promise<void>((resolve) => {
-                const readyListener = (event: {} | MessageEvent) => {
-                    removeEventListener(worker, 'message', readyListener);
-                    if (getEventData(event) === 'NIMIQ_ONLOAD') resolve();
-                };
-                addEventListener(worker, 'message', readyListener);
+            // Wait for worker script to be ready
+            let workerReady: () => void;
+            const readyPromise = new Promise<void>((resolve) => {
+                workerReady = resolve;
             });
+            const readyListener = (event: {} | MessageEvent) => {
+                if (getEventData(event) === 'NIMIQ_READY') {
+                    workerReady();
+                }
+            };
+            addEventListener(worker, 'message', readyListener);
+            const readyCheckInterval = setInterval(() => {
+                worker.postMessage('NIMIQ_CHECKREADY');
+            }, 20);
+            await readyPromise;
+            removeEventListener(worker, 'message', readyListener);
+            clearInterval(readyCheckInterval);
             console.debug('Client WASM worker loaded');
 
             // Wrap the worker with Comlink, to transparently proxy any method calls on the client
