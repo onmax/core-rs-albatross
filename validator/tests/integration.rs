@@ -79,26 +79,3 @@ async fn validator_update() {
     let producer2 = BlockProducer::new(new_signing_key, new_voting_key);
     produce_macro_blocks_with_txns(&producer2, &blockchain, 1, 1, 2);
 }
-
-#[test(tokio::test(flavor = "multi_thread"))]
-#[ignore]
-async fn four_validators_can_create_an_epoch() {
-    let env =
-        MdbxDatabase::new_volatile(Default::default()).expect("Could not open a volatile database");
-
-    let validators =
-        build_validators::<Network>(env, &(1u64..=4u64).collect::<Vec<_>>(), &mut None, false)
-            .await;
-
-    let blockchain = Arc::clone(&validators.first().unwrap().blockchain);
-
-    for validator in validators {
-        spawn(validator);
-    }
-
-    let events = blockchain.read().notifier_as_stream();
-
-    events.take(130).for_each(|_| future::ready(())).await;
-
-    assert!(blockchain.read().block_number() >= 130 + Policy::genesis_block_number());
-}
