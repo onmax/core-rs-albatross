@@ -251,7 +251,7 @@ impl<TNetwork: Network> LightMacroSync<TNetwork> {
                     // Verify the history chunk
                     let valid_chunk = chunk
                         .verify(&expected_root, leaf_index as usize)
-                        .map_or(false, |result| result);
+                        .is_some_and(|result| result);
 
                     if !valid_chunk {
                         // If the chunk doesn't verify we disconnect from the peer

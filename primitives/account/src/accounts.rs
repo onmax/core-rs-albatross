@@ -259,7 +259,7 @@ impl Accounts {
         let missing = self
             .tree
             .get_missing_range(txn)
-            .map_or(false, |range| range.contains(&rightmost_key));
+            .is_some_and(|range| range.contains(&rightmost_key));
 
         if missing {
             self.tree

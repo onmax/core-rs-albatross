@@ -724,7 +724,7 @@ impl<N: Network> BlockQueue<N> {
         if self
             .buffer
             .get(&block_number)
-            .map_or(false, |blocks| blocks.contains_key(&block_hash))
+            .is_some_and(|blocks| blocks.contains_key(&block_hash))
         {
             // Block is already buffered and will be pushed sometime soon. No need to request it.
             return;

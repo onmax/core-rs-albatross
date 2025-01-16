@@ -275,7 +275,7 @@ impl PeerContactInfo {
     pub fn exceeds_age(&self, max_age: Duration, unix_time: Duration) -> bool {
         unix_time
             .checked_sub(Duration::from_secs(self.contact.inner.timestamp()))
-            .map_or(false, |age| age > max_age)
+            .is_some_and(|age| age > max_age)
     }
 
     /// Returns true if the services provided are interesting to me
