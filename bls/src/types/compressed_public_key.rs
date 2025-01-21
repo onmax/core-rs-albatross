@@ -35,6 +35,10 @@ impl CompressedPublicKey {
 
     /// Transforms the compressed form back into the projective form.
     pub fn uncompress(&self) -> Result<PublicKey, Error> {
+        log::info!(
+            compressed = &self.to_hex()[..16],
+            "decompressing BLS public key",
+        );
         let affine_point: G2Affine =
             CanonicalDeserialize::deserialize_compressed(&mut &self.public_key[..])
                 .map_err(|e| Error::new(ErrorKind::Other, e))?;

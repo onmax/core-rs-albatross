@@ -29,8 +29,8 @@ impl BlsCache {
             .await
         {
             Ok(db) => Some(db),
-            Err(err) => {
-                log::warn!("idb: Couldn't create database {}", err);
+            Err(error) => {
+                log::warn!(%error, "idb: Couldn't create database");
                 None
             }
         };
@@ -44,6 +44,7 @@ impl BlsCache {
     /// function will panic.
     pub async fn add_keys(&self, keys: Vec<LazyPublicKey>) -> Result<(), Error> {
         if let Some(db) = &self.db {
+            log::info!(num = keys.len(), "storing keys in idb");
             let transaction = db.transaction(&[BLS_KEYS], TransactionMode::ReadWrite)?;
             let bls_keys_store = transaction.object_store(BLS_KEYS)?;
 
@@ -60,6 +61,8 @@ impl BlsCache {
                 let entry_js_value = serde_wasm_bindgen::to_value(&entry).unwrap();
                 bls_keys_store.put(&entry_js_value, None)?.await?;
             }
+        } else {
+            log::error!(num = keys.len(), "can't store keys in idb");
         }
         Ok(())
     }
@@ -72,6 +75,7 @@ impl BlsCache {
             let bls_keys_store = transaction.object_store(BLS_KEYS)?;
 
             let js_keys = bls_keys_store.get_all(None, None)?.await?;
+            log::info!(num = js_keys.len(), "loaded keys from idb");
 
             for js_key in &js_keys {
                 let value: BlsKeyEntry = serde_wasm_bindgen::from_value(js_key.clone()).unwrap();
@@ -81,6 +85,8 @@ impl BlsCache {
                 self.keys.push(LazyPublicKey::from(public_key));
             }
             transaction.await?;
+        } else {
+            log::error!("couldn't load keys from idb");
         }
         Ok(())
     }
