@@ -1,8 +1,9 @@
-use std::env;
 #[cfg(feature = "genesis-override")]
 use std::path::Path;
+use std::{env, sync::OnceLock};
 
 use nimiq_block::Block;
+use nimiq_bls::{LazyPublicKey as BlsLazyPublicKey, PublicKey as BlsPublicKey};
 #[cfg(feature = "genesis-override")]
 use nimiq_database::mdbx::MdbxDatabase;
 #[cfg(feature = "genesis-override")]
@@ -17,6 +18,7 @@ use nimiq_serde::Serialize;
 #[derive(Clone, Debug)]
 struct GenesisData {
     block: &'static [u8],
+    decompressed_keys: &'static [u8],
     hash: Blake2bHash,
     accounts: Option<&'static [u8]>,
 }
@@ -81,16 +83,40 @@ fn read_genesis_config(config: &Path) -> Result<GenesisData, GenesisBuilderError
 
     Ok(GenesisData {
         block: Box::leak(block.into_boxed_slice()),
+        decompressed_keys: &[],
         hash,
         accounts: accounts.map(|accounts| Box::leak(accounts.into_boxed_slice()) as &'static _),
     })
 }
+
+static KEYS_DEV: OnceLock<Box<[BlsLazyPublicKey]>> = OnceLock::new();
+static KEYS_TEST: OnceLock<Box<[BlsLazyPublicKey]>> = OnceLock::new();
+static KEYS_UNIT: OnceLock<Box<[BlsLazyPublicKey]>> = OnceLock::new();
+static KEYS_MAIN: OnceLock<Box<[BlsLazyPublicKey]>> = OnceLock::new();
 
 fn network(network_id: NetworkId) -> Option<&'static NetworkInfo> {
     let result = network_impl(network_id);
     if let Some(info) = result {
         assert_eq!(network_id, info.network_id);
         assert_eq!(network_id, info.genesis_block().network());
+        let keys = match network_id {
+            NetworkId::DevAlbatross => &KEYS_DEV,
+            NetworkId::TestAlbatross => &KEYS_TEST,
+            NetworkId::UnitAlbatross => &KEYS_UNIT,
+            NetworkId::MainAlbatross => &KEYS_MAIN,
+            _ => unreachable!(),
+        };
+        keys.get_or_init(|| {
+            info.genesis
+                .decompressed_keys
+                .chunks(BlsPublicKey::TRUSTED_SERIALIZATION_SIZE)
+                .map(|chunk| {
+                    BlsLazyPublicKey::from(BlsPublicKey::trusted_deserialize(
+                        &chunk.try_into().unwrap(),
+                    ))
+                })
+                .collect()
+        });
     }
     result
 }

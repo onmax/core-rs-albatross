@@ -23,6 +23,7 @@ fn write_genesis_rs(directory: &Path, name: &str, genesis_hash: &Blake2bHash, ha
     let genesis_rs = format!(
         r#"GenesisData {{
             block: include_bytes!(concat!(env!("OUT_DIR"), "/genesis/{name}/block.dat")),
+            decompressed_keys: include_bytes!(concat!(env!("OUT_DIR"), "/genesis/{name}/decompressed_keys.dat")),
             hash: Blake2bHash([{hash}]),
             accounts: {accounts_expr},
     }}"#,

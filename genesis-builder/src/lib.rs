@@ -1,11 +1,7 @@
 #[macro_use]
 extern crate log;
 
-use std::{
-    fs::{read_to_string, OpenOptions},
-    io::Error as IoError,
-    path::Path,
-};
+use std::{fs, io::Error as IoError, path::Path};
 
 use nimiq_account::{
     Account, Accounts, BasicAccount, HashedTimeLockedContract, StakingContract,
@@ -217,7 +213,7 @@ impl GenesisBuilder {
     ///
     /// See `genesis/src/genesis/unit-albatross.toml` for an example.
     pub fn from_config_file<P: AsRef<Path>>(path: P) -> Result<Self, GenesisBuilderError> {
-        Self::from_config(toml::from_str(&read_to_string(path)?)?)
+        Self::from_config(toml::from_str(&fs::read_to_string(path)?)?)
     }
 
     pub fn from_config(config: config::GenesisConfig) -> Result<Self, GenesisBuilderError> {
@@ -647,6 +643,8 @@ impl GenesisBuilder {
         db: MdbxDatabase,
         directory: P,
     ) -> Result<(Blake2bHash, bool), GenesisBuilderError> {
+        let directory = directory.as_ref();
+
         let GenesisInfo {
             block,
             hash,
@@ -658,25 +656,24 @@ impl GenesisBuilder {
         debug!("Accounts:");
         debug!(?accounts);
 
-        let block_path = directory.as_ref().join("block.dat");
+        let block_path = directory.join("block.dat");
         info!(path = %block_path.display(), "Writing block to");
-        let mut file = OpenOptions::new()
-            .create(true)
-            .truncate(true)
-            .write(true)
-            .open(&block_path)?;
-        block.serialize_to_writer(&mut file)?;
+        fs::write(block_path, block.serialize_to_vec())?;
+
+        {
+            let decompressed_path = directory.join("decompressed_keys.dat");
+            let mut decompressed = Vec::new();
+            for key in block.validators().expect("must be election").voting_keys() {
+                decompressed.extend_from_slice(&key.trusted_serialize());
+            }
+            fs::write(decompressed_path, decompressed)?;
+        }
 
         let have_accounts = accounts.is_some();
         if let Some(accounts) = accounts {
-            let accounts_path = directory.as_ref().join("accounts.dat");
+            let accounts_path = directory.join("accounts.dat");
             info!(path = %accounts_path.display(), "Writing accounts to");
-            let mut file = OpenOptions::new()
-                .create(true)
-                .truncate(true)
-                .write(true)
-                .open(&accounts_path)?;
-            accounts.serialize_to_writer(&mut file)?;
+            fs::write(accounts_path, accounts.serialize_to_vec())?;
         }
 
         Ok((hash, have_accounts))
