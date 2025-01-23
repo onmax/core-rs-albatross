@@ -97,7 +97,12 @@ impl LazyPublicKey {
 
 impl From<PublicKey> for LazyPublicKey {
     fn from(key: PublicKey) -> LazyPublicKey {
-        LazyPublicKey(cache().intern(&key.compress(), OnceLock::from(Some(key))))
+        let result = LazyPublicKey(cache().intern(&key.compress(), OnceLock::from(Some(key))));
+        // TODO: This might block while another thread computes the decompression. :/
+        //
+        // Needs an addition in the Rust standard library to fix.
+        let _ = result.0.value().set(Some(key));
+        result
     }
 }
 

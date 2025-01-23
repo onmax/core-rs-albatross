@@ -4,7 +4,7 @@ use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, Group};
 use ark_ff::Zero;
 pub use ark_mnt6_753::G2Projective;
 use ark_mnt6_753::{G1Projective, MNT6_753};
-use ark_serialize::CanonicalSerialize;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use log::error;
 use nimiq_hash::Hash;
 
@@ -19,6 +19,8 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
+    pub const TRUSTED_SERIALIZATION_SIZE: usize = 570;
+
     /// Generates a public key from a given point in G2. This function will produce an error if it is given the point at infinity.
     pub fn new(public_key: G2Projective) -> Self {
         if public_key.is_zero() {
