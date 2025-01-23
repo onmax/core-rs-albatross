@@ -19,6 +19,9 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
+    /// Size of the trusted serialization.
+    ///
+    /// See [`PublicKey::trusted_deserialize`].
     pub const TRUSTED_SERIALIZATION_SIZE: usize = 570;
 
     /// Generates a public key from a given point in G2. This function will produce an error if it is given the point at infinity.
@@ -62,8 +65,9 @@ impl PublicKey {
     /// and one bit indicating if it is the "point-at-infinity".
     pub fn compress(&self) -> CompressedPublicKey {
         let mut buffer = [0u8; CompressedPublicKey::SIZE];
-        CanonicalSerialize::serialize_compressed(&self.public_key.into_affine(), &mut buffer[..])
-            .unwrap();
+        let affine = self.public_key.into_affine();
+        assert_eq!(affine.compressed_size(), buffer.len());
+        affine.serialize_compressed(&mut buffer[..]).unwrap();
         CompressedPublicKey { public_key: buffer }
     }
 
@@ -73,6 +77,38 @@ impl PublicKey {
     pub fn multiply(&self, x: u16) -> Self {
         let public_key = self.public_key.mul_bigint([x as u64]);
         PublicKey { public_key }
+    }
+
+    /// Serialization to trusted storage.
+    ///
+    /// If in doubt, use the default serialization, or even better, the default
+    /// serialization of [`LazyPublicKey`](crate::lazy::LazyPublicKey) instead.
+    ///
+    /// See [`PublicKey::trusted_deserialize`] for details.
+    pub fn trusted_serialize(&self) -> [u8; PublicKey::TRUSTED_SERIALIZATION_SIZE] {
+        let mut result = [0u8; PublicKey::TRUSTED_SERIALIZATION_SIZE];
+        assert_eq!(self.public_key.uncompressed_size(), result.len());
+        self.public_key
+            .serialize_uncompressed(&mut result[..])
+            .unwrap();
+        result
+    }
+
+    /// Deserialization from trusted storage.
+    ///
+    /// **This does not check whether the resulting key is on the curve.** This
+    /// means that you can only use this serialization when you trust the
+    /// creator of that serialization completely.
+    ///
+    /// If in doubt, use the default serialization, or even better, the default
+    /// serialization of [`LazyPublicKey`](crate::lazy::LazyPublicKey) instead.
+    pub fn trusted_deserialize(
+        serialized: &[u8; PublicKey::TRUSTED_SERIALIZATION_SIZE],
+    ) -> PublicKey {
+        PublicKey {
+            public_key: CanonicalDeserialize::deserialize_uncompressed_unchecked(&serialized[..])
+                .unwrap(),
+        }
     }
 }
 

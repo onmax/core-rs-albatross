@@ -1,6 +1,5 @@
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress};
 use idb::{Database, Error, KeyPath, ObjectStore, TransactionMode};
-use nimiq_bls::{G2Projective, LazyPublicKey, PublicKey};
+use nimiq_bls::{LazyPublicKey, PublicKey};
 use nimiq_serde::{Deserialize, Serialize};
 
 /// Caches decompressed BlsPublicKeys in an IndexedDB
@@ -12,7 +11,7 @@ pub(crate) struct BlsCache {
 #[derive(Deserialize, Serialize)]
 struct BlsKeyEntry {
     #[serde(with = "serde_bytes")]
-    public_key: Vec<u8>,
+    public_key: [u8; PublicKey::TRUSTED_SERIALIZATION_SIZE],
 }
 
 const BLS_KEYS: &str = "bls_keys";
@@ -49,15 +48,13 @@ impl BlsCache {
             let bls_keys_store = transaction.object_store(BLS_KEYS)?;
 
             for key in keys {
-                let mut public_key = Vec::new();
                 assert!(key.has_uncompressed());
-                key.uncompress()
-                    .expect("must not pass invalid keys to `BlsCache::add_keys`")
-                    .public_key
-                    .serialize_with_mode(&mut public_key, Compress::No)
-                    .unwrap();
-
-                let entry = BlsKeyEntry { public_key };
+                let entry = BlsKeyEntry {
+                    public_key: key
+                        .uncompress()
+                        .expect("must not pass invalid keys to `BlsCache::add_keys`")
+                        .trusted_serialize(),
+                };
                 let entry_js_value = serde_wasm_bindgen::to_value(&entry).unwrap();
                 bls_keys_store.put(&entry_js_value, None)?.await?;
             }
@@ -79,9 +76,7 @@ impl BlsCache {
 
             for js_key in &js_keys {
                 let value: BlsKeyEntry = serde_wasm_bindgen::from_value(js_key.clone()).unwrap();
-                let public_key = PublicKey::new(
-                    G2Projective::deserialize_uncompressed_unchecked(&*value.public_key).unwrap(),
-                );
+                let public_key = PublicKey::trusted_deserialize(&value.public_key);
                 self.keys.push(LazyPublicKey::from(public_key));
             }
             transaction.await?;
