@@ -221,6 +221,11 @@ impl Blockchain {
         // accept the inherent.
         let mut burned_reward = Coin::ZERO;
 
+        // Load the staking contract before iterating over the validator slots
+        let staking_contract = self.get_staking_contract();
+        let data_store = self.get_staking_contract_store();
+        let txn = self.read_transaction();
+
         // Compute inherents
         for validator_slot in validator_slots.iter() {
             // The interval of slot numbers for the current slot band is
@@ -255,14 +260,12 @@ impl Blockchain {
                 .checked_mul(num_penalized_slots)
                 .expect("Overflow in reward");
 
-            // Create inherent for the reward.
-            let staking_contract = self.get_staking_contract();
-            let data_store = self.get_staking_contract_store();
-            let txn = self.read_transaction();
+            // Get the validator from the staking contract
             let validator = staking_contract
                 .get_validator(&data_store.read(&txn), &validator_slot.address)
                 .expect("Couldn't find validator in the accounts trie when paying rewards!");
 
+            // Create inherent for the reward.
             let tx = RewardTransaction {
                 validator_address: validator.address.clone(),
                 recipient: validator.reward_address.clone(),
