@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use idb::{Database, Error, KeyPath, ObjectStore, TransactionMode};
 use nimiq_bls::{LazyPublicKey, PublicKey};
 use nimiq_serde::{Deserialize, Serialize};
@@ -5,7 +7,7 @@ use nimiq_serde::{Deserialize, Serialize};
 /// Caches decompressed BlsPublicKeys in an IndexedDB
 pub(crate) struct BlsCache {
     db: Option<Database>,
-    keys: Vec<LazyPublicKey>,
+    keys: RefCell<Vec<LazyPublicKey>>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -34,7 +36,10 @@ impl BlsCache {
             }
         };
 
-        BlsCache { db, keys: vec![] }
+        BlsCache {
+            db,
+            keys: RefCell::new(vec![]),
+        }
     }
 
     /// Add the given keys into IndexedDB.
@@ -66,7 +71,7 @@ impl BlsCache {
 
     /// Fetches all bls keys from the IndexedDB and stores them, which makes
     /// the decompressed keys available in other places.
-    pub async fn init(&mut self) -> Result<(), Error> {
+    pub async fn init(&self) -> Result<(), Error> {
         if let Some(db) = &self.db {
             let transaction = db.transaction(&[BLS_KEYS], TransactionMode::ReadOnly)?;
             let bls_keys_store = transaction.object_store(BLS_KEYS)?;
@@ -74,10 +79,14 @@ impl BlsCache {
             let js_keys = bls_keys_store.get_all(None, None)?.await?;
             log::info!(num = js_keys.len(), "loaded keys from idb");
 
-            for js_key in &js_keys {
-                let value: BlsKeyEntry = serde_wasm_bindgen::from_value(js_key.clone()).unwrap();
-                let public_key = PublicKey::trusted_deserialize(&value.public_key);
-                self.keys.push(LazyPublicKey::from(public_key));
+            {
+                let mut keys = self.keys.borrow_mut();
+                for js_key in &js_keys {
+                    let value: BlsKeyEntry =
+                        serde_wasm_bindgen::from_value(js_key.clone()).unwrap();
+                    let public_key = PublicKey::trusted_deserialize(&value.public_key);
+                    keys.push(LazyPublicKey::from(public_key));
+                }
             }
             transaction.await?;
         } else {

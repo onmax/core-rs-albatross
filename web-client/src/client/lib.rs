@@ -116,7 +116,7 @@ pub struct Client {
     /// Used to await transaction events in `send_transaction`.
     transaction_oneshots: Rc<RefCell<HashMap<String, oneshot::Sender<PlainTransactionDetails>>>>,
 
-    bls_cache: Rc<RefCell<BlsCache>>,
+    bls_cache: Rc<BlsCache>,
 }
 
 #[wasm_bindgen]
@@ -198,7 +198,7 @@ impl Client {
             peer_changed_listeners: Rc::new(RefCell::new(HashMap::with_capacity(1))),
             transaction_listeners: Rc::new(RefCell::new(HashMap::new())),
             transaction_oneshots: Rc::new(RefCell::new(HashMap::new())),
-            bls_cache: Rc::new(RefCell::new(bls_cache)),
+            bls_cache: Rc::new(bls_cache),
         };
 
         client.setup_offline_online_event_handlers();
@@ -207,7 +207,7 @@ impl Client {
         client.setup_network_events();
         client.setup_transaction_events().await;
 
-        if let Err(err) = client.bls_cache.borrow_mut().init().await {
+        if let Err(err) = client.bls_cache.init().await {
             log::warn!("Failed loading bls cache {}", err);
         }
 
@@ -1125,7 +1125,7 @@ impl Client {
                         .iter()
                         .map(|validator| validator.voting_key.clone())
                         .collect::<Vec<LazyPublicKey>>();
-                    if let Err(error) = bls_cache.borrow_mut().add_keys(bls_keys).await {
+                    if let Err(error) = bls_cache.add_keys(bls_keys).await {
                         log::warn!(%error, "failed caching BLS keys");
                     }
                 }
