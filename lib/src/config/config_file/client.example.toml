@@ -205,6 +205,12 @@ sync_mode = "full"
 # Default: none
 #password = "secret"
 
+# Configure Cross-Origin Resource Sharing for the JSON-RPC server.
+# Example: ["*"]
+# Example: ["https://nimiq.com", "https://github.com"]
+# Default: []
+# cors_domains = []
+
 ##############################################################################
 # Metrics-server configuration.
 #

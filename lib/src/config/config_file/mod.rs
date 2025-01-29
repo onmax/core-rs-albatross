@@ -308,7 +308,7 @@ pub struct RpcServerSettings {
     pub bind: Option<String>,
     pub port: Option<u16>,
     #[serde(default)]
-    pub corsdomain: Vec<String>,
+    pub cors_domains: Vec<String>,
     #[serde(default)]
     pub allowip: Vec<String>,
     #[serde(default)]

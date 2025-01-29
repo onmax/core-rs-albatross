@@ -1,7 +1,7 @@
 use std::{collections::HashSet, iter::FromIterator, sync::Arc};
 
 use nimiq_jsonrpc_server::{
-    AllowListDispatcher, Config, Credentials, ModularDispatcher, Server as _Server,
+    AllowListDispatcher, Config, Cors, Credentials, ModularDispatcher, Server as _Server,
 };
 use nimiq_rpc_server::dispatchers::*;
 use nimiq_wallet::WalletStore;
@@ -33,8 +33,13 @@ pub fn initialize_rpc_server(
         Some(HashSet::from_iter(allowed_methods))
     };
 
-    // TODO: Pass this to the rpc server config
-    let _corsdomain = config.corsdomain.unwrap_or_default();
+    let cors_domains = config.cors_domains.unwrap_or_default();
+    let is_cors_wildcard = cors_domains.iter().any(|origin| origin.trim() == "*");
+    let cors_config = if is_cors_wildcard {
+        Cors::new().with_any_origin()
+    } else {
+        Cors::new().with_origins(cors_domains)
+    };
 
     let mut dispatcher = ModularDispatcher::default();
 
@@ -68,6 +73,7 @@ pub fn initialize_rpc_server(
             enable_websocket: false,
             ip_whitelist: None,
             basic_auth,
+            cors: Some(cors_config),
         },
         AllowListDispatcher::new(dispatcher, allowed_methods),
     ))

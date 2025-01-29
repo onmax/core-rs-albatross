@@ -651,9 +651,8 @@ pub struct RpcServerConfig {
     #[builder(default = "consts::RPC_DEFAULT_PORT")]
     pub port: u16,
 
-    /// TODO: Use this config setting and add it to the config.example.toml file
     #[builder(setter(strip_option))]
-    pub corsdomain: Option<Vec<String>>,
+    pub cors_domains: Option<Vec<String>>,
 
     /// If specified, only allow connections from these IP addresses
     ///
@@ -987,7 +986,7 @@ impl ClientConfigBuilder {
                 self.rpc_server = Some(Some(RpcServerConfig {
                     bind_to,
                     port: rpc_config.port.unwrap_or(consts::RPC_DEFAULT_PORT),
-                    corsdomain: Some(rpc_config.corsdomain.clone()),
+                    cors_domains: Some(rpc_config.cors_domains.clone()),
                     allow_ips,
                     allowed_methods: Some(rpc_config.methods.clone()),
                     credentials,
