@@ -23,7 +23,7 @@ impl Default for NetworkMetrics {
         NetworkMetrics {
             gossipsub_messages_received: Default::default(),
             gossipsub_messages_published: Default::default(),
-            response_times: Histogram::new([0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0].into_iter()),
+            response_times: Histogram::new([0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0]),
         }
     }
 }
