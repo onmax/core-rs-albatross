@@ -18,7 +18,6 @@ log = { workspace = true }
 parking_lot = "0.12"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-nimiq-genesis = { workspace = true }
 nimiq-log = { workspace = true }
 nimiq-primitives = { workspace = true, features = ["policy"] }
 nimiq-test-log-proc-macro = { workspace = true }

@@ -1,5 +1,4 @@
 use log::level_filters::LevelFilter;
-use nimiq_genesis::{NetworkId, NetworkInfo};
 use nimiq_log::TargetsExt;
 use nimiq_primitives::policy::{Policy, TEST_POLICY};
 pub use nimiq_test_log_proc_macro::test;
@@ -22,13 +21,8 @@ pub fn initialize() {
             )
             .init();
 
-        let network_info = NetworkInfo::from_network_id(NetworkId::UnitAlbatross);
-        let genesis_block = network_info.genesis_block();
-
-        // Run tests with different policy values:
-        let mut policy_config = TEST_POLICY;
-        // The genesis block number must be set accordingly
-        policy_config.genesis_block_number = genesis_block.block_number();
+        // Run tests with the TEST_POLICY profile
+        let policy_config = TEST_POLICY;
 
         let _ = Policy::get_or_init(policy_config);
     });

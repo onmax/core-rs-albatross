@@ -659,7 +659,8 @@ pub const TEST_POLICY: Policy = Policy {
     batches_per_epoch: 4,
     state_chunks_max_size: 3,
     transaction_validity_window: 2,
-    genesis_block_number: 0,
+    // This number should match the one that is defined in the `unit` network genesis file which is the genesis used for unit testing
+    genesis_block_number: 200,
 };
 
 #[cfg(test)]
@@ -669,10 +670,7 @@ mod tests {
     use super::*;
 
     fn initialize_policy() {
-        let mut policy_config = TEST_POLICY;
-        policy_config.genesis_block_number = 200;
-
-        let _ = Policy::get_or_init(policy_config);
+        let _ = Policy::get_or_init(TEST_POLICY);
     }
 
     #[test]
