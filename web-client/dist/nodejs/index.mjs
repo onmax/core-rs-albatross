@@ -1,6 +1,6 @@
 import { webcrypto } from 'node:crypto';
 import { Worker } from 'node:worker_threads';
-import Comlink from 'comlink';
+import * as Comlink from 'comlink';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter.min.mjs';
 import { Address, CryptoUtils, Transaction } from './main-wasm/index.js';
 import { clientFactory } from '../launcher/node/client-proxy.mjs';

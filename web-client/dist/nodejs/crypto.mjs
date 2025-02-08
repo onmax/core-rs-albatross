@@ -2,7 +2,7 @@
 // global scope. We import the generated JS file to make `wasm_bindgen`
 // available which we need to initialize our WASM code.
 import { parentPort } from 'node:worker_threads';
-import Comlink from 'comlink';
+import * as Comlink from 'comlink';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter.mjs';
 import { CryptoUtils } from './crypto-wasm/index.js';
 
