@@ -44,9 +44,7 @@ async function init(config) {
     Comlink.expose(client, nodeEndpoint(parentPort));
 };
 
-parentPort.addListener('message', async (event) => {
-    const data = event.data;
-
+parentPort.addListener('message', async (data) => {
     if (data === 'NIMIQ_CHECKREADY') {
         parentPort.postMessage('NIMIQ_READY');
         return;
