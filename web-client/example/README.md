@@ -5,7 +5,7 @@
 From the `web-client` directory (one up), you need to run
 
 ```sh
-./scripts/build.sh --only web
+./scripts/build.sh --only web,types
 ```
 
 Then serve the `web-client` directory and visit `http://localhost[:port]/example`. The action happens in the browser console.
@@ -15,7 +15,7 @@ Then serve the `web-client` directory and visit `http://localhost[:port]/example
 From the `web-client` directory (one up), you need to run
 
 ```sh
-./scripts/build.sh --only nodejs
+./scripts/build.sh --only nodejs,types
 ```
 
 to build the WASM files. Then go into `example/node` and run
