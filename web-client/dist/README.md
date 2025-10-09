@@ -30,15 +30,13 @@ If you use any bundler for your project, like Webpack or Vite, you should probab
 > - Dynamically import the package with `await import()`.
 
 > [!IMPORTANT]
-> For Vite:
-> - Add [`vite-plugin-wasm`](https://www.npmjs.com/package/vite-plugin-wasm) to your `plugins` in Vite's config.
-> - Also add it to the `worker.plugins` list.
-> - Exclude this package from Vite's dependency optimization:
+> For Vite, use the included Vite plugin:
 > ```ts
-> // vite.config.ts
-> optimizeDeps: {
->    exclude: ['@nimiq/core'],
-> }
+> import nimiq from '@nimiq/core/vite'
+>
+> export default defineConfig({
+>   plugins: [nimiq()],
+> })
 > ```
 
 > [!IMPORTANT]
